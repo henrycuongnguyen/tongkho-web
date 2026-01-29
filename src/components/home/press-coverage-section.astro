@@ -1,0 +1,36 @@
+---
+import { pressCoverage } from '@/data/press-coverage';
+---
+
+<section class="section bg-gradient-to-b from-secondary-50/50 to-white">
+  <div class="container-custom">
+    <!-- Section Header -->
+    <div class="text-center mb-10">
+      <h2 class="section-title">Báo chí nói về chúng tôi</h2>
+      <p class="text-secondary-500 mt-3 max-w-2xl mx-auto">
+        Một số bài báo nổi bật viết về TONGKHOBDS.com
+      </p>
+      <div class="w-16 h-1 bg-gradient-to-r from-primary-500 to-primary-300 rounded-full mt-4 mx-auto"></div>
+    </div>
+
+    <!-- Press Logos Grid -->
+    <div class="flex flex-wrap items-center justify-center gap-6 md:gap-10">
+      {pressCoverage.map((item) => (
+        <a
+          href={item.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="group flex items-center justify-center bg-white rounded-xl p-4 md:p-6 shadow-sm hover:shadow-lg transition-all duration-300 hover:-translate-y-1"
+          aria-label={`Đọc bài báo trên ${item.name} về TONGKHOBDS.com`}
+        >
+          <img
+            src={item.logo}
+            alt={`Logo ${item.name} - Bài báo về TONGKHOBDS.com`}
+            class="h-10 md:h-14 w-auto object-contain"
+            loading="lazy"
+          />
+        </a>
+      ))}
+    </div>
+  </div>
+</section>
