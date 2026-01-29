@@ -1,0 +1,167 @@
+---
+// Hero search form with tabs and filters
+import { propertyTypes } from "@components/header/header-nav-data";
+import PriceRangeDropdown from "@components/ui/price-range-dropdown.astro";
+import AreaRangeDropdown from "@components/ui/area-range-dropdown.astro";
+import LocationDropdown from "@components/ui/location-dropdown.astro";
+
+const tabs = [
+  { id: "sale", label: "Mua bán", path: "/mua-ban" },
+  { id: "rent", label: "Cho thuê", path: "/cho-thue" },
+  { id: "project", label: "Dự Án", path: "/du-an" },
+];
+---
+
+<div class="w-full max-w-7xl mx-auto px-4" data-hero-search>
+  <!-- Tabs -->
+  <div class="flex justify-center gap-1.5 mb-4">
+    {tabs.map((tab, index) => (
+      <button
+        type="button"
+        class:list={[
+          "tab-btn px-4 py-2 rounded-full text-sm font-medium transition-all",
+          index === 0
+            ? "bg-primary-500 text-white shadow-lg"
+            : "bg-white/90 text-primary-500 hover:bg-white",
+        ]}
+        data-tab={tab.id}
+        data-path={tab.path}
+      >
+        {tab.label}
+      </button>
+    ))}
+  </div>
+
+  <!-- Search Form -->
+  <form class="bg-white rounded-xl shadow-xl p-3 relative z-9999" data-search-form>
+    <input type="hidden" name="tab" value="sale" data-tab-input />
+
+    <!-- Main Search Row - Combined Input -->
+    <div class="relative flex items-center border border-secondary-200 rounded-full bg-white">
+      <!-- Location Dropdown - no overflow-hidden to allow dropdown panel to show -->
+      <div class="border-r border-secondary-200 min-w-32">
+        <LocationDropdown />
+      </div>
+
+      <!-- Keyword Input -->
+      <input
+        type="text"
+        name="q"
+        placeholder="Tìm kiếm theo địa chỉ, dự án, từ khóa..."
+        class="flex-1 px-4 py-2.5 bg-transparent focus:outline-none text-sm min-w-0"
+        data-keyword-input
+      />
+
+      <!-- Search Button -->
+      <button
+        type="submit"
+        class="px-5 py-2.5 bg-primary-500 text-white text-sm font-medium hover:bg-primary-600 transition-colors flex items-center gap-1.5 shrink-0"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            stroke-width="2"
+            d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+          />
+        </svg>
+        <span class="hidden sm:inline">Tìm kiếm</span>
+      </button>
+    </div>
+
+    <!-- Advanced Filters -->
+    <div class="flex flex-col md:flex-row gap-2 mt-2" data-filters>
+      <!-- Property Type -->
+      <select
+        name="type"
+        class="flex-1 px-3 py-2.5 border border-secondary-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-600 text-sm"
+        data-type-select
+      >
+        <option value="">Loại mua bán</option>
+        {propertyTypes.map((type) => (
+          <option value={type.value}>{type.label}</option>
+        ))}
+      </select>
+
+      <!-- Price Range Dropdown -->
+      <PriceRangeDropdown />
+
+      <!-- Area Range Dropdown -->
+      <AreaRangeDropdown />
+    </div>
+  </form>
+</div>
+
+<script>
+  const container = document.querySelector('[data-hero-search]');
+  if (container) {
+    const tabs = container.querySelectorAll('.tab-btn') as NodeListOf<HTMLButtonElement>;
+    const form = container.querySelector('[data-search-form]') as HTMLFormElement;
+    const tabInput = container.querySelector('[data-tab-input]') as HTMLInputElement;
+    const filters = container.querySelector('[data-filters]') as HTMLDivElement;
+    const typeSelect = container.querySelector('[data-type-select]') as HTMLSelectElement;
+    const keywordInput = container.querySelector('[data-keyword-input]') as HTMLInputElement;
+    const locationDropdown = container.querySelector('[data-location-dropdown]') as HTMLElement;
+
+    let activeTab = 'sale';
+
+    // Open location dropdown when clicking on keyword input
+    keywordInput?.addEventListener('click', () => {
+      const trigger = locationDropdown?.querySelector('[data-trigger]') as HTMLButtonElement;
+      trigger?.click();
+    });
+
+    // Tab switching
+    tabs.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        activeTab = btn.dataset.tab || 'sale';
+        tabInput.value = activeTab;
+
+        // Update tab styles
+        tabs.forEach((t) => {
+          if (t.dataset.tab === activeTab) {
+            t.classList.add('bg-primary-500', 'text-white', 'shadow-lg');
+            t.classList.remove('bg-white/90', 'text-primary-500');
+          } else {
+            t.classList.remove('bg-primary-500', 'text-white', 'shadow-lg');
+            t.classList.add('bg-white/90', 'text-primary-500');
+          }
+        });
+
+        // Show/hide filters for project tab
+        if (activeTab === 'project') {
+          filters.classList.add('hidden');
+        } else {
+          filters.classList.remove('hidden');
+        }
+
+        // Update type select label
+        if (typeSelect) {
+          const firstOption = typeSelect.querySelector('option[value=""]');
+          if (firstOption) {
+            firstOption.textContent = activeTab === 'rent' ? 'Loại cho thuê' : 'Loại mua bán';
+          }
+        }
+      });
+    });
+
+    // Form submission
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const formData = new FormData(form);
+      const params = new URLSearchParams();
+
+      // Add non-empty params
+      ['q', 'city', 'type', 'price', 'area'].forEach((key) => {
+        const value = formData.get(key) as string;
+        if (value) params.set(key, value);
+      });
+
+      // Get path from active tab
+      const activeBtn = container.querySelector(`[data-tab="${activeTab}"]`) as HTMLButtonElement;
+      const basePath = activeBtn?.dataset.path || '/mua-ban';
+
+      window.location.href = `${basePath}?${params.toString()}`;
+    });
+  }
+</script>
