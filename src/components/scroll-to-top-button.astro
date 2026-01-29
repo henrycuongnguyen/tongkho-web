@@ -1,0 +1,122 @@
+---
+// Scroll to top button - shows when user scrolls down, click to scroll to top
+---
+
+<button
+  id="scroll-to-top"
+  class="scroll-to-top-btn fixed bottom-24 right-6 z-50 p-3 rounded-full bg-primary-500 text-white shadow-lg opacity-0 invisible transition-all duration-300 hover:bg-primary-600 hover:scale-110 cursor-pointer"
+  aria-label="Cuộn lên đầu trang"
+>
+  <svg
+    class="scroll-icon"
+    xmlns="http://www.w3.org/2000/svg"
+    width="24"
+    height="24"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="2"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  >
+    <path d="m18 15-6-6-6 6"></path>
+  </svg>
+</button>
+
+<style>
+  .scroll-to-top-btn {
+    box-shadow: 0 4px 15px rgba(249, 115, 22, 0.4);
+  }
+
+  .scroll-to-top-btn:hover {
+    box-shadow: 0 6px 20px rgba(249, 115, 22, 0.5);
+  }
+
+  /* Click animation */
+  .scroll-to-top-btn.clicking {
+    animation: click-bounce 0.4s ease-out;
+  }
+
+  .scroll-to-top-btn.clicking .scroll-icon {
+    animation: arrow-fly 0.4s ease-out;
+  }
+
+  @keyframes click-bounce {
+    0% {
+      transform: scale(1);
+    }
+    30% {
+      transform: scale(0.9);
+    }
+    60% {
+      transform: scale(1.1);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+
+  @keyframes arrow-fly {
+    0% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    50% {
+      transform: translateY(-8px);
+      opacity: 0.5;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+</style>
+
+<script>
+  const scrollBtn = document.getElementById("scroll-to-top");
+
+  if (scrollBtn) {
+    // Show/hide button based on scroll position
+    window.addEventListener("scroll", () => {
+      if (window.scrollY > 300) {
+        scrollBtn.classList.remove("opacity-0", "invisible");
+        scrollBtn.classList.add("opacity-100", "visible");
+      } else {
+        scrollBtn.classList.remove("opacity-100", "visible");
+        scrollBtn.classList.add("opacity-0", "invisible");
+      }
+    });
+
+    // Scroll to top on click with smooth easing animation
+    scrollBtn.addEventListener("click", () => {
+      // Add click animation
+      scrollBtn.classList.add("clicking");
+      setTimeout(() => scrollBtn.classList.remove("clicking"), 400);
+
+      // Custom smooth scroll with easing
+      const startPosition = window.scrollY;
+      const duration = 800; // ms
+      let startTime: number | null = null;
+
+      // Easing function - easeInOutCubic for smooth acceleration/deceleration
+      const easeInOutCubic = (t: number): number => {
+        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+      };
+
+      const animateScroll = (currentTime: number) => {
+        if (startTime === null) startTime = currentTime;
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const easedProgress = easeInOutCubic(progress);
+
+        window.scrollTo(0, startPosition * (1 - easedProgress));
+
+        if (progress < 1) {
+          requestAnimationFrame(animateScroll);
+        }
+      };
+
+      requestAnimationFrame(animateScroll);
+    });
+  }
+</script>

@@ -1,5 +1,6 @@
 ---
 import '@/styles/global.css';
+import ScrollToTopButton from '@/components/scroll-to-top-button.astro';
 
 export interface Props {
   title: string;
@@ -61,5 +62,6 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
   </head>
   <body class="min-h-screen flex flex-col">
     <slot />
+    <ScrollToTopButton />
   </body>
 </html>
