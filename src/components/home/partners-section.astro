@@ -18,7 +18,7 @@ const duplicatedPartners = [...partners, ...partners, ...partners];
         {duplicatedPartners.map((partner) => (
           <a
             href={`/chu-dau-tu/${partner.slug}`}
-            class="partner-item flex-shrink-0 bg-white rounded-xl p-3 sm:p-4 shadow-xs hover:shadow-md transition-shadow"
+            class="partner-item flex-shrink-0 flex items-center justify-center bg-white rounded-xl p-3 sm:p-4 shadow-xs hover:shadow-md transition-shadow"
             aria-label={`Xem thông tin ${partner.name}`}
           >
             <img
