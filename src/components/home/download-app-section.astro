@@ -36,9 +36,9 @@ const agentApp = {
           >
           </div>
           <div class="relative z-10">
-            <h3 class="text-xl font-bold text-white italic mb-3">
+            <h2 class="text-xl font-bold text-white italic mb-3">
               {customerApp.title}
-            </h3>
+            </h2>
             <p class="text-white text-base leading-relaxed">
               {customerApp.description}
               <a href="/" class="text-white font-semibold hover:underline"
@@ -46,9 +46,9 @@ const agentApp = {
               >
             </p>
           </div>
-          <div class="flex items-end gap-4 mt-36 relative z-10">
+          <div class="flex items-end gap-4 mt-20 sm:mt-28 lg:mt-36 relative z-10">
             <div class="bg-white p-2 rounded-lg">
-              <img src={customerApp.qrCode} alt="QR Code" class="w-20 h-20" />
+              <img src={customerApp.qrCode} alt="Mã QR tải ứng dụng khách hàng TongkhoBDS" class="w-20 h-20" />
             </div>
             <div class="flex flex-col gap-3">
               <a
@@ -59,7 +59,7 @@ const agentApp = {
               >
                 <img
                   src="/images/download-app/appstore.png"
-                  alt="App Store"
+                  alt="Tải từ App Store"
                   class="h-11 w-auto"
                 />
               </a>
@@ -71,7 +71,7 @@ const agentApp = {
               >
                 <img
                   src="/images/download-app/googleplay.png"
-                  alt="Google Play"
+                  alt="Tải từ Google Play"
                   class="h-11 w-auto"
                 />
               </a>
@@ -88,9 +88,9 @@ const agentApp = {
           >
           </div>
           <div class="lg:text-right relative z-10">
-            <h3 class="text-xl font-bold text-white italic mb-3">
+            <h2 class="text-xl font-bold text-white italic mb-3">
               {agentApp.title}
-            </h3>
+            </h2>
             <p class="text-white text-base leading-relaxed">
               {agentApp.description}
               <a href="/" class="text-white font-semibold hover:underline"
@@ -98,7 +98,7 @@ const agentApp = {
               >
             </p>
           </div>
-          <div class="flex items-end gap-4 mt-36 lg:justify-end relative z-10">
+          <div class="flex items-end gap-4 mt-20 sm:mt-28 lg:mt-36 lg:justify-end relative z-10">
             <div class="flex flex-col gap-3 order-2 lg:order-1">
               <a
                 href={agentApp.appStoreUrl}
@@ -108,7 +108,7 @@ const agentApp = {
               >
                 <img
                   src="/images/download-app/appstore.png"
-                  alt="App Store"
+                  alt="Tải từ App Store"
                   class="h-11 w-auto"
                 />
               </a>
@@ -120,13 +120,13 @@ const agentApp = {
               >
                 <img
                   src="/images/download-app/googleplay.png"
-                  alt="Google Play"
+                  alt="Tải từ Google Play"
                   class="h-11 w-auto"
                 />
               </a>
             </div>
             <div class="bg-white p-2 rounded-lg order-1 lg:order-2">
-              <img src={agentApp.qrCode} alt="QR Code" class="w-20 h-20" />
+              <img src={agentApp.qrCode} alt="Mã QR tải ứng dụng môi giới TongkhoBDS" class="w-20 h-20" />
             </div>
           </div>
         </div>
@@ -138,12 +138,12 @@ const agentApp = {
       >
         <img
           src={customerApp.phoneImage}
-          alt="Customer App"
+          alt="Ứng dụng TongkhoBDS dành cho khách hàng"
           class="w-48 object-contain -mr-16 relative z-10 translate-y-7"
         />
         <img
           src={agentApp.phoneImage}
-          alt="Agent App"
+          alt="Ứng dụng TongkhoBDS dành cho môi giới"
           class="w-48 object-contain relative z-20 -translate-y-7"
         />
       </div>

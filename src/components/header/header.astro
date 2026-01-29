@@ -6,8 +6,8 @@ import HeaderMobileMenu from './header-mobile-menu';
 <header class="fixed top-0 left-0 right-0 z-50 bg-white shadow-xs">
   <div class="px-8">
     <nav class="flex items-center justify-between h-16 lg:h-20">
-      <!-- Logo -->
-      <a href="/" class="flex items-center">
+      <!-- Logo - min touch target 44px -->
+      <a href="/" class="flex items-center min-h-11 min-w-11">
         <img src="/images/logo.webp" alt="TongkhoBDS.com" class="h-10 lg:h-12 w-auto" />
       </a>
 
@@ -57,11 +57,11 @@ import HeaderMobileMenu from './header-mobile-menu';
         </a>
       </div>
 
-      <!-- Mobile Menu Button -->
+      <!-- Mobile Menu Button - min touch target 44px -->
       <button
         id="mobile-menu-btn"
-        class="xl:hidden p-2 text-secondary-700 hover:text-primary-500"
-        aria-label="Toggle menu"
+        class="xl:hidden p-3 -m-1 min-h-11 min-w-11 flex items-center justify-center text-secondary-700 hover:text-primary-500"
+        aria-label="Mở menu điều hướng"
       >
         <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />

@@ -12,18 +12,19 @@ const duplicatedPartners = [...partners, ...partners, ...partners];
       <p class="text-secondary-300 mt-2">Hợp tác cùng các chủ đầu tư hàng đầu Việt Nam</p>
     </div>
 
-    <!-- Infinite scroll container -->
+    <!-- Infinite scroll container - responsive gap -->
     <div class="partners-slider overflow-hidden relative">
-      <div class="partners-track flex items-center gap-8">
+      <div class="partners-track flex items-center gap-4 sm:gap-8">
         {duplicatedPartners.map((partner) => (
           <a
             href={`/chu-dau-tu/${partner.slug}`}
-            class="partner-item flex-shrink-0 bg-white rounded-xl p-4 shadow-xs hover:shadow-md transition-shadow"
+            class="partner-item flex-shrink-0 bg-white rounded-xl p-3 sm:p-4 shadow-xs hover:shadow-md transition-shadow"
+            aria-label={`Xem thông tin ${partner.name}`}
           >
             <img
               src={partner.image}
-              alt={partner.name}
-              class="h-16 w-auto object-contain"
+              alt={`Logo ${partner.name}`}
+              class="h-12 sm:h-16 w-auto object-contain"
               loading="lazy"
             />
           </a>

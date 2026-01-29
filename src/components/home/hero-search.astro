@@ -13,13 +13,13 @@ const tabs = [
 ---
 
 <div class="w-full max-w-7xl mx-auto px-4" data-hero-search>
-  <!-- Tabs -->
+  <!-- Tabs - min touch target 44px -->
   <div class="flex justify-center gap-1.5 mb-4">
     {tabs.map((tab, index) => (
       <button
         type="button"
         class:list={[
-          "tab-btn px-4 py-2 rounded-full text-sm font-medium transition-all",
+          "tab-btn px-4 py-2.5 min-h-11 rounded-full text-sm font-medium transition-all",
           index === 0
             ? "bg-primary-500 text-white shadow-lg"
             : "bg-white/90 text-primary-500 hover:bg-white",
@@ -38,8 +38,8 @@ const tabs = [
 
     <!-- Main Search Row - Combined Input -->
     <div class="relative flex items-center border border-secondary-200 rounded-full bg-white">
-      <!-- Location Dropdown - no overflow-hidden to allow dropdown panel to show -->
-      <div class="border-r border-secondary-200 min-w-32">
+      <!-- Location Dropdown - responsive min-width -->
+      <div class="border-r border-secondary-200 min-w-24 sm:min-w-32">
         <LocationDropdown />
       </div>
 
