@@ -1,0 +1,297 @@
+---
+// Property type dropdown with multi-select checkboxes and smooth scroll
+import { propertyTypes } from "@components/header/header-nav-data";
+
+interface Props {
+  id?: string;
+  name?: string;
+  placeholder?: string;
+}
+
+const { id = "property-type", name = "type", placeholder = "Loại mua bán" } = Astro.props;
+---
+
+<div class="property-type-dropdown relative flex-1" data-property-dropdown>
+  <!-- Trigger Button -->
+  <button
+    type="button"
+    class="w-full px-3 py-2.5 border border-secondary-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-600 text-sm text-left flex items-center justify-between gap-2 transition-all hover:border-secondary-300"
+    data-trigger
+  >
+    <span class="truncate" data-display>{placeholder}</span>
+    <svg
+      class="w-4 h-4 text-secondary-400 transition-transform duration-200 shrink-0"
+      data-arrow
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  <!-- Hidden input for form submission (comma-separated values) -->
+  <input type="hidden" name={name} id={id} data-input />
+
+  <!-- Dropdown Panel -->
+  <div
+    class="absolute top-full left-0 mt-1.5 bg-white rounded-xl shadow-xl border border-secondary-100 py-3 z-9999 w-full min-w-64 hidden transition-all duration-200"
+    data-panel
+  >
+    <!-- Header with count badge -->
+    <div class="flex items-center justify-between px-4 pb-3 border-b border-secondary-100">
+      <span class="text-sm font-semibold text-secondary-800">Chọn loại BDS</span>
+      <span
+        class="hidden px-2 py-0.5 text-xs font-medium bg-primary-100 text-primary-600 rounded-full"
+        data-count
+      >0</span>
+    </div>
+
+    <!-- Options List with custom scrollbar -->
+    <div class="max-h-64 overflow-y-auto px-2 py-2 custom-scroll">
+      {propertyTypes.map((type) => (
+        <label
+          class="property-option flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-all hover:bg-secondary-50 group"
+          data-value={type.value}
+          data-label={type.label}
+        >
+          <!-- Custom Checkbox -->
+          <div class="relative shrink-0">
+            <input
+              type="checkbox"
+              class="peer sr-only"
+              value={type.value}
+            />
+            <div class="w-5 h-5 rounded-md border-2 border-secondary-300 bg-white transition-all peer-checked:bg-primary-500 peer-checked:border-primary-500 peer-focus:ring-2 peer-focus:ring-primary-200 peer-focus:ring-offset-1 group-hover:border-primary-400">
+              <svg
+                class="w-full h-full text-white opacity-0 peer-checked:opacity-100 transition-opacity p-0.5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+                stroke-width="3"
+              >
+                <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <!-- Checkmark overlay -->
+            <svg
+              class="absolute inset-0 w-5 h-5 text-white opacity-0 transition-opacity p-0.5 pointer-events-none check-icon"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+              stroke-width="3"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          </div>
+          <span class="text-sm text-secondary-700 group-hover:text-secondary-900 transition-colors select-none">
+            {type.label}
+          </span>
+        </label>
+      ))}
+    </div>
+
+    <!-- Footer Actions -->
+    <div class="flex items-center justify-between px-4 pt-3 border-t border-secondary-100">
+      <button
+        type="button"
+        class="text-sm text-secondary-500 hover:text-secondary-700 transition-colors"
+        data-clear
+      >
+        Bỏ chọn tất cả
+      </button>
+      <button
+        type="button"
+        class="px-4 py-1.5 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors"
+        data-apply
+      >
+        Áp dụng
+      </button>
+    </div>
+  </div>
+</div>
+
+<style>
+  /* Custom scrollbar styling */
+  .custom-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-secondary-300)) transparent;
+  }
+
+  .custom-scroll::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .custom-scroll::-webkit-scrollbar-track {
+    background: transparent;
+    border-radius: 3px;
+  }
+
+  .custom-scroll::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--color-secondary-300));
+    border-radius: 3px;
+  }
+
+  .custom-scroll::-webkit-scrollbar-thumb:hover {
+    background-color: rgb(var(--color-secondary-400));
+  }
+
+  /* Checkbox checked state styling via sibling */
+  .property-option input:checked + div {
+    background-color: rgb(var(--color-primary-500));
+    border-color: rgb(var(--color-primary-500));
+  }
+
+  .property-option input:checked ~ .check-icon {
+    opacity: 1;
+  }
+</style>
+
+<script>
+  document.querySelectorAll('[data-property-dropdown]').forEach((dropdown) => {
+    const trigger = dropdown.querySelector('[data-trigger]') as HTMLButtonElement;
+    const panel = dropdown.querySelector('[data-panel]') as HTMLDivElement;
+    const arrow = dropdown.querySelector('[data-arrow]') as SVGElement;
+    const display = dropdown.querySelector('[data-display]') as HTMLSpanElement;
+    const input = dropdown.querySelector('[data-input]') as HTMLInputElement;
+    const countBadge = dropdown.querySelector('[data-count]') as HTMLSpanElement;
+    const clearBtn = dropdown.querySelector('[data-clear]') as HTMLButtonElement;
+    const applyBtn = dropdown.querySelector('[data-apply]') as HTMLButtonElement;
+    const options = dropdown.querySelectorAll('.property-option') as NodeListOf<HTMLLabelElement>;
+
+    const defaultPlaceholder = display.textContent || 'Loại mua bán';
+    let isOpen = false;
+
+    function getSelectedValues(): string[] {
+      const values: string[] = [];
+      options.forEach((option) => {
+        const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        if (checkbox.checked) {
+          values.push(option.dataset.value || '');
+        }
+      });
+      return values;
+    }
+
+    function getSelectedLabels(): string[] {
+      const labels: string[] = [];
+      options.forEach((option) => {
+        const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        if (checkbox.checked) {
+          labels.push(option.dataset.label || '');
+        }
+      });
+      return labels;
+    }
+
+    function updateUI() {
+      const selectedValues = getSelectedValues();
+      const selectedLabels = getSelectedLabels();
+      const count = selectedValues.length;
+
+      // Update hidden input
+      input.value = selectedValues.join(',');
+
+      // Update display text
+      if (count === 0) {
+        display.textContent = defaultPlaceholder;
+        display.classList.remove('text-secondary-800', 'font-medium');
+        display.classList.add('text-secondary-600');
+      } else if (count === 1) {
+        display.textContent = selectedLabels[0];
+        display.classList.add('text-secondary-800', 'font-medium');
+        display.classList.remove('text-secondary-600');
+      } else {
+        display.textContent = `${selectedLabels[0]} +${count - 1}`;
+        display.classList.add('text-secondary-800', 'font-medium');
+        display.classList.remove('text-secondary-600');
+      }
+
+      // Update count badge
+      if (count > 0) {
+        countBadge.textContent = String(count);
+        countBadge.classList.remove('hidden');
+      } else {
+        countBadge.classList.add('hidden');
+      }
+
+      // Update option styles
+      options.forEach((option) => {
+        const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        if (checkbox.checked) {
+          option.classList.add('bg-primary-50');
+        } else {
+          option.classList.remove('bg-primary-50');
+        }
+      });
+    }
+
+    function openPanel() {
+      if (isOpen) return;
+      isOpen = true;
+      panel.classList.remove('hidden');
+      arrow.classList.add('rotate-180');
+    }
+
+    function closePanel() {
+      if (!isOpen) return;
+      isOpen = false;
+      panel.classList.add('hidden');
+      arrow.classList.remove('rotate-180');
+    }
+
+    // Toggle dropdown
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (isOpen) {
+        closePanel();
+      } else {
+        openPanel();
+      }
+    });
+
+    // Prevent panel clicks from closing
+    panel.addEventListener('click', (e) => {
+      e.stopPropagation();
+    });
+
+    // Handle checkbox changes
+    options.forEach((option) => {
+      const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+      checkbox.addEventListener('change', () => {
+        updateUI();
+      });
+    });
+
+    // Clear all selections
+    clearBtn.addEventListener('click', () => {
+      options.forEach((option) => {
+        const checkbox = option.querySelector('input[type="checkbox"]') as HTMLInputElement;
+        checkbox.checked = false;
+      });
+      updateUI();
+    });
+
+    // Apply and close
+    applyBtn.addEventListener('click', () => {
+      closePanel();
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target as Node)) {
+        closePanel();
+      }
+    });
+
+    // Close on escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && isOpen) {
+        closePanel();
+      }
+    });
+
+    // Initial UI update
+    updateUI();
+  });
+</script>

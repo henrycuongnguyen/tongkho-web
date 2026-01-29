@@ -1,0 +1,43 @@
+---
+/**
+ * Sidebar Featured Project Component
+ * Showcases a featured real estate project with image background and info card
+ */
+
+interface Props {
+  name?: string;
+  description?: string;
+  image?: string;
+  link?: string;
+}
+
+const {
+  name = "Tecco Felice Homes",
+  description = "Tecco Felice Homes sở hữu thiết kế tối ưu cùng hệ thống tiện ích nội - ngoại khu đa dạng, hiện đại và đẳng cấp. Tại đây, mỗi cư dân được tận hưởng không gian sống lý tưởng - nơi \"chuẩn sống vượt mong đợi\" trở thành trải nghiệm thực tế mỗi ngày.",
+  image = "/images/projects/tecco-felice-homes.jpg",
+  link = "/du-an/tecco-felice-homes",
+} = Astro.props;
+---
+
+<div class="rounded-xl overflow-hidden shadow-lg">
+  <!-- Background Image -->
+  <div class="relative">
+    <img
+      src={image}
+      alt={name}
+      class="w-full h-48 object-cover"
+    />
+  </div>
+
+  <!-- Info Card -->
+  <div class="bg-white p-5">
+    <h3 class="text-xl font-bold text-secondary-900 mb-3">{name}</h3>
+    <p class="text-secondary-600 text-sm leading-relaxed mb-4">{description}</p>
+    <a
+      href={link}
+      class="block w-full bg-primary-500 hover:bg-primary-600 text-white text-center font-semibold py-3 px-6 rounded-full transition-colors"
+    >
+      Xem chi tiết
+    </a>
+  </div>
+</div>

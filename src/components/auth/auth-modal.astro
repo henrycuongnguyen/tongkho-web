@@ -1,0 +1,562 @@
+---
+// Auth Modal Component - Signin/Signup with OTP flow
+// Design: Split layout (image left + form right), minimal, professional
+
+interface Props {
+  defaultTab?: 'signin' | 'signup';
+}
+
+const { defaultTab = 'signin' } = Astro.props;
+---
+
+<!-- Modal Overlay -->
+<div
+  id="auth-modal"
+  class="fixed inset-0 z-9999 hidden items-center justify-center p-4"
+  data-auth-modal
+>
+  <!-- Backdrop -->
+  <div
+    class="absolute inset-0 bg-secondary-900/60 backdrop-blur-sm transition-opacity duration-300"
+    data-modal-backdrop
+  ></div>
+
+  <!-- Modal Container - Split layout -->
+  <div
+    class="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-2xl overflow-hidden transform transition-all duration-300 ease-out scale-95 opacity-0 flex"
+    data-modal-content
+  >
+    <!-- Left: Image -->
+    <div class="hidden md:block w-1/2 relative">
+      <img
+        src="/images/cities/ho-chi-minh.webp"
+        alt="Vietnam Real Estate"
+        class="absolute inset-0 w-full h-full object-cover"
+      />
+      <!-- Logo overlay -->
+      <div class="absolute top-6 left-6">
+        <a href="/">
+          <img src="/images/logo.webp" alt="TongkhoBDS" class="h-10" />
+        </a>
+      </div>
+    </div>
+
+    <!-- Right: Form -->
+    <div class="w-full md:w-1/2 flex flex-col">
+      <!-- Close Button -->
+      <button
+        type="button"
+        class="absolute top-4 right-4 p-2 text-secondary-400 hover:text-secondary-600 hover:bg-secondary-100 rounded-lg transition-colors cursor-pointer z-10"
+        data-modal-close
+        aria-label="Đóng"
+      >
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+
+      <!-- Form Content - scrollable -->
+      <div class="flex-1 overflow-y-auto p-8 pt-12">
+        <!-- Mobile Logo -->
+        <div class="md:hidden mb-6">
+          <a href="/">
+            <img src="/images/logo.webp" alt="TongkhoBDS" class="h-9" />
+          </a>
+        </div>
+
+        <!-- Title -->
+        <h2 class="text-2xl font-bold text-secondary-900 mb-8" data-modal-title>Đăng nhập</h2>
+
+        <!-- ========== SIGNIN PANEL ========== -->
+        <div data-panel="signin" data-visible={defaultTab === 'signin' ? 'true' : 'false'}>
+          <form class="space-y-5" data-signin-form novalidate>
+            <!-- Phone/Email -->
+            <div class="space-y-2">
+              <label for="signin-phone" class="block text-sm font-medium text-secondary-700">
+                Số điện thoại
+              </label>
+              <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-secondary-400">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                  </svg>
+                </span>
+                <input
+                  type="tel"
+                  id="signin-phone"
+                  name="phone"
+                  inputmode="tel"
+                  autocomplete="tel"
+                  class="w-full pl-12 pr-4 py-3.5 bg-white border border-secondary-200 rounded-xl text-secondary-900 placeholder:text-secondary-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+                  placeholder="Số điện thoại"
+                  required
+                />
+              </div>
+            </div>
+
+            <!-- Password -->
+            <div class="space-y-2">
+              <label for="signin-password" class="block text-sm font-medium text-secondary-700">
+                Mật khẩu
+              </label>
+              <div class="relative">
+                <span class="absolute left-4 top-1/2 -translate-y-1/2 text-secondary-400">
+                  <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                  </svg>
+                </span>
+                <input
+                  type="password"
+                  id="signin-password"
+                  name="password"
+                  autocomplete="current-password"
+                  class="w-full pl-12 pr-12 py-3.5 bg-white border border-secondary-200 rounded-xl text-secondary-900 placeholder:text-secondary-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+                  placeholder="Mật khẩu"
+                  required
+                />
+                <button
+                  type="button"
+                  class="absolute right-4 top-1/2 -translate-y-1/2 text-secondary-400 hover:text-secondary-600 cursor-pointer"
+                  data-toggle-password
+                >
+                  <svg class="w-5 h-5" data-eye-open fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                  </svg>
+                  <svg class="w-5 h-5 hidden" data-eye-closed fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <!-- Forgot password -->
+            <div class="text-right">
+              <a href="/quen-mat-khau" class="text-sm text-primary-500 hover:text-primary-600 font-medium">
+                Quên mật khẩu?
+              </a>
+            </div>
+
+            <!-- Submit -->
+            <button
+              type="submit"
+              class="w-full py-4 bg-primary-400 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors duration-200 cursor-pointer"
+              data-submit-btn
+            >
+              <span data-btn-text>Đăng nhập</span>
+              <svg class="w-5 h-5 animate-spin hidden mx-auto" data-btn-loading fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+            </button>
+          </form>
+
+          <!-- Switch to signup -->
+          <p class="text-center text-sm text-secondary-600 mt-8">
+            Chưa có tài khoản?
+            <button type="button" class="text-primary-500 hover:text-primary-600 font-medium cursor-pointer" data-switch-tab="signup">
+              Đăng ký
+            </button>
+          </p>
+        </div>
+
+        <!-- ========== SIGNUP PANEL - Step 1: Phone ========== -->
+        <div data-panel="signup" data-visible={defaultTab === 'signup' ? 'true' : 'false'} class="hidden">
+          <!-- Step 1: Phone -->
+          <div data-signup-step="phone">
+            <form class="space-y-5" data-phone-form novalidate>
+              <div class="space-y-2">
+                <label for="signup-phone" class="block text-sm font-medium text-secondary-700">
+                  Số điện thoại
+                </label>
+                <div class="relative">
+                  <span class="absolute left-4 top-1/2 -translate-y-1/2 text-secondary-400">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                    </svg>
+                  </span>
+                  <input
+                    type="tel"
+                    id="signup-phone"
+                    name="phone"
+                    inputmode="tel"
+                    autocomplete="tel"
+                    class="w-full pl-12 pr-4 py-3.5 bg-white border border-secondary-200 rounded-xl text-secondary-900 placeholder:text-secondary-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+                    placeholder="Số điện thoại"
+                    required
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                class="w-full py-4 bg-primary-400 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors duration-200 cursor-pointer"
+              >
+                Tiếp tục
+              </button>
+            </form>
+
+            <!-- Terms -->
+            <p class="text-center text-sm text-secondary-500 mt-6 leading-relaxed">
+              Bằng việc tiếp tục, bạn đồng ý với
+              <a href="/dieu-khoan" class="text-primary-500 hover:text-primary-600">Điều khoản thỏa thuận</a>,
+              <a href="/chinh-sach" class="text-primary-500 hover:text-primary-600">Chính sách bảo mật</a>
+              và <a href="/quy-che" class="text-primary-500 hover:text-primary-600">Quy chế hoạt động</a> của chúng tôi.
+            </p>
+
+            <!-- Switch to signin -->
+            <p class="text-center text-sm text-secondary-600 mt-8">
+              Đã có tài khoản?
+              <button type="button" class="text-primary-500 hover:text-primary-600 font-medium cursor-pointer" data-switch-tab="signin">
+                Đăng nhập
+              </button>
+            </p>
+          </div>
+
+          <!-- Step 2: OTP -->
+          <div data-signup-step="otp" class="hidden">
+            <button type="button" class="flex items-center gap-2 text-secondary-600 hover:text-secondary-800 mb-6 cursor-pointer" data-back-step="phone">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span class="text-sm">Quay lại</span>
+            </button>
+
+            <p class="text-secondary-600 text-sm mb-6">
+              Nhập mã OTP đã gửi đến số <span class="font-semibold text-secondary-900" data-phone-display></span>
+            </p>
+
+            <form class="space-y-5" data-otp-form novalidate>
+              <!-- OTP Input -->
+              <div class="flex gap-3 justify-center" data-otp-inputs>
+                <input type="text" maxlength="1" inputmode="numeric" class="w-12 h-14 text-center text-xl font-semibold border border-secondary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
+                <input type="text" maxlength="1" inputmode="numeric" class="w-12 h-14 text-center text-xl font-semibold border border-secondary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
+                <input type="text" maxlength="1" inputmode="numeric" class="w-12 h-14 text-center text-xl font-semibold border border-secondary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
+                <input type="text" maxlength="1" inputmode="numeric" class="w-12 h-14 text-center text-xl font-semibold border border-secondary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
+                <input type="text" maxlength="1" inputmode="numeric" class="w-12 h-14 text-center text-xl font-semibold border border-secondary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
+                <input type="text" maxlength="1" inputmode="numeric" class="w-12 h-14 text-center text-xl font-semibold border border-secondary-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400" />
+              </div>
+
+              <button
+                type="submit"
+                class="w-full py-4 bg-primary-400 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors duration-200 cursor-pointer"
+              >
+                Xác nhận
+              </button>
+            </form>
+
+            <p class="text-center text-sm text-secondary-500 mt-6">
+              Chưa nhận được mã?
+              <button type="button" class="text-primary-500 hover:text-primary-600 font-medium cursor-pointer" data-resend-otp>
+                Gửi lại
+              </button>
+            </p>
+          </div>
+
+          <!-- Step 3: Profile -->
+          <div data-signup-step="profile" class="hidden">
+            <button type="button" class="flex items-center gap-2 text-secondary-600 hover:text-secondary-800 mb-6 cursor-pointer" data-back-step="otp">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+              </svg>
+              <span class="text-sm">Quay lại</span>
+            </button>
+
+            <p class="text-secondary-600 text-sm mb-6">
+              Hoàn tất đăng ký bằng cách cập nhật thông tin
+            </p>
+
+            <form class="space-y-4" data-profile-form novalidate>
+              <!-- Name -->
+              <div class="space-y-1.5">
+                <label for="profile-name" class="block text-sm font-medium text-secondary-700">
+                  Họ và tên
+                </label>
+                <input
+                  type="text"
+                  id="profile-name"
+                  name="name"
+                  autocomplete="name"
+                  class="w-full px-4 py-3 bg-white border border-secondary-200 rounded-xl text-secondary-900 placeholder:text-secondary-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+                  placeholder="Nguyễn Văn A"
+                  required
+                />
+              </div>
+
+              <!-- Email -->
+              <div class="space-y-1.5">
+                <label for="profile-email" class="block text-sm font-medium text-secondary-700">
+                  Email <span class="text-secondary-400">(không bắt buộc)</span>
+                </label>
+                <input
+                  type="email"
+                  id="profile-email"
+                  name="email"
+                  inputmode="email"
+                  autocomplete="email"
+                  class="w-full px-4 py-3 bg-white border border-secondary-200 rounded-xl text-secondary-900 placeholder:text-secondary-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+                  placeholder="email@example.com"
+                />
+              </div>
+
+              <!-- Password -->
+              <div class="space-y-1.5">
+                <label for="profile-password" class="block text-sm font-medium text-secondary-700">
+                  Mật khẩu
+                </label>
+                <div class="relative">
+                  <input
+                    type="password"
+                    id="profile-password"
+                    name="password"
+                    autocomplete="new-password"
+                    class="w-full px-4 pr-12 py-3 bg-white border border-secondary-200 rounded-xl text-secondary-900 placeholder:text-secondary-400 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary-500/30 focus:border-primary-400"
+                    placeholder="Tối thiểu 6 ký tự"
+                    required
+                    minlength="6"
+                  />
+                  <button
+                    type="button"
+                    class="absolute right-4 top-1/2 -translate-y-1/2 text-secondary-400 hover:text-secondary-600 cursor-pointer"
+                    data-toggle-password
+                  >
+                    <svg class="w-5 h-5" data-eye-open fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <svg class="w-5 h-5 hidden" data-eye-closed fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                class="w-full py-4 bg-primary-400 hover:bg-primary-500 text-white font-semibold rounded-xl transition-colors duration-200 cursor-pointer mt-2"
+              >
+                Hoàn tất đăng ký
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Auth Modal Controller
+  const modal = document.querySelector('[data-auth-modal]') as HTMLDivElement;
+  const backdrop = modal?.querySelector('[data-modal-backdrop]') as HTMLDivElement;
+  const content = modal?.querySelector('[data-modal-content]') as HTMLDivElement;
+  const closeBtn = modal?.querySelector('[data-modal-close]') as HTMLButtonElement;
+  const modalTitle = modal?.querySelector('[data-modal-title]') as HTMLHeadingElement;
+
+  const panels = {
+    signin: modal?.querySelector('[data-panel="signin"]') as HTMLDivElement,
+    signup: modal?.querySelector('[data-panel="signup"]') as HTMLDivElement,
+  };
+
+  const signupSteps = {
+    phone: modal?.querySelector('[data-signup-step="phone"]') as HTMLDivElement,
+    otp: modal?.querySelector('[data-signup-step="otp"]') as HTMLDivElement,
+    profile: modal?.querySelector('[data-signup-step="profile"]') as HTMLDivElement,
+  };
+
+  let currentPhone = '';
+
+  // Open modal
+  function openAuthModal(tab: 'signin' | 'signup' = 'signin') {
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    document.body.classList.add('overflow-hidden');
+
+    requestAnimationFrame(() => {
+      content.classList.remove('scale-95', 'opacity-0');
+      content.classList.add('scale-100', 'opacity-100');
+    });
+
+    switchTab(tab);
+  }
+
+  // Close modal
+  function closeAuthModal() {
+    content.classList.add('scale-95', 'opacity-0');
+    content.classList.remove('scale-100', 'opacity-100');
+
+    setTimeout(() => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.classList.remove('overflow-hidden');
+      // Reset signup to step 1
+      showSignupStep('phone');
+    }, 200);
+  }
+
+  // Switch tabs
+  function switchTab(tabName: string) {
+    Object.entries(panels).forEach(([name, panel]) => {
+      if (name === tabName) {
+        panel.classList.remove('hidden');
+        panel.dataset.visible = 'true';
+      } else {
+        panel.classList.add('hidden');
+        panel.dataset.visible = 'false';
+      }
+    });
+
+    modalTitle.textContent = tabName === 'signin' ? 'Đăng nhập' : 'Đăng ký';
+
+    // Reset signup steps when switching to signup
+    if (tabName === 'signup') {
+      showSignupStep('phone');
+    }
+  }
+
+  // Show signup step
+  function showSignupStep(step: 'phone' | 'otp' | 'profile') {
+    Object.entries(signupSteps).forEach(([name, el]) => {
+      if (name === step) {
+        el.classList.remove('hidden');
+      } else {
+        el.classList.add('hidden');
+      }
+    });
+  }
+
+  // Event: Close
+  closeBtn?.addEventListener('click', closeAuthModal);
+  backdrop?.addEventListener('click', closeAuthModal);
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+      closeAuthModal();
+    }
+  });
+
+  // Event: Switch tabs
+  modal?.querySelectorAll('[data-switch-tab]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const tab = (btn as HTMLButtonElement).dataset.switchTab;
+      if (tab) switchTab(tab);
+    });
+  });
+
+  // Event: Back steps
+  modal?.querySelectorAll('[data-back-step]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const step = (btn as HTMLButtonElement).dataset.backStep as 'phone' | 'otp';
+      showSignupStep(step);
+    });
+  });
+
+  // Event: Phone form submit -> OTP
+  const phoneForm = modal?.querySelector('[data-phone-form]') as HTMLFormElement;
+  phoneForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const phoneInput = phoneForm.querySelector('input[name="phone"]') as HTMLInputElement;
+    currentPhone = phoneInput.value;
+
+    // Display phone in OTP step
+    const phoneDisplay = modal.querySelector('[data-phone-display]') as HTMLSpanElement;
+    if (phoneDisplay) phoneDisplay.textContent = currentPhone;
+
+    showSignupStep('otp');
+
+    // Focus first OTP input
+    setTimeout(() => {
+      const firstOtp = modal.querySelector('[data-otp-inputs] input') as HTMLInputElement;
+      firstOtp?.focus();
+    }, 100);
+  });
+
+  // Event: OTP form submit -> Profile
+  const otpForm = modal?.querySelector('[data-otp-form]') as HTMLFormElement;
+  otpForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    showSignupStep('profile');
+  });
+
+  // Event: Profile form submit -> Complete
+  const profileForm = modal?.querySelector('[data-profile-form]') as HTMLFormElement;
+  profileForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    // TODO: API call to register
+    alert('Đăng ký thành công!');
+    closeAuthModal();
+  });
+
+  // Event: Signin form submit
+  const signinForm = modal?.querySelector('[data-signin-form]') as HTMLFormElement;
+  signinForm?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const btn = signinForm.querySelector('[data-submit-btn]') as HTMLButtonElement;
+    const btnText = btn.querySelector('[data-btn-text]') as HTMLSpanElement;
+    const btnLoading = btn.querySelector('[data-btn-loading]') as SVGElement;
+
+    btn.disabled = true;
+    btnText.classList.add('hidden');
+    btnLoading.classList.remove('hidden');
+
+    setTimeout(() => {
+      btn.disabled = false;
+      btnText.classList.remove('hidden');
+      btnLoading.classList.add('hidden');
+      // TODO: API call
+    }, 1500);
+  });
+
+  // OTP auto-focus next input
+  const otpInputs = modal?.querySelectorAll('[data-otp-inputs] input') as NodeListOf<HTMLInputElement>;
+  otpInputs?.forEach((input, index) => {
+    input.addEventListener('input', (e) => {
+      const target = e.target as HTMLInputElement;
+      if (target.value && index < otpInputs.length - 1) {
+        otpInputs[index + 1].focus();
+      }
+    });
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Backspace' && !input.value && index > 0) {
+        otpInputs[index - 1].focus();
+      }
+    });
+  });
+
+  // Toggle password visibility
+  modal?.querySelectorAll('[data-toggle-password]').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const input = btn.parentElement?.querySelector('input') as HTMLInputElement;
+      const eyeOpen = btn.querySelector('[data-eye-open]') as SVGElement;
+      const eyeClosed = btn.querySelector('[data-eye-closed]') as SVGElement;
+
+      if (input.type === 'password') {
+        input.type = 'text';
+        eyeOpen?.classList.add('hidden');
+        eyeClosed?.classList.remove('hidden');
+      } else {
+        input.type = 'password';
+        eyeOpen?.classList.remove('hidden');
+        eyeClosed?.classList.add('hidden');
+      }
+    });
+  });
+
+  // Connect header auth buttons
+  document.querySelectorAll('a[href="/dang-nhap"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      openAuthModal('signin');
+    });
+  });
+
+  document.querySelectorAll('a[href="/dang-ky"]').forEach((link) => {
+    link.addEventListener('click', (e) => {
+      e.preventDefault();
+      openAuthModal('signup');
+    });
+  });
+
+  // Global access
+  (window as any).openAuthModal = openAuthModal;
+  (window as any).closeAuthModal = closeAuthModal;
+</script>

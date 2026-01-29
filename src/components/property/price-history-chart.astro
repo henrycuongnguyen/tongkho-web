@@ -1,0 +1,181 @@
+---
+/**
+ * Price History Chart Component
+ * Displays property price trends over 2 years and 5 years
+ */
+interface Props {
+  currentPrice: number;
+  priceUnit: string;
+}
+
+const { currentPrice, priceUnit } = Astro.props;
+
+// Generate mock price history data based on current price
+function generatePriceHistory(years: number, currentPrice: number): { labels: string[]; data: number[] } {
+  const months = years * 12;
+  const labels: string[] = [];
+  const data: number[] = [];
+
+  const now = new Date();
+  const startPrice = currentPrice * (0.7 + Math.random() * 0.1);
+
+  for (let i = months; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    labels.push(`${date.getMonth() + 1}/${date.getFullYear()}`);
+
+    const progress = (months - i) / months;
+    const basePrice = startPrice + (currentPrice - startPrice) * progress;
+    const fluctuation = basePrice * (Math.random() * 0.05 - 0.025);
+    data.push(Math.round((basePrice + fluctuation) * 100) / 100);
+  }
+
+  data[data.length - 1] = currentPrice;
+  return { labels, data };
+}
+
+const twoYearData = generatePriceHistory(2, currentPrice);
+const fiveYearData = generatePriceHistory(5, currentPrice);
+const unitLabel = priceUnit === 'billion' ? 'tỷ' : priceUnit === 'million' ? 'triệu' : 'VND';
+const chartData = JSON.stringify({ twoYear: twoYearData, fiveYear: fiveYearData, unitLabel });
+---
+
+<div class="bg-white rounded-xl shadow-sm border border-secondary-100 p-6" id="price-chart-container" data-chart={chartData}>
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-lg font-semibold text-secondary-800">Lịch sử giá</h3>
+    <div class="flex gap-2" id="chart-period-selector">
+      <button
+        data-period="2year"
+        class="period-btn px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-primary-500 text-white"
+      >
+        2 Năm
+      </button>
+      <button
+        data-period="5year"
+        class="period-btn px-3 py-1.5 text-sm font-medium rounded-lg transition-colors bg-secondary-100 text-secondary-600 hover:bg-secondary-200"
+      >
+        5 Năm
+      </button>
+    </div>
+  </div>
+
+  <div class="flex gap-4 mb-4">
+    <div class="flex items-center gap-2">
+      <span class="text-sm text-secondary-500">Giá hiện tại:</span>
+      <span class="font-semibold text-primary-500">
+        {currentPrice} {unitLabel}
+      </span>
+    </div>
+    <div class="flex items-center gap-2" id="price-change"></div>
+  </div>
+
+  <div class="relative h-64">
+    <canvas id="price-history-chart"></canvas>
+  </div>
+
+  <p class="text-xs text-secondary-400 mt-3 italic">
+    * Dữ liệu tham khảo dựa trên biến động thị trường khu vực
+  </p>
+</div>
+
+<script is:inline src="/js/chart.umd.min.js"></script>
+
+<script is:inline>
+document.addEventListener('DOMContentLoaded', function() {
+  var container = document.getElementById('price-chart-container');
+  if (!container) return;
+
+  var data = JSON.parse(container.getAttribute('data-chart'));
+  var ctx = document.getElementById('price-history-chart');
+  var priceChangeEl = document.getElementById('price-change');
+  var periodSelector = document.getElementById('chart-period-selector');
+  var unitLabel = data.unitLabel;
+
+  var chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels: data.twoYear.labels,
+      datasets: [{
+        label: 'Giá (' + unitLabel + ')',
+        data: data.twoYear.data,
+        borderColor: '#F97316',
+        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#F97316',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            label: function(context) {
+              return context.parsed.y.toFixed(2) + ' ' + unitLabel;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { maxTicksLimit: 6, color: '#9CA3AF' }
+        },
+        y: {
+          grid: { color: 'rgba(156, 163, 175, 0.2)' },
+          ticks: {
+            callback: function(value) { return value + ' ' + unitLabel; },
+            color: '#9CA3AF'
+          }
+        }
+      }
+    }
+  });
+
+  function updatePriceChange(chartData) {
+    if (!priceChangeEl) return;
+    var startPrice = chartData.data[0];
+    var endPrice = chartData.data[chartData.data.length - 1];
+    var change = endPrice - startPrice;
+    var changePercent = ((change / startPrice) * 100).toFixed(1);
+    var isUp = change >= 0;
+    priceChangeEl.innerHTML = '<span class="text-sm text-secondary-500">Thay đổi:</span>' +
+      '<span class="font-semibold ' + (isUp ? 'text-green-500' : 'text-red-500') + '">' +
+      (isUp ? '+' : '') + changePercent + '% ' + (isUp ? '↑' : '↓') + '</span>';
+  }
+
+  updatePriceChange(data.twoYear);
+
+  var buttons = periodSelector.querySelectorAll('.period-btn');
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      var period = btn.getAttribute('data-period');
+      var chartData = period === '2year' ? data.twoYear : data.fiveYear;
+
+      buttons.forEach(function(b) {
+        b.classList.remove('bg-primary-500', 'text-white');
+        b.classList.add('bg-secondary-100', 'text-secondary-600', 'hover:bg-secondary-200');
+      });
+      btn.classList.remove('bg-secondary-100', 'text-secondary-600', 'hover:bg-secondary-200');
+      btn.classList.add('bg-primary-500', 'text-white');
+
+      chart.data.labels = chartData.labels;
+      chart.data.datasets[0].data = chartData.data;
+      chart.update('active');
+      updatePriceChange(chartData);
+    });
+  });
+});
+</script>

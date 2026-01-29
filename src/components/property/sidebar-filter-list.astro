@@ -1,0 +1,45 @@
+---
+/**
+ * Sidebar Filter List Component
+ * Reusable filter component for price range, area range, etc.
+ */
+
+interface FilterItem {
+  label: string;
+  min?: number;
+  max?: number;
+}
+
+interface Props {
+  title: string;
+  items: FilterItem[];
+  baseUrl?: string;
+  minParam?: string;
+  maxParam?: string;
+}
+
+const {
+  title,
+  items,
+  baseUrl = '/mua-ban',
+  minParam = 'min',
+  maxParam = 'max',
+} = Astro.props;
+---
+
+<div class="bg-white rounded-xl shadow-sm border border-secondary-100 p-5">
+  <h3 class="text-lg font-semibold text-secondary-800 mb-4">{title}</h3>
+  <ul class="space-y-2">
+    {items.map((item) => (
+      <li>
+        <a
+          href={`${baseUrl}?${minParam}=${item.min || ''}&${maxParam}=${item.max || ''}`}
+          class="text-sm font-semibold text-secondary-700 hover:text-primary-500 transition-colors flex items-center gap-2"
+        >
+          <span class="w-1.5 h-1.5 rounded-full bg-secondary-300"></span>
+          {item.label}
+        </a>
+      </li>
+    ))}
+  </ul>
+</div>

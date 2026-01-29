@@ -1,0 +1,165 @@
+---
+interface Props {
+  images: string[];
+}
+
+const { images } = Astro.props;
+const totalImages = images.length;
+---
+
+<div class="image-gallery w-full">
+  <div class="relative bg-white rounded-xl shadow-lg overflow-hidden mx-auto">
+    <!-- Main Image Container -->
+    <div class="relative aspect-video bg-secondary-100">
+      <img
+        id="main-image"
+        src={images[0]}
+        alt="Property image"
+        class="w-full h-full object-cover"
+        loading="eager"
+      />
+
+      <!-- Navigation Arrows -->
+      <button
+        id="prev-btn"
+        class="absolute left-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all duration-300 opacity-0 group-hover:opacity-100"
+        aria-label="Previous image"
+      >
+        <svg class="w-5 h-5 text-secondary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <button
+        id="next-btn"
+        class="absolute right-3 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-lg hover:bg-white hover:scale-110 transition-all duration-300 opacity-0 group-hover:opacity-100"
+        aria-label="Next image"
+      >
+        <svg class="w-5 h-5 text-secondary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+
+      <!-- Image Counter Badge -->
+      <div class="absolute bottom-3 right-3">
+        <span class="inline-flex items-center px-3 py-1.5 bg-black/70 text-white text-sm font-medium rounded-lg backdrop-blur-sm">
+          <span id="current-index">1</span>/<span>{totalImages}</span>
+        </span>
+      </div>
+    </div>
+
+    <!-- Thumbnail Strip -->
+    <div class="relative bg-secondary-50 p-3">
+      <div id="thumbnail-container" class="flex gap-2 overflow-x-auto scrollbar-hide scroll-smooth">
+        {images.map((image, index) => (
+          <button
+            data-index={index}
+            class={`thumbnail flex-shrink-0 w-20 h-14 rounded-lg overflow-hidden border-2 transition-all duration-300 ${
+              index === 0 ? 'border-primary-500 ring-2 ring-primary-200' : 'border-transparent hover:border-secondary-300'
+            }`}
+            aria-label={`View image ${index + 1}`}
+          >
+            <img
+              src={image}
+              alt={`Thumbnail ${index + 1}`}
+              class="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .image-gallery {
+    position: relative;
+  }
+
+  .image-gallery:hover #prev-btn,
+  .image-gallery:hover #next-btn {
+    opacity: 1;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+</style>
+
+<script>
+  const mainImage = document.getElementById('main-image') as HTMLImageElement;
+  const currentIndexEl = document.getElementById('current-index') as HTMLSpanElement;
+  const thumbnails = document.querySelectorAll('.thumbnail') as NodeListOf<HTMLButtonElement>;
+  const prevBtn = document.getElementById('prev-btn') as HTMLButtonElement;
+  const nextBtn = document.getElementById('next-btn') as HTMLButtonElement;
+  const thumbnailContainer = document.getElementById('thumbnail-container') as HTMLDivElement;
+
+  let currentIndex = 0;
+  const totalImages = thumbnails.length;
+
+  function updateImage(index: number) {
+    if (index < 0 || index >= totalImages) return;
+
+    currentIndex = index;
+    const thumbnail = thumbnails[index] as HTMLButtonElement;
+    const imgSrc = thumbnail.querySelector('img')?.src || '';
+
+    // Update main image
+    mainImage.src = imgSrc;
+    currentIndexEl.textContent = (index + 1).toString();
+
+    // Update thumbnail borders
+    thumbnails.forEach((thumb, i) => {
+      if (i === index) {
+        thumb.classList.remove('border-transparent', 'hover:border-secondary-300');
+        thumb.classList.add('border-primary-500', 'ring-2', 'ring-primary-200');
+      } else {
+        thumb.classList.remove('border-primary-500', 'ring-2', 'ring-primary-200');
+        thumb.classList.add('border-transparent', 'hover:border-secondary-300');
+      }
+    });
+
+    // Scroll thumbnail into view
+    const thumbnailWidth = thumbnail.offsetWidth + 8; // width + gap
+    const containerWidth = thumbnailContainer.offsetWidth;
+    const scrollPosition = thumbnailWidth * index - containerWidth / 2 + thumbnailWidth / 2;
+    thumbnailContainer.scrollTo({
+      left: scrollPosition,
+      behavior: 'smooth'
+    });
+  }
+
+  // Thumbnail click handlers
+  thumbnails.forEach((thumbnail, index) => {
+    thumbnail.addEventListener('click', () => {
+      updateImage(index);
+    });
+  });
+
+  // Previous button
+  prevBtn.addEventListener('click', () => {
+    const newIndex = currentIndex > 0 ? currentIndex - 1 : totalImages - 1;
+    updateImage(newIndex);
+  });
+
+  // Next button
+  nextBtn.addEventListener('click', () => {
+    const newIndex = currentIndex < totalImages - 1 ? currentIndex + 1 : 0;
+    updateImage(newIndex);
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') {
+      prevBtn.click();
+    } else if (e.key === 'ArrowRight') {
+      nextBtn.click();
+    }
+  });
+</script>

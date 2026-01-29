@@ -1,0 +1,139 @@
+---
+/**
+ * Contact Sidebar Component
+ * Sticky sidebar for property contact information
+ * Shows agent/owner info, phone CTA, and Zalo contact
+ * Mobile: converts to fixed bottom bar
+ */
+
+interface Props {
+  phone?: string;
+  agentName?: string;
+  agentAvatar?: string;
+  email?: string;
+}
+
+const {
+  phone = "1900 98 89 98",
+  agentName = "TongkhoBDS.com",
+  agentAvatar,
+  email = "cskh@tongkhobds.com",
+} = Astro.props;
+
+// Format phone for tel: link (remove spaces/dashes)
+const telLink = `tel:${phone.replace(/\s|-/g, "")}`;
+const zaloLink = `https://zalo.me/${phone.replace(/\s|-/g, "")}`;
+---
+
+<!-- Desktop Sidebar (hidden on mobile) -->
+<aside class="hidden lg:block">
+  <div class="bg-white rounded-xl shadow-lg p-4 space-y-3">
+    <!-- Agent Card -->
+    <div class="pb-3 border-b border-secondary-200">
+      <div class="flex items-center gap-3 mb-2">
+        <div
+          class="w-12 h-12 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center text-white font-bold text-lg shrink-0"
+        >
+          {agentAvatar ? (
+            <img
+              src={agentAvatar}
+              alt={agentName}
+              class="w-12 h-12 rounded-full object-cover"
+            />
+          ) : (
+            <span>{agentName.charAt(0).toUpperCase()}</span>
+          )}
+        </div>
+        <div>
+          <h3 class="font-semibold text-secondary-900 text-sm">{agentName}</h3>
+        </div>
+      </div>
+      <!-- Contact Info -->
+      <div class="space-y-1 text-xs">
+        <p class="flex items-center gap-2 text-secondary-600">
+          <svg class="w-3.5 h-3.5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          </svg>
+          {phone}
+        </p>
+        <p class="flex items-center gap-2 text-secondary-600">
+          <svg class="w-3.5 h-3.5 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          {email}
+        </p>
+      </div>
+    </div>
+
+    <!-- Contact Actions -->
+    <div class="space-y-2">
+      <!-- Call Button -->
+      <a
+        href={telLink}
+        class="btn btn-primary w-full flex items-center justify-center gap-2 text-sm py-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+          <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"></path>
+        </svg>
+        <span>Gọi ngay</span>
+      </a>
+
+      <!-- Zalo Button -->
+      <a
+        href={zaloLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn w-full bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center gap-2 text-sm py-2"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
+          <path d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2.546 20.2c-.224.448.224.896.672.672l3.032-.892A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.657 0-3.212-.506-4.494-1.373l-.33-.224-2.43.715.715-2.43-.224-.33A7.963 7.963 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"></path>
+        </svg>
+        <span>Nhắn tin Zalo</span>
+      </a>
+    </div>
+  </div>
+</aside>
+
+<!-- Mobile Bottom Bar (visible on mobile only) -->
+<div
+  class="lg:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-secondary-200 shadow-xl z-50"
+>
+  <div class="container-custom py-3">
+    <div class="grid grid-cols-2 gap-3">
+      <!-- Call Button -->
+      <a href={telLink} class="btn btn-primary flex items-center justify-center gap-2">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-5 w-5"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+        >
+          <path
+            d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z"
+          ></path>
+        </svg>
+        <span>Gọi ngay</span>
+      </a>
+
+      <!-- Zalo Button -->
+      <a
+        href={zaloLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        class="btn bg-blue-500 text-white hover:bg-blue-600 flex items-center justify-center gap-2"
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          class="h-5 w-5"
+          viewBox="0 0 24 24"
+          fill="currentColor"
+        >
+          <path
+            d="M12 2C6.477 2 2 6.477 2 12c0 1.89.525 3.66 1.438 5.168L2.546 20.2c-.224.448.224.896.672.672l3.032-.892A9.955 9.955 0 0012 22c5.523 0 10-4.477 10-10S17.523 2 12 2zm0 18c-1.657 0-3.212-.506-4.494-1.373l-.33-.224-2.43.715.715-2.43-.224-.33A7.963 7.963 0 014 12c0-4.411 3.589-8 8-8s8 3.589 8 8-3.589 8-8 8z"
+          ></path>
+        </svg>
+        <span>Zalo</span>
+      </a>
+    </div>
+  </div>
+</div>
