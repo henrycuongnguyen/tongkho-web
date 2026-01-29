@@ -1,0 +1,152 @@
+---
+/**
+ * Property Detail Page
+ * Dynamic route for individual property listings
+ * URL: /bat-dong-san/{slug}
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+import ImageGalleryCarousel from '@/components/property/property-detail-image-gallery-carousel.astro';
+import PropertyInfoSection from '@/components/property/property-info-section.astro';
+import ContactSidebar from '@/components/property/contact-sidebar.astro';
+import SidebarFilterList from '@/components/property/sidebar-filter-list.astro';
+import SidebarFeaturedProject from '@/components/property/sidebar-featured-project.astro';
+import PropertyCard from '@/components/cards/property-card.astro';
+import PriceHistoryChart from '@/components/property/price-history-chart.astro';
+import { mockPropertiesForSale, mockPropertiesForRent } from '@/data/mock-properties';
+import type { Property } from '@/types/property';
+
+// Filter data
+const priceRanges = [
+  { label: '800 triệu - 1 tỷ', min: 0.8, max: 1 },
+  { label: '1 tỷ - 2 tỷ', min: 1, max: 2 },
+  { label: '2 tỷ - 3 tỷ', min: 2, max: 3 },
+  { label: '3 tỷ - 5 tỷ', min: 3, max: 5 },
+  { label: '5 tỷ - 7 tỷ', min: 5, max: 7 },
+  { label: '7 tỷ - 10 tỷ', min: 7, max: 10 },
+  { label: '10 tỷ - 20 tỷ', min: 10, max: 20 },
+  { label: '20 tỷ - 30 tỷ', min: 20, max: 30 },
+  { label: '30 tỷ - 40 tỷ', min: 30, max: 40 },
+  { label: '40 tỷ - 60 tỷ', min: 40, max: 60 },
+  { label: 'Trên 60 tỷ', min: 60 },
+  { label: 'Thương lượng' },
+];
+
+const areaRanges = [
+  { label: 'Dưới 30 m²', max: 30 },
+  { label: '30 - 50 m²', min: 30, max: 50 },
+  { label: '50 - 80 m²', min: 50, max: 80 },
+  { label: '80 - 100 m²', min: 80, max: 100 },
+  { label: '100 - 150 m²', min: 100, max: 150 },
+  { label: '150 - 200 m²', min: 150, max: 200 },
+  { label: '200 - 250 m²', min: 200, max: 250 },
+  { label: '250 - 300 m²', min: 250, max: 300 },
+  { label: '300 - 500 m²', min: 300, max: 500 },
+  { label: 'Trên 500 m²', min: 500 },
+];
+
+// Generate static paths for all properties
+export function getStaticPaths() {
+  const allProperties = [...mockPropertiesForSale, ...mockPropertiesForRent];
+  return allProperties.map((property) => ({
+    params: { slug: property.slug },
+    props: { property },
+  }));
+}
+
+interface Props {
+  property: Property;
+}
+
+const { property } = Astro.props;
+
+// Get related properties (same type, exclude current)
+const allProperties = [...mockPropertiesForSale, ...mockPropertiesForRent];
+const relatedProperties = allProperties
+  .filter((p) => p.id !== property.id && p.type === property.type)
+  .slice(0, 4);
+
+// If not enough same type, fill with other properties
+const additionalProperties = relatedProperties.length < 4
+  ? allProperties
+      .filter((p) => p.id !== property.id && !relatedProperties.find((r) => r.id === p.id))
+      .slice(0, 4 - relatedProperties.length)
+  : [];
+
+const displayRelated = [...relatedProperties, ...additionalProperties];
+
+// Generate mock images array from thumbnail (for demo)
+const propertyImages = property.images.length > 1
+  ? property.images
+  : [
+      property.thumbnail,
+      property.thumbnail,
+      property.thumbnail,
+      property.thumbnail,
+    ];
+
+// SEO
+const pageTitle = `${property.title} | TongkhoBDS`;
+const pageDescription = property.description.slice(0, 160);
+---
+
+<MainLayout
+  title={pageTitle}
+  description={pageDescription}
+  image={property.thumbnail}
+>
+  <div class="bg-secondary-50 min-h-screen pb-20 lg:pb-8">
+    <!-- Breadcrumb -->
+    <div class="container-custom py-4">
+      <nav class="text-sm text-secondary-500">
+        <ol class="flex flex-wrap items-center gap-2">
+          <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
+          <li class="text-secondary-300">&gt;</li>
+          <li>
+            <a href={property.transactionType === 'sale' ? '/mua-ban' : '/cho-thue'} class="hover:text-primary-500 transition-colors">
+              {property.transactionType === 'sale' ? 'Mua bán' : 'Cho thuê'}
+            </a>
+          </li>
+          <li class="text-secondary-300">&gt;</li>
+          <li class="text-secondary-700 font-medium line-clamp-1">{property.title}</li>
+        </ol>
+      </nav>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container-custom">
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        <!-- Left Column: Gallery + Info (8 cols) -->
+        <div class="lg:col-span-9 space-y-6">
+          <!-- Image Gallery -->
+          <ImageGalleryCarousel images={propertyImages} />
+
+          <!-- Property Info Section -->
+          <PropertyInfoSection property={property} />
+
+          <!-- Price History Chart -->
+          <PriceHistoryChart currentPrice={property.price} priceUnit={property.priceUnit} />
+        </div>
+
+        <!-- Right Column: Contact Sidebar + Filters (4 cols, smaller) -->
+        <div class="lg:col-span-3 space-y-6">
+          <ContactSidebar />
+          <SidebarFeaturedProject />
+          <SidebarFilterList title="Lọc theo khoảng giá" items={priceRanges} minParam="priceMin" maxParam="priceMax" />
+          <SidebarFilterList title="Lọc theo diện tích" items={areaRanges} minParam="areaMin" maxParam="areaMax" />
+        </div>
+      </div>
+
+      <!-- Related Properties Section -->
+      {displayRelated.length > 0 && (
+        <section class="mt-12">
+          <h2 class="text-2xl font-bold text-secondary-800 mb-6">Bất động sản khác</h2>
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {displayRelated.map((relatedProperty) => (
+              <PropertyCard property={relatedProperty} />
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  </div>
+</MainLayout>
