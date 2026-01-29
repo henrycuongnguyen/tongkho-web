@@ -1,0 +1,285 @@
+---
+// Location dropdown component with featured cities and provinces grid
+
+// Featured cities with images
+const featuredCities = [
+  { value: "ha-noi", label: "Thành Phố Hà Nội", image: "/images/cities/ha-noi.webp" },
+  { value: "hai-phong", label: "Thành Phố Hải Phòng", image: "/images/cities/hai-phong.webp" },
+  { value: "ho-chi-minh", label: "Thành Phố Hồ Chí Minh", image: "/images/cities/ho-chi-minh.webp" },
+  { value: "nghe-an", label: "Tỉnh Nghệ An", image: "/images/cities/nghe-an.webp" },
+  { value: "da-nang", label: "Thành Phố Đà Nẵng", image: "/images/cities/da-nang.webp" },
+];
+
+// All 63 provinces of Vietnam
+const allProvinces = [
+  { value: "can-tho", label: "Thành Phố Cần Thơ" },
+  { value: "hue", label: "Thành Phố Huế" },
+  { value: "ha-noi", label: "Thành Phố Hà Nội" },
+  { value: "hai-phong", label: "Thành Phố Hải Phòng" },
+  { value: "ho-chi-minh", label: "Thành Phố Hồ Chí Minh" },
+  { value: "da-nang", label: "Thành Phố Đà Nẵng" },
+  { value: "an-giang", label: "Tỉnh An Giang" },
+  { value: "ba-ria-vung-tau", label: "Tỉnh Bà Rịa-Vũng Tàu" },
+  { value: "binh-duong", label: "Tỉnh Bình Dương" },
+  { value: "binh-phuoc", label: "Tỉnh Bình Phước" },
+  { value: "binh-thuan", label: "Tỉnh Bình Thuận" },
+  { value: "binh-dinh", label: "Tỉnh Bình Định" },
+  { value: "bac-lieu", label: "Tỉnh Bạc Liêu" },
+  { value: "bac-giang", label: "Tỉnh Bắc Giang" },
+  { value: "bac-kan", label: "Tỉnh Bắc Kạn" },
+  { value: "bac-ninh", label: "Tỉnh Bắc Ninh" },
+  { value: "ben-tre", label: "Tỉnh Bến Tre" },
+  { value: "cao-bang", label: "Tỉnh Cao Bằng" },
+  { value: "ca-mau", label: "Tỉnh Cà Mau" },
+  { value: "gia-lai", label: "Tỉnh Gia Lai" },
+  { value: "ha-giang", label: "Tỉnh Hà Giang" },
+  { value: "ha-nam", label: "Tỉnh Hà Nam" },
+  { value: "ha-tinh", label: "Tỉnh Hà Tĩnh" },
+  { value: "hoa-binh", label: "Tỉnh Hòa Bình" },
+  { value: "hung-yen", label: "Tỉnh Hưng Yên" },
+  { value: "hai-duong", label: "Tỉnh Hải Dương" },
+  { value: "hau-giang", label: "Tỉnh Hậu Giang" },
+  { value: "khanh-hoa", label: "Tỉnh Khánh Hòa" },
+  { value: "kien-giang", label: "Tỉnh Kiên Giang" },
+  { value: "kon-tum", label: "Tỉnh Kon Tum" },
+  { value: "lai-chau", label: "Tỉnh Lai Châu" },
+  { value: "long-an", label: "Tỉnh Long An" },
+  { value: "lao-cai", label: "Tỉnh Lào Cai" },
+  { value: "lam-dong", label: "Tỉnh Lâm Đồng" },
+  { value: "lang-son", label: "Tỉnh Lạng Sơn" },
+  { value: "nam-dinh", label: "Tỉnh Nam Định" },
+  { value: "nghe-an", label: "Tỉnh Nghệ An" },
+  { value: "ninh-binh", label: "Tỉnh Ninh Bình" },
+  { value: "ninh-thuan", label: "Tỉnh Ninh Thuận" },
+  { value: "phu-tho", label: "Tỉnh Phú Thọ" },
+  { value: "phu-yen", label: "Tỉnh Phú Yên" },
+  { value: "quang-binh", label: "Tỉnh Quảng Bình" },
+  { value: "quang-nam", label: "Tỉnh Quảng Nam" },
+  { value: "quang-ngai", label: "Tỉnh Quảng Ngãi" },
+  { value: "quang-ninh", label: "Tỉnh Quảng Ninh" },
+  { value: "quang-tri", label: "Tỉnh Quảng Trị" },
+  { value: "soc-trang", label: "Tỉnh Sóc Trăng" },
+  { value: "son-la", label: "Tỉnh Sơn La" },
+  { value: "tay-ninh", label: "Tỉnh Tây Ninh" },
+  { value: "thai-binh", label: "Tỉnh Thái Bình" },
+  { value: "thai-nguyen", label: "Tỉnh Thái Nguyên" },
+  { value: "thanh-hoa", label: "Tỉnh Thanh Hóa" },
+  { value: "thua-thien-hue", label: "Tỉnh Thừa Thiên Huế" },
+  { value: "tien-giang", label: "Tỉnh Tiền Giang" },
+  { value: "tra-vinh", label: "Tỉnh Trà Vinh" },
+  { value: "tuyen-quang", label: "Tỉnh Tuyên Quang" },
+  { value: "vinh-long", label: "Tỉnh Vĩnh Long" },
+  { value: "vinh-phuc", label: "Tỉnh Vĩnh Phúc" },
+  { value: "yen-bai", label: "Tỉnh Yên Bái" },
+  { value: "dak-lak", label: "Tỉnh Đắk Lắk" },
+  { value: "dak-nong", label: "Tỉnh Đắk Nông" },
+  { value: "dong-nai", label: "Tỉnh Đồng Nai" },
+  { value: "dong-thap", label: "Tỉnh Đồng Tháp" },
+  { value: "dien-bien", label: "Tỉnh Điện Biên" },
+];
+
+interface Props {
+  id?: string;
+  name?: string;
+  placeholder?: string;
+}
+
+const { id = "location", name = "city", placeholder = "Toàn quốc" } = Astro.props;
+---
+
+<div class="location-dropdown relative flex-1 z-9999" data-location-dropdown>
+  <!-- Trigger Button -->
+  <button
+    type="button"
+    class="w-full px-4 py-2.5 bg-transparent focus:outline-none text-secondary-700 text-sm text-left flex items-center gap-2"
+    data-trigger
+  >
+    <span data-display>{placeholder}</span>
+    <svg
+      class="w-4 h-4 text-secondary-400 transition-transform"
+      data-arrow
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  <!-- Hidden input for form submission -->
+  <input type="hidden" name={name} id={id} data-input />
+
+  <!-- Dropdown Panel -->
+  <div
+    class="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-secondary-100 p-6 z-9999 hidden"
+    style="width: 970px; max-width: 100vw;"
+    data-panel
+  >
+    <!-- Header Row -->
+    <div class="flex items-center justify-between mb-4">
+      <h4 class="text-xl font-bold text-secondary-800">Top tỉnh thành nổi bật</h4>
+      <div class="flex items-center gap-6">
+        <label class="flex items-center gap-2 cursor-pointer text-sm text-secondary-600">
+          <input
+            type="checkbox"
+            class="w-4 h-4 rounded border-secondary-300 text-primary-500 focus:ring-primary-500"
+            data-new-admin
+          />
+          <span>Sử dụng địa chỉ hành chính mới</span>
+        </label>
+        <button
+          type="button"
+          class="text-sm text-primary-500 hover:text-primary-600 font-medium"
+          data-clear
+        >
+          Xóa lựa chọn
+        </button>
+      </div>
+    </div>
+
+    <!-- Featured Cities -->
+    <div class="grid grid-cols-5 gap-4 mb-6">
+      {featuredCities.map((city) => (
+        <button
+          type="button"
+          class="featured-city group text-center"
+          data-value={city.value}
+          data-label={city.label}
+        >
+          <div class="relative aspect-[4/3] rounded-lg overflow-hidden mb-2 ring-2 ring-transparent group-hover:ring-primary-500 transition-all">
+            <img
+              src={city.image}
+              alt={city.label}
+              class="w-full h-full object-cover"
+              onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 300%22%3E%3Crect fill=%22%23e5e7eb%22 width=%22400%22 height=%22300%22/%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 fill=%22%239ca3af%22 font-size=%2220%22%3E{city.label}%3C/text%3E%3C/svg%3E'"
+            />
+          </div>
+          <span class="text-sm text-secondary-700 group-hover:text-primary-600 font-medium line-clamp-1">
+            {city.label}
+          </span>
+        </button>
+      ))}
+    </div>
+
+    <!-- All Provinces -->
+    <h4 class="text-xl font-bold text-secondary-800 mb-4">Tất cả tỉnh thành</h4>
+    <div class="grid grid-cols-4 gap-x-6 gap-y-2 max-h-80 overflow-y-auto">
+      {allProvinces.map((province) => (
+        <button
+          type="button"
+          class="province-item text-left text-sm text-secondary-700 hover:text-primary-600 py-1 transition-colors"
+          data-value={province.value}
+          data-label={province.label}
+        >
+          {province.label}
+        </button>
+      ))}
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('[data-location-dropdown]').forEach((dropdown) => {
+    const trigger = dropdown.querySelector('[data-trigger]') as HTMLButtonElement;
+    const panel = dropdown.querySelector('[data-panel]') as HTMLDivElement;
+    const arrow = dropdown.querySelector('[data-arrow]') as SVGElement;
+    const display = dropdown.querySelector('[data-display]') as HTMLSpanElement;
+    const input = dropdown.querySelector('[data-input]') as HTMLInputElement;
+    const clearBtn = dropdown.querySelector('[data-clear]') as HTMLButtonElement;
+
+    const featuredCities = dropdown.querySelectorAll('.featured-city') as NodeListOf<HTMLButtonElement>;
+    const provinceItems = dropdown.querySelectorAll('.province-item') as NodeListOf<HTMLButtonElement>;
+
+    let selectedValue = '';
+    let selectedLabel = 'Toàn quốc';
+
+    function updateUI() {
+      display.textContent = selectedLabel;
+      input.value = selectedValue;
+
+      // Update featured cities selection state
+      featuredCities.forEach((btn) => {
+        const isSelected = btn.dataset.value === selectedValue;
+        const imgContainer = btn.querySelector('div') as HTMLDivElement;
+        if (isSelected) {
+          imgContainer.classList.add('ring-primary-500');
+          imgContainer.classList.remove('ring-transparent');
+        } else {
+          imgContainer.classList.remove('ring-primary-500');
+          imgContainer.classList.add('ring-transparent');
+        }
+      });
+
+      // Update province items selection state
+      provinceItems.forEach((btn) => {
+        const isSelected = btn.dataset.value === selectedValue;
+        if (isSelected) {
+          btn.classList.add('text-primary-600', 'font-semibold');
+          btn.classList.remove('text-secondary-700');
+        } else {
+          btn.classList.remove('text-primary-600', 'font-semibold');
+          btn.classList.add('text-secondary-700');
+        }
+      });
+    }
+
+    // Open dropdown helper
+    function openDropdown() {
+      panel.classList.remove('hidden');
+      arrow.classList.add('rotate-180');
+    }
+
+    // Toggle dropdown on click
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      panel.classList.toggle('hidden');
+      arrow.classList.toggle('rotate-180');
+    });
+
+    // Open dropdown on focus
+    trigger.addEventListener('focus', () => {
+      openDropdown();
+    });
+
+    // Close on outside click (except keyword input which also opens the dropdown)
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const isKeywordInput = target.matches('[data-keyword-input]');
+      if (!dropdown.contains(target) && !isKeywordInput) {
+        panel.classList.add('hidden');
+        arrow.classList.remove('rotate-180');
+      }
+    });
+
+    // Featured city selection
+    featuredCities.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedValue = btn.dataset.value || '';
+        selectedLabel = btn.dataset.label || 'Toàn quốc';
+        updateUI();
+        panel.classList.add('hidden');
+        arrow.classList.remove('rotate-180');
+      });
+    });
+
+    // Province selection
+    provinceItems.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        selectedValue = btn.dataset.value || '';
+        selectedLabel = btn.dataset.label || 'Toàn quốc';
+        updateUI();
+        panel.classList.add('hidden');
+        arrow.classList.remove('rotate-180');
+      });
+    });
+
+    // Clear selection
+    clearBtn.addEventListener('click', () => {
+      selectedValue = '';
+      selectedLabel = 'Toàn quốc';
+      updateUI();
+    });
+
+    updateUI();
+  });
+</script>

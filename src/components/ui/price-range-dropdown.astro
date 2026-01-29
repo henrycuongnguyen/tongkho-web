@@ -1,0 +1,294 @@
+---
+// Price range dropdown component with slider and quick picks
+const quickPicks = [
+  { label: "Dưới 500 triệu", min: 0, max: 500 },
+  { label: "500 triệu - 1 tỷ", min: 500, max: 1000 },
+  { label: "800 triệu - 1 tỷ", min: 800, max: 1000 },
+  { label: "1 tỷ - 2 tỷ", min: 1000, max: 2000 },
+  { label: "2 tỷ - 3 tỷ", min: 2000, max: 3000 },
+  { label: "3 tỷ - 5 tỷ", min: 3000, max: 5000 },
+  { label: "5 tỷ - 7 tỷ", min: 5000, max: 7000 },
+  { label: "7 tỷ - 10 tỷ", min: 7000, max: 10000 },
+  { label: "10 tỷ - 20 tỷ", min: 10000, max: 20000 },
+  { label: "20 tỷ - 60 tỷ", min: 20000, max: 60000 },
+];
+
+interface Props {
+  id?: string;
+  name?: string;
+  placeholder?: string;
+}
+
+const { id = "price-range", name = "price", placeholder = "Khoảng giá" } = Astro.props;
+---
+
+<div class="price-dropdown relative flex-1" data-dropdown>
+  <!-- Trigger Button -->
+  <button
+    type="button"
+    class="w-full px-3 py-2.5 border border-secondary-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-600 text-sm text-left flex items-center justify-between"
+    data-trigger
+  >
+    <span data-display>{placeholder}</span>
+    <svg
+      class="w-4 h-4 text-secondary-400 transition-transform"
+      data-arrow
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  <!-- Hidden input for form submission -->
+  <input type="hidden" name={name} id={id} data-input />
+
+  <!-- Dropdown Panel -->
+  <div
+    class="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-xl shadow-2xl border border-secondary-100 p-4 z-50 w-full hidden"
+    data-panel
+  >
+    <h4 class="text-lg font-bold text-secondary-800 text-center mb-3">Khoảng giá</h4>
+
+    <!-- Price Display -->
+    <div class="flex justify-between mb-3 text-sm">
+      <span class="text-secondary-600">
+        từ <span class="text-primary-500 font-semibold" data-min-display>0 triệu</span>
+      </span>
+      <span class="text-secondary-600">
+        đến <span class="text-primary-500 font-semibold" data-max-display>60 tỷ</span>
+      </span>
+    </div>
+
+    <!-- Input Fields -->
+    <div class="grid grid-cols-2 gap-2 mb-3">
+      <input
+        type="number"
+        class="w-full px-2 py-1.5 border border-secondary-200 rounded-lg text-center text-sm text-secondary-700 focus:outline-none focus:ring-1 focus:ring-primary-500"
+        data-min-input
+        value="0"
+      />
+      <input
+        type="number"
+        class="w-full px-2 py-1.5 border border-secondary-200 rounded-lg text-center text-sm text-secondary-700 focus:outline-none focus:ring-1 focus:ring-primary-500"
+        data-max-input
+        value="60000"
+      />
+    </div>
+
+    <!-- Dual Range Slider -->
+    <div class="relative h-6 mb-4 flex items-center" data-slider-container>
+      <div class="absolute left-0 right-0 h-2 bg-secondary-200 rounded-full"></div>
+      <div class="absolute h-2 bg-primary-500 rounded-full" data-track></div>
+      <div
+        class="absolute w-5 h-5 bg-primary-500 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing z-20"
+        data-thumb-min
+      ></div>
+      <div
+        class="absolute w-5 h-5 bg-primary-500 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing z-20"
+        data-thumb-max
+      ></div>
+    </div>
+
+    <!-- Quick Picks -->
+    <div class="max-h-40 overflow-y-auto space-y-0.5 mb-3">
+      {quickPicks.map((pick) => (
+        <button
+          type="button"
+          class="quick-pick w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-secondary-50 transition-colors text-secondary-700 text-sm"
+          data-min={pick.min}
+          data-max={pick.max}
+        >
+          <span>{pick.label}</span>
+          <div class="w-4 h-4 rounded-full border-2 border-secondary-300 flex items-center justify-center">
+            <svg class="w-2.5 h-2.5 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+              <path
+                fill-rule="evenodd"
+                d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                clip-rule="evenodd"
+              />
+            </svg>
+          </div>
+        </button>
+      ))}
+    </div>
+
+    <!-- Reset Button -->
+    <button
+      type="button"
+      class="px-4 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors font-medium"
+      data-reset
+    >
+      Đặt lại
+    </button>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('[data-dropdown]').forEach((dropdown) => {
+    const trigger = dropdown.querySelector('[data-trigger]') as HTMLButtonElement;
+    const panel = dropdown.querySelector('[data-panel]') as HTMLDivElement;
+    const arrow = dropdown.querySelector('[data-arrow]') as SVGElement;
+    const display = dropdown.querySelector('[data-display]') as HTMLSpanElement;
+    const input = dropdown.querySelector('[data-input]') as HTMLInputElement;
+
+    const minInput = dropdown.querySelector('[data-min-input]') as HTMLInputElement;
+    const maxInput = dropdown.querySelector('[data-max-input]') as HTMLInputElement;
+    const minDisplay = dropdown.querySelector('[data-min-display]') as HTMLSpanElement;
+    const maxDisplay = dropdown.querySelector('[data-max-display]') as HTMLSpanElement;
+
+    const sliderContainer = dropdown.querySelector('[data-slider-container]') as HTMLDivElement;
+    const track = dropdown.querySelector('[data-track]') as HTMLDivElement;
+    const thumbMin = dropdown.querySelector('[data-thumb-min]') as HTMLDivElement;
+    const thumbMax = dropdown.querySelector('[data-thumb-max]') as HTMLDivElement;
+
+    const resetBtn = dropdown.querySelector('[data-reset]') as HTMLButtonElement;
+    const quickPicks = dropdown.querySelectorAll('.quick-pick') as NodeListOf<HTMLButtonElement>;
+
+    const MIN = 0;
+    const MAX = 60000;
+    const STEP = 100;
+    let minVal = MIN;
+    let maxVal = MAX;
+
+    function formatPrice(value: number): string {
+      if (value === 0) return '0 triệu';
+      if (value >= 1000) return `${value / 1000} tỷ`;
+      return `${value} triệu`;
+    }
+
+    function updateUI() {
+      minDisplay.textContent = formatPrice(minVal);
+      maxDisplay.textContent = formatPrice(maxVal);
+
+      // Only update input if value changed to avoid cursor jump
+      if (minInput.value !== String(minVal)) minInput.value = String(minVal);
+      if (maxInput.value !== String(maxVal)) maxInput.value = String(maxVal);
+
+      const minPercent = (minVal / MAX) * 100;
+      const maxPercent = (maxVal / MAX) * 100;
+      track.style.left = `${minPercent}%`;
+      track.style.right = `${100 - maxPercent}%`;
+      thumbMin.style.left = `calc(${minPercent}% - 10px)`;
+      thumbMax.style.left = `calc(${maxPercent}% - 10px)`;
+
+      if (minVal === MIN && maxVal === MAX) {
+        input.value = '';
+        display.textContent = 'Khoảng giá';
+      } else {
+        input.value = `${minVal}-${maxVal}`;
+        display.textContent = `${formatPrice(minVal)} - ${formatPrice(maxVal)}`;
+      }
+
+      quickPicks.forEach((btn) => {
+        const pickMin = Number(btn.dataset.min);
+        const pickMax = Number(btn.dataset.max);
+        const isActive = minVal === pickMin && maxVal === pickMax;
+        const circle = btn.querySelector('div') as HTMLDivElement;
+        const check = btn.querySelector('svg') as SVGElement;
+        if (isActive) {
+          btn.classList.add('bg-primary-50', 'text-primary-600');
+          btn.classList.remove('text-secondary-700');
+          circle.classList.add('border-primary-500', 'bg-primary-500');
+          circle.classList.remove('border-secondary-300');
+          check.classList.remove('hidden');
+        } else {
+          btn.classList.remove('bg-primary-50', 'text-primary-600');
+          btn.classList.add('text-secondary-700');
+          circle.classList.remove('border-primary-500', 'bg-primary-500');
+          circle.classList.add('border-secondary-300');
+          check.classList.add('hidden');
+        }
+      });
+    }
+
+    // Drag functionality for thumbs
+    function setupDrag(thumb: HTMLDivElement, isMin: boolean) {
+      let isDragging = false;
+
+      const onMove = (clientX: number) => {
+        if (!isDragging) return;
+        const rect = sliderContainer.getBoundingClientRect();
+        const percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+        const value = Math.round((percent / 100) * MAX / STEP) * STEP;
+
+        if (isMin) {
+          minVal = Math.min(value, maxVal - STEP);
+        } else {
+          maxVal = Math.max(value, minVal + STEP);
+        }
+        updateUI();
+      };
+
+      thumb.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        e.preventDefault();
+      });
+
+      thumb.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => onMove(e.clientX));
+      document.addEventListener('touchmove', (e) => onMove(e.touches[0].clientX));
+
+      document.addEventListener('mouseup', () => { isDragging = false; });
+      document.addEventListener('touchend', () => { isDragging = false; });
+    }
+
+    setupDrag(thumbMin, true);
+    setupDrag(thumbMax, false);
+
+    // Toggle dropdown
+    trigger.addEventListener('click', () => {
+      panel.classList.toggle('hidden');
+      arrow.classList.toggle('rotate-180');
+    });
+
+    // Close on outside click
+    document.addEventListener('click', (e) => {
+      if (!dropdown.contains(e.target as Node)) {
+        panel.classList.add('hidden');
+        arrow.classList.remove('rotate-180');
+      }
+    });
+
+    // Input changes - use both 'input' for real-time and 'change' for validation
+    const handleMinInput = () => {
+      const val = Number(minInput.value) || 0;
+      minVal = Math.max(MIN, Math.min(val, maxVal - STEP));
+      updateUI();
+    };
+
+    const handleMaxInput = () => {
+      const val = Number(maxInput.value) || MAX;
+      maxVal = Math.min(MAX, Math.max(val, minVal + STEP));
+      updateUI();
+    };
+
+    minInput.addEventListener('input', handleMinInput);
+    minInput.addEventListener('change', handleMinInput);
+    maxInput.addEventListener('input', handleMaxInput);
+    maxInput.addEventListener('change', handleMaxInput);
+
+    // Quick picks
+    quickPicks.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        minVal = Number(btn.dataset.min);
+        maxVal = Number(btn.dataset.max);
+        updateUI();
+      });
+    });
+
+    // Reset
+    resetBtn.addEventListener('click', () => {
+      minVal = MIN;
+      maxVal = MAX;
+      updateUI();
+    });
+
+    updateUI();
+  });
+</script>
