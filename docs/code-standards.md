@@ -169,28 +169,116 @@ const [c, setC] = useState();
 
 ---
 
+## Component Documentation Standards
+
+### JSDoc for Astro Components
+
+Every Astro component MUST have a JSDoc header with:
+- Brief description (1 line)
+- `@example` showing basic usage
+- `@prop` for each prop with type and purpose
+
+**Template:**
+```astro
+---
+/**
+ * ComponentName - Brief description of what this component does
+ *
+ * @example
+ * <ComponentName requiredProp="value" />
+ *
+ * @prop requiredProp - Description of required prop
+ * @prop optionalProp - Description (optional, default: value)
+ */
+interface Props {
+  /** Inline description for IDE tooltips */
+  requiredProp: string;
+  /** Optional prop with default */
+  optionalProp?: boolean;
+}
+
+const { requiredProp, optionalProp = false } = Astro.props;
+---
+```
+
+**Reference Example:** See `src/components/ui/share-buttons.astro` for a well-documented component with variant props.
+
+### JSDoc for React Components
+
+```typescript
+/**
+ * ComponentName - Brief description
+ *
+ * @example
+ * <ComponentName onAction={handleAction} />
+ */
+interface ComponentNameProps {
+  /** Callback when action occurs */
+  onAction?: (value: string) => void;
+}
+
+export function ComponentName({ onAction }: ComponentNameProps) {
+  // ...
+}
+```
+
+### Props Interface Comments
+
+Add inline `/** */` comments for complex props:
+
+```typescript
+interface Props {
+  /** The property data object to display */
+  property: Property;
+
+  /** Visual variant: 'primary' | 'secondary' | 'ghost' */
+  variant?: 'primary' | 'secondary' | 'ghost';
+
+  /** Size preset affecting padding and font */
+  size?: 'sm' | 'md' | 'lg';
+}
+```
+
+---
+
 ## Component Reusability (DRY Principle)
 
 ### Before Creating New Components
 **ALWAYS check existing components before creating new ones.** This is critical to maintaining a clean, maintainable codebase.
 
-#### Discovery Checklist
+#### Discovery Checklist (MANDATORY)
 Before implementing a new component, verify:
 
 1. **Search existing components:**
-   - Check `src/components/` directory structure
-   - Use `grep` to search for similar component names
-   - Review component props to see if variations exist
+   ```bash
+   # Search by name pattern
+   ls src/components/**/*.astro | grep -i "keyword"
 
-2. **Analyze component structure:**
-   - Do existing components have similar HTML structure?
-   - Do they render the same data types?
-   - Are the styling patterns identical or very similar?
+   # Search by functionality in file contents
+   grep -r "similar-feature" src/components/
+   ```
 
-3. **Consider parameterization:**
-   - Can props handle different use cases?
-   - Would conditional rendering solve the problem?
-   - Can a single component accept variant props?
+2. **Check for parameterization opportunity:**
+   - Can existing component accept variant prop?
+   - Can existing component accept different data via props?
+   - Reference: `share-buttons.astro` uses `variant` and `size` props
+
+3. **Analyze structure similarity:**
+   | Aspect | Existing | New | Same? |
+   |--------|----------|-----|-------|
+   | HTML structure | | | |
+   | Props shape | | | |
+   | Styling pattern | | | |
+   | Behavior | | | |
+
+4. **Decision matrix:**
+   - >80% similar structure → **Extend existing component**
+   - Different structure, same data → **Composition pattern**
+   - Fundamentally different → **Create new component**
+
+5. **Document decision:**
+   - If extending: Note which component and what props added
+   - If creating new: Note why existing components insufficient
 
 #### Example: SidebarFilterList Pattern
 Instead of creating separate `PriceFilter` and `AreaFilter` components:
@@ -661,3 +749,4 @@ refactor: Extract filtering logic to utils
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-01-28 | Initial code standards documentation |
+| 1.1 | 2026-01-30 | Add Component Documentation Standards section with JSDoc templates |
