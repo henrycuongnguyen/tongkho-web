@@ -1,0 +1,270 @@
+---
+/**
+ * About/Introduction Page
+ * Company information, team, and achievements
+ * URL: /gioi-thieu
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+import TeamMemberCard from '@/components/about/about-team-member-card.astro';
+import AchievementStatCard from '@/components/about/about-achievement-stat-card.astro';
+import {
+  companyInfo,
+  missionVision,
+  coreValues,
+  teamMembers,
+  achievements,
+  milestones,
+} from '@/data/company-info-data';
+
+const pageTitle = 'Giới thiệu | TongkhoBDS';
+const pageDescription = `Tìm hiểu về ${companyInfo.name} - ${companyInfo.tagline}. Sứ mệnh, tầm nhìn và đội ngũ của chúng tôi.`;
+---
+
+<MainLayout title={pageTitle} description={pageDescription}>
+  <!-- Hero Section -->
+  <section class="relative bg-gradient-to-br from-primary-500 via-primary-600 to-primary-700 text-white py-16 lg:py-24 overflow-hidden">
+    <!-- Background Pattern -->
+    <div class="absolute inset-0 opacity-10">
+      <div class="absolute top-0 left-0 w-72 h-72 bg-white rounded-full -translate-x-1/2 -translate-y-1/2"></div>
+      <div class="absolute bottom-0 right-0 w-96 h-96 bg-white rounded-full translate-x-1/3 translate-y-1/3"></div>
+    </div>
+
+    <div class="container-custom relative">
+      <!-- Breadcrumb -->
+      <nav class="text-sm text-white/70 mb-8">
+        <ol class="flex items-center gap-2">
+          <li><a href="/" class="hover:text-white transition-colors">Trang chủ</a></li>
+          <li class="text-white/50">&gt;</li>
+          <li class="text-white font-medium">Giới thiệu</li>
+        </ol>
+      </nav>
+
+      <div class="max-w-3xl">
+        <h1 class="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight">
+          {companyInfo.tagline}
+        </h1>
+        <p class="text-lg lg:text-xl text-white/90 leading-relaxed">
+          {companyInfo.description}
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- About Section -->
+  <section class="section bg-white">
+    <div class="container-custom">
+      <div class="grid lg:grid-cols-2 gap-12 items-center">
+        <!-- Content -->
+        <div>
+          <h2 class="text-2xl lg:text-3xl font-bold text-secondary-800 mb-6">
+            Về chúng tôi
+          </h2>
+          <div class="space-y-4 text-secondary-600 leading-relaxed">
+            <p>{companyInfo.longDescription}</p>
+          </div>
+
+          <!-- Quick Stats -->
+          <div class="grid grid-cols-2 gap-4 mt-8">
+            <div class="bg-primary-50 rounded-xl p-4">
+              <p class="text-2xl font-bold text-primary-500">{companyInfo.founded}</p>
+              <p class="text-secondary-600 text-sm">Năm thành lập</p>
+            </div>
+            <div class="bg-primary-50 rounded-xl p-4">
+              <p class="text-2xl font-bold text-primary-500">200+</p>
+              <p class="text-secondary-600 text-sm">Nhân viên</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image -->
+        <div class="relative">
+          <img
+            src="https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&h=450&fit=crop"
+            alt="Văn phòng TongkhoBDS"
+            class="w-full rounded-2xl shadow-xl"
+            loading="lazy"
+          />
+          <!-- Decorative element -->
+          <div class="absolute -bottom-4 -right-4 w-24 h-24 bg-primary-500 rounded-xl -z-10"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Mission & Vision Section -->
+  <section class="section bg-secondary-50">
+    <div class="container-custom">
+      <div class="text-center mb-12">
+        <h2 class="text-2xl lg:text-3xl font-bold text-secondary-800">Sứ mệnh & Tầm nhìn</h2>
+        <div class="w-16 h-1 bg-gradient-to-r from-primary-500 to-primary-300 rounded-full mx-auto mt-4"></div>
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-8">
+        <!-- Mission -->
+        <div class="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <div class="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center mb-6">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.879 16.121A3 3 0 1012.015 11L11 14H9c0 .768.293 1.536.879 2.121z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-secondary-800 mb-4">{missionVision.mission.title}</h3>
+          <p class="text-secondary-600 leading-relaxed">{missionVision.mission.content}</p>
+        </div>
+
+        <!-- Vision -->
+        <div class="bg-white rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-300">
+          <div class="w-14 h-14 bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl flex items-center justify-center mb-6">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+            </svg>
+          </div>
+          <h3 class="text-xl font-bold text-secondary-800 mb-4">{missionVision.vision.title}</h3>
+          <p class="text-secondary-600 leading-relaxed">{missionVision.vision.content}</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Core Values Section -->
+  <section class="section bg-white">
+    <div class="container-custom">
+      <div class="text-center mb-12">
+        <h2 class="text-2xl lg:text-3xl font-bold text-secondary-800">Giá trị cốt lõi</h2>
+        <div class="w-16 h-1 bg-gradient-to-r from-primary-500 to-primary-300 rounded-full mx-auto mt-4"></div>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {coreValues.map((value) => (
+          <div class="text-center p-6 rounded-2xl bg-secondary-50 hover:bg-primary-50 transition-colors duration-300">
+            <div class="w-12 h-12 mx-auto mb-4 bg-primary-500 rounded-xl flex items-center justify-center">
+              {value.icon === 'shield' && (
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+              )}
+              {value.icon === 'briefcase' && (
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+              )}
+              {value.icon === 'lightbulb' && (
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                </svg>
+              )}
+              {value.icon === 'heart' && (
+                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+                </svg>
+              )}
+            </div>
+            <h3 class="font-bold text-secondary-800 mb-2">{value.title}</h3>
+            <p class="text-secondary-500 text-sm">{value.description}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Team Section -->
+  <section class="section bg-gradient-to-b from-secondary-50 to-white">
+    <div class="container-custom">
+      <div class="text-center mb-12">
+        <h2 class="text-2xl lg:text-3xl font-bold text-secondary-800">Đội ngũ lãnh đạo</h2>
+        <div class="w-16 h-1 bg-gradient-to-r from-primary-500 to-primary-300 rounded-full mx-auto mt-4"></div>
+        <p class="text-secondary-600 mt-4 max-w-2xl mx-auto">
+          Đội ngũ lãnh đạo giàu kinh nghiệm, tâm huyết với sứ mệnh kết nối người mua và người bán bất động sản
+        </p>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {teamMembers.map((member) => (
+          <TeamMemberCard
+            name={member.name}
+            role={member.role}
+            image={member.image}
+            description={member.description}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Achievements Section -->
+  <section class="section bg-gradient-to-b from-primary-50 to-white">
+    <div class="container-custom">
+      <div class="text-center mb-12">
+        <h2 class="text-2xl lg:text-3xl font-bold text-secondary-800">Thành tựu của chúng tôi</h2>
+        <div class="w-16 h-1 bg-gradient-to-r from-primary-500 to-primary-300 rounded-full mx-auto mt-4"></div>
+      </div>
+
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        {achievements.map((achievement) => (
+          <AchievementStatCard
+            value={achievement.value}
+            label={achievement.label}
+            icon={achievement.icon}
+          />
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <!-- Milestones Section -->
+  <section class="section bg-white">
+    <div class="container-custom">
+      <div class="text-center mb-12">
+        <h2 class="text-2xl lg:text-3xl font-bold text-secondary-800">Hành trình phát triển</h2>
+        <div class="w-16 h-1 bg-gradient-to-r from-primary-500 to-primary-300 rounded-full mx-auto mt-4"></div>
+      </div>
+
+      <div class="max-w-3xl mx-auto">
+        <div class="relative">
+          <!-- Timeline line -->
+          <div class="absolute left-4 lg:left-1/2 top-0 bottom-0 w-0.5 bg-primary-200 -translate-x-1/2"></div>
+
+          {milestones.map((milestone, index) => (
+            <div class={`relative flex items-center gap-6 mb-8 ${index % 2 === 0 ? 'lg:flex-row' : 'lg:flex-row-reverse'}`}>
+              <!-- Dot -->
+              <div class="absolute left-4 lg:left-1/2 w-4 h-4 bg-primary-500 rounded-full -translate-x-1/2 z-10 ring-4 ring-white"></div>
+
+              <!-- Content -->
+              <div class={`ml-12 lg:ml-0 lg:w-1/2 ${index % 2 === 0 ? 'lg:pr-12 lg:text-right' : 'lg:pl-12'}`}>
+                <div class="bg-secondary-50 rounded-xl p-4 hover:bg-primary-50 transition-colors duration-300">
+                  <span class="text-primary-500 font-bold text-lg">{milestone.year}</span>
+                  <p class="text-secondary-700 mt-1">{milestone.event}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="section bg-secondary-900 text-white">
+    <div class="container-custom text-center">
+      <h2 class="text-2xl lg:text-3xl font-bold mb-4">Bạn muốn hợp tác với chúng tôi?</h2>
+      <p class="text-secondary-300 mb-8 max-w-2xl mx-auto">
+        Hãy liên hệ với chúng tôi để được tư vấn và hỗ trợ tốt nhất trong việc mua bán, cho thuê bất động sản
+      </p>
+      <div class="flex flex-wrap justify-center gap-4">
+        <a href="/lien-he" class="btn btn-primary">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+          </svg>
+          Liên hệ ngay
+        </a>
+        <a href={`tel:${companyInfo.phone}`} class="btn btn-outline border-white text-white hover:bg-white hover:text-secondary-900">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          </svg>
+          {companyInfo.hotline}
+        </a>
+      </div>
+    </div>
+  </section>
+</MainLayout>

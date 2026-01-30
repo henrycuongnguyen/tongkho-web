@@ -1,0 +1,16 @@
+---
+/**
+ * Article Share Buttons Component
+ * Wrapper for ShareButtons component used in news article pages
+ */
+import ShareButtons from '@/components/ui/share-buttons.astro';
+
+interface Props {
+  url: string;
+  title: string;
+}
+
+const { url, title } = Astro.props;
+---
+
+<ShareButtons url={url} title={title} variant="inline" size="md" showLabel={true} />
