@@ -29,8 +29,8 @@ const { defaultTab = 'signin' } = Astro.props;
     <!-- Left: Image -->
     <div class="hidden md:block w-1/2 relative">
       <img
-        src="/images/cities/ho-chi-minh.webp"
-        alt="Vietnam Real Estate"
+        src="/images/modal-login.webp"
+        alt="Đăng ký tài khoản TongkhoBDS"
         class="absolute inset-0 w-full h-full object-cover"
       />
       <!-- Logo overlay -->
@@ -65,10 +65,12 @@ const { defaultTab = 'signin' } = Astro.props;
         </div>
 
         <!-- Title -->
-        <h2 class="text-2xl font-bold text-secondary-900 mb-8" data-modal-title>Đăng nhập</h2>
+        <h2 class="text-2xl font-bold text-secondary-900 mb-8 transition-opacity duration-200" data-modal-title>Đăng nhập</h2>
 
-        <!-- ========== SIGNIN PANEL ========== -->
-        <div data-panel="signin" data-visible={defaultTab === 'signin' ? 'true' : 'false'}>
+        <!-- Panels Container -->
+        <div class="relative min-h-[420px]" data-panels-container>
+          <!-- ========== SIGNIN PANEL ========== -->
+          <div data-panel="signin" data-visible={defaultTab === 'signin' ? 'true' : 'false'} class="transition-opacity duration-200 ease-out" style="animation: fadeIn 0.2s ease-out">
           <form class="space-y-5" data-signin-form novalidate>
             <!-- Phone/Email -->
             <div class="space-y-2">
@@ -161,7 +163,7 @@ const { defaultTab = 'signin' } = Astro.props;
         </div>
 
         <!-- ========== SIGNUP PANEL - Step 1: Phone ========== -->
-        <div data-panel="signup" data-visible={defaultTab === 'signup' ? 'true' : 'false'} class="hidden">
+          <div data-panel="signup" data-visible={defaultTab === 'signup' ? 'true' : 'false'} class="hidden transition-opacity duration-200 ease-out" style="animation: fadeIn 0.2s ease-out">
           <!-- Step 1: Phone -->
           <div data-signup-step="phone">
             <form class="space-y-5" data-phone-form novalidate>
@@ -340,6 +342,7 @@ const { defaultTab = 'signin' } = Astro.props;
             </form>
           </div>
         </div>
+        </div><!-- End panels-container -->
       </div>
     </div>
   </div>
@@ -394,11 +397,14 @@ const { defaultTab = 'signin' } = Astro.props;
     }, 200);
   }
 
-  // Switch tabs
+  // Switch tabs with fade
   function switchTab(tabName: string) {
     Object.entries(panels).forEach(([name, panel]) => {
       if (name === tabName) {
         panel.classList.remove('hidden');
+        panel.style.animation = 'none';
+        panel.offsetHeight; // trigger reflow
+        panel.style.animation = 'fadeIn 0.2s ease-out';
         panel.dataset.visible = 'true';
       } else {
         panel.classList.add('hidden');
@@ -560,3 +566,10 @@ const { defaultTab = 'signin' } = Astro.props;
   (window as any).openAuthModal = openAuthModal;
   (window as any).closeAuthModal = closeAuthModal;
 </script>
+
+<style>
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+</style>

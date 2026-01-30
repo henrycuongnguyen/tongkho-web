@@ -1,8 +1,18 @@
 ---
+/**
+ * PropertyCard - Property listing card with image, price, badges, and features
+ *
+ * @example
+ * <PropertyCard property={propertyData} />
+ *
+ * @prop property - Property object with title, price, images, location, etc.
+ */
 import type { Property } from '@/types/property';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
+import ShareButtons from '@/components/ui/share-buttons.astro';
 
 interface Props {
+  /** Property data object containing all listing information */
   property: Property;
 }
 
@@ -56,43 +66,7 @@ const { property } = Astro.props;
         </svg>
       </button>
       <!-- Share Button with Popup -->
-      <div class="relative share-wrapper" onclick="event.stopPropagation()">
-        <button
-          class="share-btn w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white hover:scale-110 transition-all duration-200 ease-out cursor-pointer"
-          aria-label="Chia sẻ"
-          title="Chia sẻ"
-          data-url={`/bat-dong-san/${property.slug}`}
-          data-title={property.title}
-          >
-          <svg class="w-4 h-4 text-secondary-400 group-hover:text-green-500 transition-colors duration-200" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
-          </svg>
-        </button>
-        <!-- Share Popup - Glassmorphism Design -->
-        <div class="share-popup hidden absolute right-full mr-3 top-1/2 -translate-y-1/2 bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 p-3 z-50 opacity-0 scale-95 transition-all duration-200 ease-out" onclick="event.stopPropagation()">
-          <div class="flex items-center gap-2">
-            <!-- Facebook -->
-            <button class="share-option group w-11 h-11 flex items-center justify-center rounded-xl bg-[#1877F2] hover:bg-[#0d65d9] transition-all duration-200 ease-out cursor-pointer" data-platform="facebook" title="Facebook" onclick="event.stopPropagation()">
-              <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/></svg>
-            </button>
-            <!-- Zalo -->
-            <button class="share-option group w-11 h-11 flex items-center justify-center rounded-xl bg-[#0068FF] hover:bg-[#0055d4] transition-all duration-200 ease-out cursor-pointer" data-platform="zalo" title="Zalo" onclick="event.stopPropagation()">
-              <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 21.5c5 0 9.5-3.5 9.5-8.5S17.5 4.5 12.5 4.5 3 8 3 13s4.5 8.5 9.5 8.5zm-3-12h6c.3 0 .5.2.5.5s-.2.5-.5.5h-5.2l-1 2h4.7c.3 0 .5.2.5.5v3c0 .3-.2.5-.5.5h-4c-.3 0-.5-.2-.5-.5v-2.2l-1.5 2.5c-.1.2-.4.2-.5.1-.2-.1-.2-.4-.1-.5l2-3.3V10c0-.3.2-.5.5-.5z"/></svg>
-            </button>
-            <!-- Twitter/X -->
-            <button class="share-option group w-11 h-11 flex items-center justify-center rounded-xl bg-black hover:bg-secondary-800 transition-all duration-200 ease-out cursor-pointer" data-platform="twitter" title="Twitter" onclick="event.stopPropagation()">
-              <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
-            </button>
-            <!-- Copy Link -->
-            <button class="share-option copy-btn group w-11 h-11 flex items-center justify-center rounded-xl bg-primary-500 hover:bg-primary-600 transition-all duration-200 ease-out cursor-pointer" data-platform="copy" title="Sao chép link" onclick="event.stopPropagation()">
-              <svg class="copy-icon w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
-              <svg class="check-icon hidden w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-            </button>
-          </div>
-          <!-- Tooltip arrow -->
-          <div class="absolute right-0 top-1/2 -translate-y-1/2 translate-x-full w-0 h-0 border-t-8 border-b-8 border-l-8 border-transparent border-l-white/95"></div>
-        </div>
-      </div>
+      <ShareButtons url={`/bat-dong-san/${property.slug}`} title={property.title} variant="popup" />
       <!-- Favorite Button -->
       <button
         class="w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white hover:scale-110 transition-all duration-300 cursor-pointer"
@@ -171,89 +145,3 @@ const { property } = Astro.props;
   </div>
 </a>
 
-<script>
-  // Share popup functionality with animation
-  const showPopup = (popup: HTMLElement) => {
-    popup.classList.remove('hidden');
-    requestAnimationFrame(() => {
-      popup.classList.remove('opacity-0', 'scale-95');
-      popup.classList.add('opacity-100', 'scale-100');
-    });
-  };
-
-  const hidePopup = (popup: HTMLElement) => {
-    popup.classList.remove('opacity-100', 'scale-100');
-    popup.classList.add('opacity-0', 'scale-95');
-    setTimeout(() => popup.classList.add('hidden'), 200);
-  };
-
-  document.querySelectorAll('.share-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const popup = btn.nextElementSibling as HTMLElement;
-      // Close other popups
-      document.querySelectorAll('.share-popup').forEach(p => {
-        if (p !== popup && !p.classList.contains('hidden')) hidePopup(p as HTMLElement);
-      });
-      // Toggle current popup
-      if (popup.classList.contains('hidden')) {
-        showPopup(popup);
-      } else {
-        hidePopup(popup);
-      }
-    });
-  });
-
-  // Handle share options
-  document.querySelectorAll('.share-option').forEach(option => {
-    option.addEventListener('click', (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const target = e.currentTarget as HTMLElement;
-      const platform = target.dataset.platform;
-      const wrapper = target.closest('.share-wrapper');
-      const btn = wrapper?.querySelector('.share-btn') as HTMLElement;
-      const url = window.location.origin + (btn?.dataset.url || '');
-      const title = btn?.dataset.title || '';
-
-      switch (platform) {
-        case 'facebook':
-          window.open(`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
-          break;
-        case 'zalo':
-          window.open(`https://zalo.me/share?url=${encodeURIComponent(url)}`, '_blank');
-          break;
-        case 'twitter':
-          window.open(`https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`, '_blank', 'width=600,height=400');
-          break;
-        case 'copy':
-          navigator.clipboard.writeText(url).then(() => {
-            const copyIcon = target.querySelector('.copy-icon');
-            const checkIcon = target.querySelector('.check-icon');
-            if (copyIcon && checkIcon) {
-              copyIcon.classList.add('hidden');
-              checkIcon.classList.remove('hidden');
-              target.classList.add('bg-green-500');
-              target.classList.remove('bg-primary-500', 'hover:bg-primary-600');
-              setTimeout(() => {
-                copyIcon.classList.remove('hidden');
-                checkIcon.classList.add('hidden');
-                target.classList.remove('bg-green-500');
-                target.classList.add('bg-primary-500', 'hover:bg-primary-600');
-              }, 2000);
-            }
-          });
-          return; // Don't close popup for copy
-      }
-      // Close popup after share action
-      const popup = wrapper?.querySelector('.share-popup') as HTMLElement;
-      if (popup) hidePopup(popup);
-    });
-  });
-
-  // Close popup when clicking outside
-  document.addEventListener('click', () => {
-    document.querySelectorAll('.share-popup:not(.hidden)').forEach(p => hidePopup(p as HTMLElement));
-  });
-</script>
