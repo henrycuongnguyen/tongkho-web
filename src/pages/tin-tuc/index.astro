@@ -1,0 +1,168 @@
+---
+/**
+ * News Listing Page - All Articles (Page 1)
+ * URL: /tin-tuc
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+import Pagination from '@/components/ui/pagination.astro';
+import { mockNews } from '@/data/mock-properties';
+import { formatRelativeTime } from '@/utils/format';
+import type { NewsCategory } from '@/types/property';
+
+// Pagination config
+const ITEMS_PER_PAGE = 9;
+const currentPage = 1;
+
+// Category config
+const categoryLabels: Record<NewsCategory, string> = {
+  market: 'Thị trường',
+  tips: 'Kiến thức',
+  policy: 'Chính sách',
+  project_news: 'Tin dự án',
+  investment: 'Đầu tư',
+};
+
+const categories: { key: NewsCategory; label: string; slug: string }[] = [
+  { key: 'market', label: 'Thị trường', slug: 'thi-truong' },
+  { key: 'tips', label: 'Kiến thức', slug: 'kien-thuc' },
+  { key: 'policy', label: 'Chính sách', slug: 'chinh-sach' },
+  { key: 'project_news', label: 'Tin dự án', slug: 'du-an' },
+  { key: 'investment', label: 'Đầu tư', slug: 'dau-tu' },
+];
+
+// Count per category
+const categoryCounts: Record<NewsCategory, number> = {
+  market: mockNews.filter(n => n.category === 'market').length,
+  tips: mockNews.filter(n => n.category === 'tips').length,
+  policy: mockNews.filter(n => n.category === 'policy').length,
+  project_news: mockNews.filter(n => n.category === 'project_news').length,
+  investment: mockNews.filter(n => n.category === 'investment').length,
+};
+
+// Sort by date
+const sortedNews = [...mockNews].sort(
+  (a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime()
+);
+
+// Pagination
+const totalItems = sortedNews.length;
+const totalPages = Math.ceil(totalItems / ITEMS_PER_PAGE);
+const startIndex = (currentPage - 1) * ITEMS_PER_PAGE;
+const paginatedNews = sortedNews.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+
+// Popular articles
+const popularArticles = [...mockNews].sort((a, b) => b.views - a.views).slice(0, 5);
+
+// SEO
+const pageTitle = 'Tin tức bất động sản | TongkhoBDS';
+const pageDescription = 'Cập nhật tin tức bất động sản mới nhất: thị trường, chính sách, kinh nghiệm mua bán, đầu tư và thông tin dự án.';
+---
+
+<MainLayout title={pageTitle} description={pageDescription}>
+  <!-- Breadcrumb -->
+  <div class="bg-white border-b border-secondary-100">
+    <div class="container-custom py-4">
+      <nav class="text-sm text-secondary-500">
+        <ol class="flex items-center gap-2">
+          <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
+          <li class="text-secondary-300">/</li>
+          <li class="text-secondary-700 font-medium">Tin tức</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <section class="py-8 bg-secondary-50">
+    <div class="container-custom">
+      <h1 class="text-2xl lg:text-3xl font-bold text-secondary-800 mb-6">Tin tức bất động sản</h1>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+        <!-- Sidebar -->
+        <aside class="lg:col-span-3 order-2 lg:order-1">
+          <div class="lg:sticky lg:top-24 space-y-6">
+            <!-- Categories -->
+            <div class="bg-white rounded-xl p-4">
+              <h2 class="font-semibold text-secondary-800 mb-3">Danh mục</h2>
+              <ul class="space-y-1">
+                <li>
+                  <a href="/tin-tuc" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm bg-primary-50 text-primary-600 font-medium">
+                    <span>Tất cả</span>
+                    <span class="text-xs">{mockNews.length}</span>
+                  </a>
+                </li>
+                {categories.map((cat) => (
+                  <li>
+                    <a href={`/tin-tuc/danh-muc/${cat.slug}`} class="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-secondary-600 hover:bg-secondary-50 transition-colors">
+                      <span>{cat.label}</span>
+                      <span class="text-xs text-secondary-400">{categoryCounts[cat.key]}</span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <!-- Popular Articles -->
+            <div class="bg-white rounded-xl p-4">
+              <h2 class="font-semibold text-secondary-800 mb-3">Bài viết nổi bật</h2>
+              <ul class="space-y-3">
+                {popularArticles.map((article) => (
+                  <li>
+                    <a href={`/tin-tuc/${article.slug}`} class="group flex gap-3">
+                      <img src={article.thumbnail} alt={article.title} class="w-16 h-12 object-cover rounded" loading="lazy" />
+                      <div class="flex-1 min-w-0">
+                        <h3 class="text-sm text-secondary-700 line-clamp-2 group-hover:text-primary-500 transition-colors leading-snug">{article.title}</h3>
+                        <p class="text-xs text-secondary-400 mt-1">{article.views.toLocaleString()} lượt xem</p>
+                      </div>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="lg:col-span-9 order-1 lg:order-2">
+          <!-- Mobile Category Links -->
+          <div class="lg:hidden mb-4 overflow-x-auto">
+            <div class="flex gap-2 pb-2">
+              <a href="/tin-tuc" class="whitespace-nowrap px-3 py-1.5 rounded-full text-sm bg-primary-500 text-white">Tất cả</a>
+              {categories.map((cat) => (
+                <a href={`/tin-tuc/danh-muc/${cat.slug}`} class="whitespace-nowrap px-3 py-1.5 rounded-full text-sm bg-white text-secondary-600 hover:bg-secondary-100 transition-colors">{cat.label}</a>
+              ))}
+            </div>
+          </div>
+
+          <!-- News Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
+            {paginatedNews.map((article) => (
+              <a href={`/tin-tuc/${article.slug}`} class="bg-white rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+                <div class="aspect-[16/10] overflow-hidden">
+                  <img src={article.thumbnail} alt={article.title} class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" loading="lazy" />
+                </div>
+                <div class="p-4">
+                  <span class="text-xs text-primary-500 font-medium">{categoryLabels[article.category]}</span>
+                  <h3 class="font-semibold text-secondary-800 line-clamp-2 mt-1 mb-2 leading-snug hover:text-primary-500 transition-colors">{article.title}</h3>
+                  <p class="text-sm text-secondary-500 line-clamp-2 mb-3">{article.excerpt}</p>
+                  <div class="flex items-center gap-3 text-xs text-secondary-400">
+                    <span>{formatRelativeTime(article.publishedAt)}</span>
+                    <span>·</span>
+                    <span>{article.views.toLocaleString()} lượt xem</span>
+                  </div>
+                </div>
+              </a>
+            ))}
+          </div>
+
+          <div class="mt-6 text-sm text-secondary-500">
+            Hiển thị {startIndex + 1}-{Math.min(startIndex + ITEMS_PER_PAGE, totalItems)} / {totalItems} bài viết
+          </div>
+
+          <!-- Pagination -->
+          <Pagination currentPage={currentPage} totalPages={totalPages} baseUrl="/tin-tuc" />
+        </main>
+      </div>
+    </div>
+  </section>
+</MainLayout>

@@ -1,0 +1,126 @@
+---
+/**
+ * Pagination Component
+ * Reusable pagination with Vietnamese labels
+ */
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  baseUrl: string; // e.g., '/tin-tuc' or '/tin-tuc/danh-muc/thi-truong'
+}
+
+const { currentPage, totalPages, baseUrl } = Astro.props;
+
+// Generate page URL
+function getPageUrl(page: number): string {
+  if (page === 1) return baseUrl;
+  return `${baseUrl}/trang/${page}`;
+}
+
+// Calculate visible page numbers (show max 5 pages)
+function getVisiblePages(): number[] {
+  const pages: number[] = [];
+  const maxVisible = 5;
+
+  if (totalPages <= maxVisible) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    // Always show first page
+    pages.push(1);
+
+    // Calculate middle pages
+    let start = Math.max(2, currentPage - 1);
+    let end = Math.min(totalPages - 1, currentPage + 1);
+
+    // Adjust if at edges
+    if (currentPage <= 2) {
+      end = 4;
+    } else if (currentPage >= totalPages - 1) {
+      start = totalPages - 3;
+    }
+
+    // Add ellipsis or pages
+    if (start > 2) pages.push(-1); // -1 = ellipsis
+    for (let i = start; i <= end; i++) pages.push(i);
+    if (end < totalPages - 1) pages.push(-1);
+
+    // Always show last page
+    pages.push(totalPages);
+  }
+
+  return pages;
+}
+
+const visiblePages = getVisiblePages();
+const hasPrev = currentPage > 1;
+const hasNext = currentPage < totalPages;
+---
+
+{totalPages > 1 && (
+  <nav class="flex items-center justify-center gap-1 mt-8" aria-label="Phân trang">
+    <!-- Previous -->
+    {hasPrev ? (
+      <a
+        href={getPageUrl(currentPage - 1)}
+        class="flex items-center gap-1 px-3 py-2 text-sm text-secondary-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+        aria-label="Trang trước"
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        <span class="hidden sm:inline">Trước</span>
+      </a>
+    ) : (
+      <span class="flex items-center gap-1 px-3 py-2 text-sm text-secondary-300 cursor-not-allowed">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        <span class="hidden sm:inline">Trước</span>
+      </span>
+    )}
+
+    <!-- Page Numbers -->
+    <div class="flex items-center gap-1">
+      {visiblePages.map((page) =>
+        page === -1 ? (
+          <span class="px-2 py-2 text-secondary-400">...</span>
+        ) : page === currentPage ? (
+          <span
+            class="min-w-[40px] h-10 flex items-center justify-center text-sm font-medium bg-primary-500 text-white rounded-lg"
+            aria-current="page"
+          >
+            {page}
+          </span>
+        ) : (
+          <a
+            href={getPageUrl(page)}
+            class="min-w-[40px] h-10 flex items-center justify-center text-sm text-secondary-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+          >
+            {page}
+          </a>
+        )
+      )}
+    </div>
+
+    <!-- Next -->
+    {hasNext ? (
+      <a
+        href={getPageUrl(currentPage + 1)}
+        class="flex items-center gap-1 px-3 py-2 text-sm text-secondary-600 hover:text-primary-500 hover:bg-primary-50 rounded-lg transition-colors"
+        aria-label="Trang sau"
+      >
+        <span class="hidden sm:inline">Sau</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </a>
+    ) : (
+      <span class="flex items-center gap-1 px-3 py-2 text-sm text-secondary-300 cursor-not-allowed">
+        <span class="hidden sm:inline">Sau</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </span>
+    )}
+  </nav>
+)}
