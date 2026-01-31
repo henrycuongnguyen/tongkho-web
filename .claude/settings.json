@@ -1,7 +1,7 @@
 {
   "env": {
     "ANTHROPIC_BASE_URL": "https://ai.tongkhobds.com/api/provider/claude",
-    "ANTHROPIC_AUTH_TOKEN": "resa-holding",
+    "ANTHROPIC_AUTH_TOKEN": "BfrLtu7fgFmtbJHChjh8rNFbc8Ep0nJO",
     "ANTHROPIC_MODEL": "claude-opus-4-5-20251101",
     "ANTHROPIC_DEFAULT_OPUS_MODEL": "claude-opus-4-5-20251101",
     "ANTHROPIC_DEFAULT_SONNET_MODEL": "claude-sonnet-4-5-20250929",
