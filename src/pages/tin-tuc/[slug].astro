@@ -7,23 +7,20 @@
 import MainLayout from '@/layouts/main-layout.astro';
 import ArticleShareButtons from '@/components/news/article-share-buttons.astro';
 import RelatedArticlesSidebar from '@/components/news/news-related-articles-sidebar.astro';
-import { mockNews } from '@/data/mock-properties';
+import { postgresNewsProjectService } from '@/services/postgres-news-project-service';
 import { formatRelativeTime } from '@/utils/format';
 import type { NewsArticle, NewsCategory } from '@/types/property';
 
-// Generate static paths for all news articles
-export function getStaticPaths() {
-  return mockNews.map((article) => ({
-    params: { slug: article.slug },
-    props: { article },
-  }));
-}
+// Get slug from URL params
+const { slug } = Astro.params;
 
-interface Props {
-  article: NewsArticle;
-}
+// Fetch article from PostgreSQL
+const article = slug ? await postgresNewsProjectService.getNewsBySlug(slug) : null;
 
-const { article } = Astro.props;
+// Return 404 if article not found
+if (!article) {
+  return Astro.redirect('/404');
+}
 
 // Category label mapping
 const categoryLabels: Record<NewsCategory, string> = {
