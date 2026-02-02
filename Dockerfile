@@ -14,6 +14,9 @@ RUN npm run build
 # Stage 2: Production
 FROM node:22-alpine AS production
 
+# Install wget for healthcheck
+RUN apk add --no-cache wget
+
 WORKDIR /app
 
 # Copy package files for production deps
