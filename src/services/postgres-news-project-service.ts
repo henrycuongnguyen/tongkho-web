@@ -4,7 +4,6 @@
  */
 import pg from "pg";
 import type { NewsArticle, Project } from "@/types/property";
-import { mockNews, mockProjects } from "@/data/mock-properties";
 import { generateSlug } from "@/utils/format";
 
 const { Pool } = pg;
@@ -57,9 +56,10 @@ export class PostgresNewsProjectService {
   }
 
   private initPool(): void {
-    const connectionString = import.meta.env.DATABASE_URL;
+    // Use import.meta.env (dev) with process.env fallback (production)
+    const connectionString = import.meta.env.DATABASE_URL || process.env.DATABASE_URL;
     if (!connectionString) {
-      console.warn("[PG] No DATABASE_URL configured, will use mock data");
+      console.error("[PG] DATABASE_URL not configured");
       return;
     }
 
@@ -84,36 +84,30 @@ export class PostgresNewsProjectService {
    */
   async getNewsBySlug(slug: string): Promise<NewsArticle | null> {
     if (!this.pool) {
-      console.warn("[PG] No pool, using mock news for slug lookup");
-      return mockNews.find((a) => a.slug === slug) || null;
+      throw new Error("[PG] Database connection not available - DATABASE_URL not configured");
     }
 
-    try {
-      const result = await this.pool.query<DBNewsRow>(
-        `SELECT id, name, description, htmlcontent, avatar, folder,
-                publish_on, created_on, display_order
-         FROM news
-         WHERE aactive = true
-           AND folder = ANY($1)
-           AND avatar IS NOT NULL AND avatar != ''
-         ORDER BY publish_on DESC NULLS LAST`,
-        [this.NEWS_FOLDERS]
-      );
+    const result = await this.pool.query<DBNewsRow>(
+      `SELECT id, name, description, htmlcontent, avatar, folder,
+              publish_on, created_on, display_order
+       FROM news
+       WHERE aactive = true
+         AND folder = ANY($1)
+         AND avatar IS NOT NULL AND avatar != ''
+       ORDER BY publish_on DESC NULLS LAST`,
+      [this.NEWS_FOLDERS]
+    );
 
-      // Find article by generated slug
-      const matchingRow = result.rows.find(
-        (row) => generateSlug(row.name) === slug
-      );
+    // Find article by generated slug
+    const matchingRow = result.rows.find(
+      (row) => generateSlug(row.name) === slug
+    );
 
-      if (!matchingRow) {
-        return mockNews.find((a) => a.slug === slug) || null;
-      }
-
-      return this.mapToNewsArticle(matchingRow);
-    } catch (error) {
-      console.error("[PG] News slug lookup failed:", error);
-      return mockNews.find((a) => a.slug === slug) || null;
+    if (!matchingRow) {
+      return null;
     }
+
+    return this.mapToNewsArticle(matchingRow);
   }
 
   /**
@@ -121,32 +115,22 @@ export class PostgresNewsProjectService {
    */
   async getLatestNews(limit: number = 8): Promise<NewsArticle[]> {
     if (!this.pool) {
-      console.warn("[PG] No pool, using mock news");
-      return mockNews.slice(0, limit);
+      throw new Error("[PG] Database connection not available - DATABASE_URL not configured");
     }
 
-    try {
-      const result = await this.pool.query<DBNewsRow>(
-        `SELECT id, name, description, htmlcontent, avatar, folder,
-                publish_on, created_on, display_order
-         FROM news
-         WHERE aactive = true
-           AND folder = ANY($2)
-           AND avatar IS NOT NULL AND avatar != ''
-         ORDER BY publish_on DESC NULLS LAST, id DESC
-         LIMIT $1`,
-        [limit, this.NEWS_FOLDERS]
-      );
+    const result = await this.pool.query<DBNewsRow>(
+      `SELECT id, name, description, htmlcontent, avatar, folder,
+              publish_on, created_on, display_order
+       FROM news
+       WHERE aactive = true
+         AND folder = ANY($2)
+         AND avatar IS NOT NULL AND avatar != ''
+       ORDER BY publish_on DESC NULLS LAST, id DESC
+       LIMIT $1`,
+      [limit, this.NEWS_FOLDERS]
+    );
 
-      if (result.rows.length === 0) {
-        return mockNews.slice(0, limit);
-      }
-
-      return result.rows.map((row) => this.mapToNewsArticle(row));
-    } catch (error) {
-      console.error("[PG] News query failed:", error);
-      return mockNews.slice(0, limit);
-    }
+    return result.rows.map((row) => this.mapToNewsArticle(row));
   }
 
   /**
@@ -154,49 +138,39 @@ export class PostgresNewsProjectService {
    */
   async getFeaturedProjects(limit: number = 5): Promise<Project[]> {
     if (!this.pool) {
-      console.warn("[PG] No pool, using mock projects");
-      return mockProjects.slice(0, limit);
+      throw new Error("[PG] Database connection not available - DATABASE_URL not configured");
     }
 
-    try {
-      const result = await this.pool.query<DBProjectRow>(
+    const result = await this.pool.query<DBProjectRow>(
+      `SELECT id, slug, project_name, description, project_status,
+              developer_name, total_units, total_towers, city, district,
+              street_address, main_image, gallery_images, is_featured,
+              created_on, project_area, utilities, price_description
+       FROM project
+       WHERE aactive = true AND is_featured = true AND parent_id IS NULL
+       ORDER BY created_on DESC
+       LIMIT $1`,
+      [limit]
+    );
+
+    if (result.rows.length === 0) {
+      // Fallback to any active projects if no featured
+      const fallbackResult = await this.pool.query<DBProjectRow>(
         `SELECT id, slug, project_name, description, project_status,
                 developer_name, total_units, total_towers, city, district,
                 street_address, main_image, gallery_images, is_featured,
                 created_on, project_area, utilities, price_description
          FROM project
-         WHERE aactive = true AND is_featured = true AND parent_id IS NULL
+         WHERE aactive = true AND parent_id IS NULL
          ORDER BY created_on DESC
          LIMIT $1`,
         [limit]
       );
 
-      if (result.rows.length === 0) {
-        // Fallback to any active projects if no featured
-        const fallbackResult = await this.pool.query<DBProjectRow>(
-          `SELECT id, slug, project_name, description, project_status,
-                  developer_name, total_units, total_towers, city, district,
-                  street_address, main_image, gallery_images, is_featured,
-                  created_on, project_area, utilities, price_description
-           FROM project
-           WHERE aactive = true AND parent_id IS NULL
-           ORDER BY created_on DESC
-           LIMIT $1`,
-          [limit]
-        );
-
-        if (fallbackResult.rows.length === 0) {
-          return mockProjects.slice(0, limit);
-        }
-
-        return fallbackResult.rows.map((row) => this.mapToProject(row));
-      }
-
-      return result.rows.map((row) => this.mapToProject(row));
-    } catch (error) {
-      console.error("[PG] Projects query failed:", error);
-      return mockProjects.slice(0, limit);
+      return fallbackResult.rows.map((row) => this.mapToProject(row));
     }
+
+    return result.rows.map((row) => this.mapToProject(row));
   }
 
   /**

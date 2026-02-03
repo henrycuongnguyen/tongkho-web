@@ -1,13 +1,12 @@
 ---
 import type { NewsArticle } from '@/types/property';
-import { mockNews } from '@/data/mock-properties';
 import { formatRelativeTime } from '@/utils/format';
 
 interface Props {
-  articles?: NewsArticle[];
+  articles: NewsArticle[];
 }
 
-const { articles = mockNews } = Astro.props;
+const { articles } = Astro.props;
 ---
 
 <section class="section bg-gradient-to-b from-white via-secondary-50/30 to-white">

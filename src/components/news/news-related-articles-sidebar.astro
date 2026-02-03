@@ -5,21 +5,21 @@
  */
 import type { NewsArticle, NewsCategory } from '@/types/property';
 import { formatRelativeTime } from '@/utils/format';
-import { mockNews } from '@/data/mock-properties';
 
 interface Props {
+  articles: NewsArticle[];
   currentSlug: string;
   category: NewsCategory;
   maxItems?: number;
 }
 
-const { currentSlug, category, maxItems = 4 } = Astro.props;
+const { articles, currentSlug, category, maxItems = 4 } = Astro.props;
 
 // Get related articles: same category first, then recent
-const sameCategory = mockNews.filter(
+const sameCategory = articles.filter(
   (article) => article.slug !== currentSlug && article.category === category
 );
-const otherArticles = mockNews.filter(
+const otherArticles = articles.filter(
   (article) => article.slug !== currentSlug && article.category !== category
 );
 

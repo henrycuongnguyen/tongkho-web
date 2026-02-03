@@ -1,8 +1,4 @@
 import type { Property, TransactionType } from "@/types/property";
-import {
-  mockPropertiesForSale,
-  mockPropertiesForRent,
-} from "@/data/mock-properties";
 
 // Base URL for uploaded images
 const UPLOADS_BASE_URL = "https://quanly.tongkhobds.com";
@@ -64,50 +60,45 @@ export class ElasticsearchPropertyService {
   private apiKey: string;
 
   constructor() {
-    this.baseUrl = import.meta.env.ES_URL || "https://elastic.tongkhobds.com";
-    this.index = import.meta.env.ES_INDEX || "real_estate";
-    this.apiKey = import.meta.env.ES_API_KEY || "";
+    // Use import.meta.env (dev) with process.env fallback (production)
+    this.baseUrl = import.meta.env.ES_URL || process.env.ES_URL || "";
+    this.index = import.meta.env.ES_INDEX || process.env.ES_INDEX || "real_estate";
+    this.apiKey = import.meta.env.ES_API_KEY || process.env.ES_API_KEY || "";
   }
 
   async searchProperties(
     transactionType: TransactionType,
     limit: number = 4
   ): Promise<Property[]> {
-    if (!this.apiKey) {
-      console.warn("[ES] No API key configured, using mock data");
-      return this.getFallbackData(transactionType, limit);
+    if (!this.apiKey || !this.baseUrl) {
+      throw new Error("[ES] Missing ES_URL or ES_API_KEY environment variables");
     }
 
-    try {
-      const esTransactionType = TRANSACTION_TYPE_MAP[transactionType];
+    const esTransactionType = TRANSACTION_TYPE_MAP[transactionType];
 
-      const response = await fetch(`${this.baseUrl}/${this.index}/_search`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `ApiKey ${this.apiKey}`,
-        },
-        body: JSON.stringify({
-          query: {
-            bool: {
-              must: [{ term: { transaction_type: esTransactionType } }],
-            },
+    const response = await fetch(`${this.baseUrl}/${this.index}/_search`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `ApiKey ${this.apiKey}`,
+      },
+      body: JSON.stringify({
+        query: {
+          bool: {
+            must: [{ term: { transaction_type: esTransactionType } }],
           },
-          sort: [{ created_on: "desc" }],
-          size: limit,
-        }),
-      });
+        },
+        sort: [{ created_on: "desc" }],
+        size: limit,
+      }),
+    });
 
-      if (!response.ok) {
-        throw new Error(`ES error: ${response.status} ${response.statusText}`);
-      }
-
-      const data: ESSearchResponse = await response.json();
-      return data.hits.hits.map((hit) => this.mapToProperty(hit));
-    } catch (error) {
-      console.error("[ES] Search failed:", error);
-      return this.getFallbackData(transactionType, limit);
+    if (!response.ok) {
+      throw new Error(`[ES] Search failed: ${response.status} ${response.statusText}`);
     }
+
+    const data: ESSearchResponse = await response.json();
+    return data.hits.hits.map((hit) => this.mapToProperty(hit));
   }
 
   private mapToProperty(hit: ESHit): Property {
@@ -206,15 +197,6 @@ export class ElasticsearchPropertyService {
     if (path.startsWith("http")) return path;
     // Prepend base URL for relative paths
     return `${UPLOADS_BASE_URL}${path}`;
-  }
-
-  private getFallbackData(
-    transactionType: TransactionType,
-    limit: number
-  ): Property[] {
-    return transactionType === "sale"
-      ? mockPropertiesForSale.slice(0, limit)
-      : mockPropertiesForRent.slice(0, limit);
   }
 }
 

@@ -4,10 +4,6 @@
  */
 import pg from "pg";
 import type { Property, PropertyType, TransactionType } from "@/types/property";
-import {
-  mockPropertiesForSale,
-  mockPropertiesForRent,
-} from "@/data/mock-properties";
 
 const { Pool } = pg;
 
@@ -71,9 +67,10 @@ export class PostgresPropertyService {
   }
 
   private initPool(): void {
-    const connectionString = import.meta.env.DATABASE_URL;
+    // Use import.meta.env (dev) with process.env fallback (production)
+    const connectionString = import.meta.env.DATABASE_URL || process.env.DATABASE_URL;
     if (!connectionString) {
-      console.warn("[PG] No DATABASE_URL configured, will use mock data");
+      console.error("[PG] DATABASE_URL not configured");
       return;
     }
 
@@ -94,35 +91,29 @@ export class PostgresPropertyService {
    */
   async getPropertyBySlug(slug: string): Promise<Property | null> {
     if (!this.pool) {
-      console.warn("[PG] No pool available, using mock data");
-      return this.getMockPropertyBySlug(slug);
+      throw new Error("[PG] Database connection not available - DATABASE_URL not configured");
     }
 
-    try {
-      const result = await this.pool.query<DBPropertyRow>(
-        `SELECT
-          id, title, slug, property_type_id, property_type,
-          transaction_type, price, price_description, area,
-          bedrooms, bathrooms, city, district, street_address,
-          description, html_content, images, main_image,
-          is_featured, is_verified, created_on, created_time,
-          data_json, contact_name, contact_phone, contact_email,
-          furniture, floors, house_direction, frontage_width, road_width
-        FROM real_estate
-        WHERE slug = $1 AND aactive = true
-        LIMIT 1`,
-        [slug]
-      );
+    const result = await this.pool.query<DBPropertyRow>(
+      `SELECT
+        id, title, slug, property_type_id, property_type,
+        transaction_type, price, price_description, area,
+        bedrooms, bathrooms, city, district, street_address,
+        description, html_content, images, main_image,
+        is_featured, is_verified, created_on, created_time,
+        data_json, contact_name, contact_phone, contact_email,
+        furniture, floors, house_direction, frontage_width, road_width
+      FROM real_estate
+      WHERE slug = $1 AND aactive = true
+      LIMIT 1`,
+      [slug]
+    );
 
-      if (result.rows.length === 0) {
-        return null;
-      }
-
-      return this.mapToProperty(result.rows[0]);
-    } catch (error) {
-      console.error("[PG] Query failed:", error);
-      return this.getMockPropertyBySlug(slug);
+    if (result.rows.length === 0) {
+      return null;
     }
+
+    return this.mapToProperty(result.rows[0]);
   }
 
   /**
@@ -134,33 +125,28 @@ export class PostgresPropertyService {
     limit: number = 4
   ): Promise<Property[]> {
     if (!this.pool) {
-      return this.getMockRelatedProperties(excludeId, limit);
+      throw new Error("[PG] Database connection not available - DATABASE_URL not configured");
     }
 
-    try {
-      const result = await this.pool.query<DBPropertyRow>(
-        `SELECT
-          id, title, slug, property_type_id, property_type,
-          transaction_type, price, price_description, area,
-          bedrooms, bathrooms, city, district, street_address,
-          description, html_content, images, main_image,
-          is_featured, is_verified, created_on, created_time,
-          data_json, contact_name, contact_phone, contact_email,
-          furniture, floors, house_direction, frontage_width, road_width
-        FROM real_estate
-        WHERE id != $1
-          AND property_type_id = $2
-          AND aactive = true
-        ORDER BY created_on DESC
-        LIMIT $3`,
-        [excludeId, propertyTypeId, limit]
-      );
+    const result = await this.pool.query<DBPropertyRow>(
+      `SELECT
+        id, title, slug, property_type_id, property_type,
+        transaction_type, price, price_description, area,
+        bedrooms, bathrooms, city, district, street_address,
+        description, html_content, images, main_image,
+        is_featured, is_verified, created_on, created_time,
+        data_json, contact_name, contact_phone, contact_email,
+        furniture, floors, house_direction, frontage_width, road_width
+      FROM real_estate
+      WHERE id != $1
+        AND property_type_id = $2
+        AND aactive = true
+      ORDER BY created_on DESC
+      LIMIT $3`,
+      [excludeId, propertyTypeId, limit]
+    );
 
-      return result.rows.map((row) => this.mapToProperty(row));
-    } catch (error) {
-      console.error("[PG] Related query failed:", error);
-      return this.getMockRelatedProperties(excludeId, limit);
-    }
+    return result.rows.map((row) => this.mapToProperty(row));
   }
 
   /**
@@ -302,25 +288,6 @@ export class PostgresPropertyService {
    */
   private stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
-  }
-
-  /**
-   * Fallback: Get property from mock data
-   */
-  private getMockPropertyBySlug(slug: string): Property | null {
-    const allProperties = [...mockPropertiesForSale, ...mockPropertiesForRent];
-    return allProperties.find((p) => p.slug === slug) || null;
-  }
-
-  /**
-   * Fallback: Get related properties from mock data
-   */
-  private getMockRelatedProperties(
-    excludeId: string,
-    limit: number
-  ): Property[] {
-    const allProperties = [...mockPropertiesForSale, ...mockPropertiesForRent];
-    return allProperties.filter((p) => p.id !== excludeId).slice(0, limit);
   }
 
   /**

@@ -14,8 +14,11 @@ import type { NewsArticle, NewsCategory } from '@/types/property';
 // Get slug from URL params
 const { slug } = Astro.params;
 
-// Fetch article from PostgreSQL
-const article = slug ? await postgresNewsProjectService.getNewsBySlug(slug) : null;
+// Fetch article and related articles from PostgreSQL
+const [article, allNews] = await Promise.all([
+  slug ? postgresNewsProjectService.getNewsBySlug(slug) : null,
+  postgresNewsProjectService.getLatestNews(20),
+]);
 
 // Return 404 if article not found
 if (!article) {
@@ -166,7 +169,7 @@ const articleUrl = `/tin-tuc/${article.slug}`;
 
           <!-- Mobile Related Articles -->
           <div class="lg:hidden mt-8">
-            <RelatedArticlesSidebar currentSlug={article.slug} category={article.category} />
+            <RelatedArticlesSidebar articles={allNews} currentSlug={article.slug} category={article.category} />
           </div>
         </article>
 
@@ -174,7 +177,7 @@ const articleUrl = `/tin-tuc/${article.slug}`;
         <aside class="lg:col-span-4 space-y-6 hidden lg:block">
           <!-- Related Articles -->
           <div class="sticky top-24">
-            <RelatedArticlesSidebar currentSlug={article.slug} category={article.category} />
+            <RelatedArticlesSidebar articles={allNews} currentSlug={article.slug} category={article.category} />
           </div>
         </aside>
       </div>

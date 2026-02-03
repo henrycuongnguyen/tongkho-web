@@ -1,20 +1,15 @@
 ---
 /**
- * News Category Page - Articles by Category
+ * News Category Page - Articles by Category (SSR)
  * URL: /tin-tuc/danh-muc/{category-slug}
  */
 import MainLayout from '@/layouts/main-layout.astro';
-import { mockNews } from '@/data/mock-properties';
+import { postgresNewsProjectService } from '@/services/postgres-news-project-service';
 import { formatRelativeTime } from '@/utils/format';
 import type { NewsCategory } from '@/types/property';
 
-// Generate static paths - data must be inline as getStaticPaths runs isolated
-export function getStaticPaths() {
-  const slugs = ['thi-truong', 'kien-thuc', 'chinh-sach', 'du-an', 'dau-tu'];
-  return slugs.map((slug) => ({
-    params: { category: slug },
-  }));
-}
+// SSR - no static paths needed
+export const prerender = false;
 
 // Category mapping
 const categoryConfig: Record<string, { key: NewsCategory; label: string }> = {
@@ -42,23 +37,26 @@ const categories: { key: NewsCategory; label: string; slug: string }[] = [
 ];
 
 const { category: categorySlug } = Astro.params;
-const currentCategory = categoryConfig[categorySlug];
+const currentCategory = categoryConfig[categorySlug || ''];
 
 if (!currentCategory) {
   return Astro.redirect('/tin-tuc');
 }
 
+// Fetch news from database
+const allNews = await postgresNewsProjectService.getLatestNews(100);
+
 // Count per category
 const categoryCounts: Record<NewsCategory, number> = {
-  market: mockNews.filter(n => n.category === 'market').length,
-  tips: mockNews.filter(n => n.category === 'tips').length,
-  policy: mockNews.filter(n => n.category === 'policy').length,
-  project_news: mockNews.filter(n => n.category === 'project_news').length,
-  investment: mockNews.filter(n => n.category === 'investment').length,
+  market: allNews.filter(n => n.category === 'market').length,
+  tips: allNews.filter(n => n.category === 'tips').length,
+  policy: allNews.filter(n => n.category === 'policy').length,
+  project_news: allNews.filter(n => n.category === 'project_news').length,
+  investment: allNews.filter(n => n.category === 'investment').length,
 };
 
 // Filter and sort
-const filteredNews = mockNews
+const filteredNews = allNews
   .filter(n => n.category === currentCategory.key)
   .sort((a, b) => new Date(b.publishedAt).getTime() - new Date(a.publishedAt).getTime());
 
@@ -102,7 +100,7 @@ const pageDescription = `Tin tức ${currentCategory.label.toLowerCase()} bất 
                 <li>
                   <a href="/tin-tuc" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-secondary-600 hover:bg-secondary-50 transition-colors">
                     <span>Tất cả</span>
-                    <span class="text-xs text-secondary-400">{mockNews.length}</span>
+                    <span class="text-xs text-secondary-400">{allNews.length}</span>
                   </a>
                 </li>
                 {categories.map((cat) => (
