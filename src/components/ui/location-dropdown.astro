@@ -100,7 +100,7 @@ interface Props {
 const { id = "location", name = "city", placeholder = "Toàn quốc" } = Astro.props;
 ---
 
-<div class="location-dropdown relative flex-1 z-9999" data-location-dropdown>
+<div class="location-dropdown relative flex-1 z-[9999]" data-location-dropdown>
   <!-- Trigger Button -->
   <button
     type="button"
@@ -124,7 +124,7 @@ const { id = "location", name = "city", placeholder = "Toàn quốc" } = Astro.p
 
   <!-- Dropdown Panel -->
   <div
-    class="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-secondary-100 p-6 z-9999 hidden"
+    class="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-2xl border border-secondary-100 p-6 z-[9999] hidden"
     style="width: 970px; max-width: 100vw;"
     data-panel
   >

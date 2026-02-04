@@ -20,5 +20,8 @@ export default defineConfig({
     ssr: {
       noExternal: ["@radix-ui/*"],
     },
+    optimizeDeps: {
+      include: ["react", "react-dom", "react-dom/client"],
+    },
   },
 });
