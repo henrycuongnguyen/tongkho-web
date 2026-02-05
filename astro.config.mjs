@@ -29,9 +29,6 @@ export default defineConfig({
   },
   vite: {
     plugins: [tailwindcss()],
-    ssr: {
-      noExternal: ["@radix-ui/*"],
-    },
     optimizeDeps: {
       include: ["react", "react-dom", "react-dom/client"],
     },
