@@ -29,6 +29,17 @@ tongkho-web/
 │   │   └── main-layout.astro                # Header + main + footer (35 LOC)
 │   ├── pages/
 │   │   └── index.astro                      # Homepage (32 LOC)
+│   ├── services/
+│   │   ├── elasticsearch/                    # Elasticsearch services (modular)
+│   │   │   ├── base.service.ts              # Base class (~100 LOC)
+│   │   │   ├── property.service.ts          # Property searches (~170 LOC)
+│   │   │   ├── project.service.ts           # Project searches (~40 LOC)
+│   │   │   ├── location.service.ts          # Location searches (~60 LOC)
+│   │   │   ├── seo.service.ts               # SEO metadata (~30 LOC)
+│   │   │   ├── constants.ts                 # ES indices & types (~80 LOC)
+│   │   │   └── index.ts                     # Barrel export (~50 LOC)
+│   │   ├── postgres-news-project-service.ts  # PostgreSQL news/projects service (298 LOC)
+│   │   └── postgres-property-service.ts      # PostgreSQL properties service
 │   ├── styles/
 │   │   └── global.css                       # Tailwind + custom styles (118 LOC)
 │   ├── types/
@@ -47,7 +58,7 @@ tongkho-web/
 └── README.md                                # Project documentation
 ```
 
-**Total:** ~2,000 lines of code
+**Total:** ~2,500 lines of code (including backend services)
 
 ---
 
@@ -226,6 +237,79 @@ interface SearchFilters {
 
 **Usage:** Imported in component templates & React components
 
+### Backend Services (services/)
+**Purpose:** Data fetching from external databases
+
+#### Elasticsearch Services (elasticsearch/)
+**Architecture:** Modular services with shared base class
+**Connection:** REST API via `fetch` (no client library)
+- Uses `ES_URL`, `ES_INDEX`, `ES_API_KEY` environment variables
+- Authentication: `Authorization: ApiKey ${apiKey}` header
+
+**Module Structure:**
+- `constants.ts` - ES_INDICES, mappings, TypeScript types
+- `base.service.ts` - ElasticsearchBaseService (shared search logic)
+- `property.service.ts` - ElasticsearchPropertyService (singleton)
+- `project.service.ts` - ElasticsearchProjectService (singleton)
+- `location.service.ts` - ElasticsearchLocationService (singleton)
+- `seo.service.ts` - ElasticsearchSeoService (singleton)
+- `index.ts` - Barrel export for clean imports
+
+**Available Indices (ES_INDICES constant):**
+- `PROPERTIES` - "real_estate" (property listings)
+- `PROJECTS` - "project" (real estate projects)
+- `LOCATIONS` - "locations" (location/area data)
+- `SEO_META` - "seo_meta_data" (SEO metadata)
+
+**Property Service Methods:**
+- `searchProperties(transactionType, limit)` – Search by sale/rent
+- `mapToProperty(hit)` – Transform ES response to Property type
+- `parsePriceDescription(desc)` – Parse Vietnamese price format
+
+**Project Service Methods:**
+- `searchProjects(query?, limit)` – Search projects index
+
+**Location Service Methods:**
+- `searchLocations(query?, limit)` – Search locations index
+- `searchLocationsAndProjects(query?, limit)` – Combined search
+
+**SEO Service Methods:**
+- `getSeoMetadata(path)` – Get SEO metadata for specific path
+
+**Design Principles:**
+- **Single Responsibility:** Each service handles one domain
+- **Inheritance:** All extend ElasticsearchBaseService
+- **Minimal Dependencies:** Manual fetch instead of client library
+- **Type Safety:** All responses mapped to TypeScript interfaces
+- **Singleton Pattern:** Export service instances for reuse
+
+#### PostgreSQL News/Project Service (postgres-news-project-service.ts)
+**Connection:** `pg` library with connection pool
+- Uses `DATABASE_URL` environment variable
+- Pool config: max 10 connections, 30s idle timeout
+- Singleton instance: `postgresNewsProjectService`
+
+**Methods:**
+- `getLatestNews(limit)` – Fetch latest news from folders [26, 27, 37]
+- `getNewsBySlug(slug)` – Get specific news article by slug
+- `getFeaturedProjects(limit)` – Get featured projects (with fallback)
+- `mapToNewsArticle(row)` – Transform DB row to NewsArticle type
+- `mapToProject(row)` – Transform DB row to Project type
+
+**Tables:**
+- `news` – Articles with folders/categories (id, name, description, htmlcontent, avatar, folder)
+- `project` – Real estate projects (id, slug, project_name, developer_name, main_image, etc.)
+
+**Image URLs:**
+- Base URL: `https://quanly.tongkhobds.com`
+- News avatars: `/tongkho/static/uploads/news/`
+- Other uploads: `/uploads/` path
+
+#### PostgreSQL Property Service (postgres-property-service.ts)
+**Purpose:** Additional property queries from PostgreSQL
+- Similar pattern to news/project service
+- Connection pooling for efficiency
+
 ---
 
 ## Styling Strategy
@@ -303,15 +387,28 @@ npm run astro    # Astro CLI commands
 | react-dom | 19.0.0 | React rendering |
 | tailwindcss | 3.4.0 | CSS framework |
 | typescript | 5.7.0 | Type safety |
+| pg | 8.18.0 | PostgreSQL client library |
 | @astrojs/react | 4.2.0 | Astro-React integration |
 | @astrojs/tailwind | 6.0.0 | Astro-Tailwind integration |
 | @astrojs/sitemap | 3.3.0 | Dynamic sitemap generation |
 | @types/react | 19.0.0 | React TypeScript definitions |
+| @types/pg | 8.16.0 | PostgreSQL TypeScript definitions |
 | @iconify-json/lucide | 1.2.0 | Icon library |
 
 **Dev Dependencies:**
 - `@astrojs/check` – TypeScript validation
 - `autoprefixer` – CSS vendor prefixes
+
+**Environment Variables:**
+```bash
+# Elasticsearch
+ES_URL=https://elastic.tongkhobds.com
+ES_INDEX=real_estate
+ES_API_KEY=your_api_key_here
+
+# PostgreSQL
+DATABASE_URL=postgres://username:password@host:5432/database
+```
 
 ---
 
@@ -332,3 +429,4 @@ npm run astro    # Astro CLI commands
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-01-28 | Initial codebase documentation |
+| 1.1 | 2026-02-05 | Added backend services documentation (Elasticsearch, PostgreSQL) |

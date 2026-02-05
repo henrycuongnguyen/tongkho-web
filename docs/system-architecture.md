@@ -452,17 +452,95 @@ areaRanges[]     → < 30m², 30-50m², 50-80m², etc.
 - Article pages
 - SEO per page (meta tags, Open Graph)
 
-### Phase 3: Backend Integration
-- API layer (REST or GraphQL)
-- Real property database
-- CMS for articles
-- Authentication/authorization
+### Phase 3: Backend Integration (In Progress)
+**Current Status:** Backend services implemented for data fetching
 
-### Phase 4: Advanced Features
+#### Elasticsearch Integration
+- **Service:** `src/services/elasticsearch-property-service.ts`
+- **Approach:** REST API via `fetch` (no client library dependency)
+- **Authentication:** API Key in Authorization header
+- **Available Indices:**
+  - `real_estate` - Property listings (default)
+  - `project` - Real estate projects
+  - `locations` - Location/area data
+  - `seo_meta_data` - SEO metadata for pages
+- **Features:**
+  - Search properties by transaction type (sale/rent)
+  - Search across multiple indices (e.g., locations + projects)
+  - Sort by creation date
+  - Full-text search with fuzziness
+  - Price and area range filtering
+  - Generic search method for custom queries
+
+#### PostgreSQL Integration
+- **Service:** `src/services/postgres-news-project-service.ts`
+- **Library:** `pg` (node-postgres)
+- **Connection:** Connection pool with configurable limits
+- **Tables:**
+  - `news` - Articles from different folders/categories
+  - `project` - Real estate projects with metadata
+- **Features:**
+  - Fetch news by slug and categories
+  - Get latest news articles
+  - Retrieve featured projects
+  - Fallback to active projects if no featured
+
+#### Environment Variables
+```bash
+# Elasticsearch
+ES_URL=https://elastic.tongkhobds.com
+ES_INDEX=real_estate
+ES_API_KEY=your_api_key_here
+
+# PostgreSQL
+DATABASE_URL=postgres://username:password@host:5432/database
+```
+
+#### Service Architecture
+```
+src/services/
+├── elasticsearch/                           # Elasticsearch services (modular)
+│   ├── base.service.ts                     # Shared base class with search logic
+│   ├── property.service.ts                 # Property-specific searches
+│   │   ├── searchProperties(transactionType, limit)
+│   │   ├── mapToProperty() - Transform to Property type
+│   │   └── parsePriceDescription() - Parse Vietnamese price
+│   ├── project.service.ts                  # Project-specific searches
+│   │   └── searchProjects(query?, limit)
+│   ├── location.service.ts                 # Location-specific searches
+│   │   ├── searchLocations(query?, limit)
+│   │   └── searchLocationsAndProjects() - Combined search
+│   ├── seo.service.ts                      # SEO metadata searches
+│   │   └── getSeoMetadata(path)
+│   ├── constants.ts                        # ES_INDICES, mappings, types
+│   └── index.ts                            # Barrel export
+│
+├── postgres-news-project-service.ts
+│   ├── PostgresNewsProjectService class
+│   ├── getLatestNews(limit)
+│   ├── getNewsBySlug(slug)
+│   ├── getFeaturedProjects(limit)
+│   └── mapToNewsArticle/mapToProject() - Transform DB rows
+│
+└── postgres-property-service.ts
+    └── Additional property queries
+```
+
+#### Design Decisions
+- **Modular Services:** Each service handles one domain (property, project, location, SEO)
+- **Inheritance:** All services extend ElasticsearchBaseService for shared logic
+- **Fetch over Client Library:** Keeps dependencies minimal, easier debugging
+- **Singleton Pattern:** Export service instances for reuse
+- **Shared Base URL:** `https://quanly.tongkhobds.com` for image URLs
+- **Type Safety:** All responses mapped to TypeScript interfaces
+- **Error Handling:** Try-catch with console logging
+
+### Phase 4: Advanced Features (Planned)
 - Real-time property updates
 - Map integration (Google Maps)
 - Image gallery (lightbox)
 - Lead generation forms
+- User authentication
 
 ---
 
@@ -486,3 +564,4 @@ areaRanges[]     → < 30m², 30-50m², 50-80m², etc.
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-01-28 | Initial system architecture documentation |
+| 1.1 | 2026-02-05 | Added backend integration details (Elasticsearch, PostgreSQL) |
