@@ -27,7 +27,7 @@ import HeaderMobileMenu from './header-mobile-menu';
               )}
             </a>
             {item.children && (
-              <div class="absolute top-full left-0 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
+              <div class="absolute top-full left-0 z-50 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
                 <div class="bg-white rounded-xl shadow-xl border border-secondary-100 py-2 min-w-[200px]">
                   {item.children.map((child) => (
                     <a
@@ -86,3 +86,4 @@ import HeaderMobileMenu from './header-mobile-menu';
     document.body.classList.toggle('overflow-hidden');
   });
 </script>
+

@@ -1,0 +1,26 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "4321:4321"
+    environment:
+      - HOST=0.0.0.0
+      - PORT=4321
+      # Elasticsearch
+      - ES_URL=${ES_URL}
+      - ES_INDEX=${ES_INDEX}
+      - ES_API_KEY=${ES_API_KEY}
+      # PostgreSQL
+      - DATABASE_URL=${DATABASE_URL}
+      # Public vars (optional)
+      - PUBLIC_SITE_URL=${PUBLIC_SITE_URL:-https://tongkhobds.com}
+      - PUBLIC_API_URL=${PUBLIC_API_URL:-}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4321/"]
+      interval: 30s
+      timeout: 3s
+      start_period: 10s
+      retries: 3

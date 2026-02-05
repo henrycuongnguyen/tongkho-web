@@ -1,6 +1,12 @@
 ---
-import { mockNews } from '@/data/mock-properties';
+import type { NewsArticle } from '@/types/property';
 import { formatRelativeTime } from '@/utils/format';
+
+interface Props {
+  articles: NewsArticle[];
+}
+
+const { articles } = Astro.props;
 ---
 
 <section class="section bg-gradient-to-b from-white via-secondary-50/30 to-white">
@@ -25,7 +31,7 @@ import { formatRelativeTime } from '@/utils/format';
 
     <!-- News Grid - 4x2 layout -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
-      {mockNews.map((article, index) => (
+      {articles.map((article, index) => (
         <a
           href={`/tin-tuc/${article.slug}`}
           class="card group block"

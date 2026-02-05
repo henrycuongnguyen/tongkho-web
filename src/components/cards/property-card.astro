@@ -19,7 +19,7 @@ interface Props {
 const { property } = Astro.props;
 ---
 
-<a href={`/bat-dong-san/${property.slug}`} class="card group block">
+<a href={`/bds/${property.slug}`} class="card group block">
   <!-- Image Container -->
   <div class="relative aspect-[4/3] overflow-hidden">
     <img
@@ -66,7 +66,7 @@ const { property } = Astro.props;
         </svg>
       </button>
       <!-- Share Button with Popup -->
-      <ShareButtons url={`/bat-dong-san/${property.slug}`} title={property.title} variant="popup" />
+      <ShareButtons url={`/bds/${property.slug}`} title={property.title} variant="popup" />
       <!-- Favorite Button -->
       <button
         class="w-8 h-8 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-md hover:bg-white hover:scale-110 transition-all duration-300 cursor-pointer"
@@ -94,22 +94,21 @@ const { property } = Astro.props;
       {property.title}
     </h3>
 
-    <!-- Location & Time -->
-    <div class="flex items-center justify-between text-sm mb-4">
-      <p class="flex items-center gap-1.5 text-secondary-500">
-        <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-        <span class="truncate">{property.district}, {property.city}</span>
-      </p>
-      <span class="flex items-center gap-1 text-xs text-secondary-400 whitespace-nowrap">
-        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
-        {formatRelativeTime(property.createdAt)}
-      </span>
-    </div>
+    <!-- Location -->
+    <p class="flex items-center gap-1.5 text-sm text-secondary-500 mb-2">
+      <svg class="w-4 h-4 text-primary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+      <span class="truncate">{property.district}, {property.city}</span>
+    </p>
+    <!-- Time -->
+    <p class="flex items-center gap-1 text-xs text-secondary-400 mb-4">
+      <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      {formatRelativeTime(property.createdAt)}
+    </p>
 
     <!-- Features with dividers -->
     <div class="flex items-center gap-3 text-secondary-600 text-sm pt-3 border-t border-secondary-100">

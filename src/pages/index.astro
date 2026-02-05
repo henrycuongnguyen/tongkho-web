@@ -8,7 +8,19 @@ import NewsSection from '@components/home/news-section.astro';
 import PartnersSection from '@components/home/partners-section.astro';
 import DownloadAppSection from '@components/home/download-app-section.astro';
 import PressCoverageSection from '@components/home/press-coverage-section.astro';
-import { mockPropertiesForSale, mockPropertiesForRent } from '@/data/mock-properties';
+import { elasticsearchPropertyService } from '@/services/elasticsearch-property-service';
+import { postgresNewsProjectService } from '@/services/postgres-news-project-service';
+
+// Enable SSR for this page (fetch fresh data on each request)
+export const prerender = false;
+
+// Fetch all data in parallel for optimal performance
+const [propertiesForSale, propertiesForRent, featuredProjects, latestNews] = await Promise.all([
+  elasticsearchPropertyService.searchProperties('sale', 8),
+  elasticsearchPropertyService.searchProperties('rent', 8),
+  postgresNewsProjectService.getFeaturedProjects(5),
+  postgresNewsProjectService.getLatestNews(8),
+]);
 ---
 
 <MainLayout
@@ -16,15 +28,15 @@ import { mockPropertiesForSale, mockPropertiesForRent } from '@/data/mock-proper
   description="TongkhoBDS.com - Tổng kho bất động sản lớn nhất Việt Nam. Mua bán, cho thuê nhà đất, căn hộ, biệt thự với hàng ngàn tin đăng cập nhật mỗi ngày."
 >
   <HeroSection />
-  <FeaturedProjectSection />
+  <FeaturedProjectSection projects={featuredProjects} />
   <PropertiesSection
     title="Bất động sản đang bán"
-    properties={mockPropertiesForSale}
+    properties={propertiesForSale}
     viewAllLink="/mua-ban"
   />
   <PropertiesSection
     title="Bất động sản cho thuê"
-    properties={mockPropertiesForRent}
+    properties={propertiesForRent}
     viewAllLink="/cho-thue"
     variant="warm"
   />
@@ -38,6 +50,6 @@ import { mockPropertiesForSale, mockPropertiesForRent } from '@/data/mock-proper
     <DownloadAppSection />
   </div>
 
-  <NewsSection />
+  <NewsSection articles={latestNews} />
   <PressCoverageSection />
 </MainLayout>

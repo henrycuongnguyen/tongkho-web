@@ -12,7 +12,7 @@ import SidebarFilterList from '@/components/property/sidebar-filter-list.astro';
 import SidebarFeaturedProject from '@/components/property/sidebar-featured-project.astro';
 import PropertyCard from '@/components/cards/property-card.astro';
 import PriceHistoryChart from '@/components/property/price-history-chart.astro';
-import { mockPropertiesForSale, mockPropertiesForRent } from '@/data/mock-properties';
+import { postgresPropertyService } from '@/services/postgres-property-service';
 import type { Property } from '@/types/property';
 
 // Filter data
@@ -44,35 +44,30 @@ const areaRanges = [
   { label: 'Trên 500 m²', min: 500 },
 ];
 
-// Generate static paths for all properties
-export function getStaticPaths() {
-  const allProperties = [...mockPropertiesForSale, ...mockPropertiesForRent];
-  return allProperties.map((property) => ({
-    params: { slug: property.slug },
-    props: { property },
-  }));
+// Get slug from URL params
+const { slug } = Astro.params;
+
+// Fetch property from PostgreSQL by slug
+const property = await postgresPropertyService.getPropertyBySlug(slug || '');
+
+// Return 404 if property not found
+if (!property) {
+  return Astro.redirect('/404');
 }
 
-interface Props {
-  property: Property;
-}
+// Get property_type_id for related query (map back from type string)
+const PROPERTY_TYPE_ID_MAP: Record<string, number> = {
+  apartment: 1, villa: 2, office: 3, shophouse: 4,
+  warehouse: 5, house: 14, land: 46,
+};
+const propertyTypeId = PROPERTY_TYPE_ID_MAP[property.type] || 14;
 
-const { property } = Astro.props;
-
-// Get related properties (same type, exclude current)
-const allProperties = [...mockPropertiesForSale, ...mockPropertiesForRent];
-const relatedProperties = allProperties
-  .filter((p) => p.id !== property.id && p.type === property.type)
-  .slice(0, 4);
-
-// If not enough same type, fill with other properties
-const additionalProperties = relatedProperties.length < 4
-  ? allProperties
-      .filter((p) => p.id !== property.id && !relatedProperties.find((r) => r.id === p.id))
-      .slice(0, 4 - relatedProperties.length)
-  : [];
-
-const displayRelated = [...relatedProperties, ...additionalProperties];
+// Fetch related properties from PostgreSQL
+const displayRelated = await postgresPropertyService.getRelatedProperties(
+  property.id,
+  propertyTypeId,
+  4
+);
 
 // Generate mock images array from thumbnail (for demo)
 const propertyImages = property.images.length > 1

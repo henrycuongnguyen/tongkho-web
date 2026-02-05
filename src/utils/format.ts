@@ -2,8 +2,13 @@ import type { PriceUnit } from '@/types/property';
 
 /**
  * Format price with Vietnamese currency notation
+ * Special case: price=-1 means "contact for price" (Thỏa thuận)
  */
 export function formatPrice(price: number, unit: PriceUnit): string {
+  // Handle negotiable/contact for price
+  if (price < 0) {
+    return 'Thỏa thuận';
+  }
   if (unit === 'billion') {
     return `${price} tỷ`;
   }
@@ -40,20 +45,47 @@ export function formatDate(dateStr: string): string {
 }
 
 /**
- * Format relative time (e.g., "2 ngày trước")
+ * Format relative time (e.g., "8 phút trước", "2 giờ trước", "3 ngày trước")
  */
 export function formatRelativeTime(dateStr: string): string {
   const date = new Date(dateStr);
   const now = new Date();
   const diffInMs = now.getTime() - date.getTime();
-  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
 
-  if (diffInDays === 0) return 'Hôm nay';
-  if (diffInDays === 1) return 'Hôm qua';
-  if (diffInDays < 7) return `${diffInDays} ngày trước`;
-  if (diffInDays < 30) return `${Math.floor(diffInDays / 7)} tuần trước`;
-  if (diffInDays < 365) return `${Math.floor(diffInDays / 30)} tháng trước`;
-  return `${Math.floor(diffInDays / 365)} năm trước`;
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+  const diffInMonths = Math.floor(diffInDays / 30);
+  const diffInYears = Math.floor(diffInDays / 365);
+
+  // < 1 hour: show minutes
+  if (diffInMinutes < 60) {
+    return diffInMinutes <= 1 ? '1 phút trước' : `${diffInMinutes} phút trước`;
+  }
+
+  // < 1 day: show hours
+  if (diffInHours < 24) {
+    return `${diffInHours} giờ trước`;
+  }
+
+  // < 1 month: show days
+  if (diffInDays < 30) {
+    return `${diffInDays} ngày trước`;
+  }
+
+  // < 1 year: show months
+  if (diffInYears < 1) {
+    return `${diffInMonths} tháng trước`;
+  }
+
+  // >= 1 year: show exact date/time
+  return date.toLocaleDateString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
 }
 
 /**

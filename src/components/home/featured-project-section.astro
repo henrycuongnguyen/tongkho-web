@@ -1,10 +1,14 @@
 ---
-import { mockProjects } from '@/data/mock-properties';
+import type { Project } from '@/types/property';
 
-const projects = mockProjects;
+interface Props {
+  projects: Project[];
+}
+
+const { projects } = Astro.props;
 ---
 
-<section class="py-16 lg:py-20 bg-white">
+<section class="py-16 lg:py-20 bg-white relative z-0">
   <div class="container-custom">
     <!-- Section Header - wrap on mobile -->
     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-12">
