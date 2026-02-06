@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { NavItem } from './header-nav-data';
+import type { NavItem } from '@/types/menu';
 
 interface Props {
   navItems: NavItem[];

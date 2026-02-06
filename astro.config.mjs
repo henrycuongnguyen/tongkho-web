@@ -3,8 +3,12 @@ import { defineConfig } from "astro/config";
 import react from "@astrojs/react";
 import sitemap from "@astrojs/sitemap";
 import node from "@astrojs/node";
+import { loadEnv } from "vite";
 
 import tailwindcss from "@tailwindcss/vite";
+
+// Load environment variables for build-time database access
+const env = loadEnv(process.env.NODE_ENV || "development", process.cwd(), "");
 
 // https://astro.build/config
 export default defineConfig({
@@ -36,5 +40,7 @@ export default defineConfig({
     optimizeDeps: {
       include: ["react", "react-dom", "react-dom/client"],
     },
+    // Note: DATABASE_URL is automatically available at build time via import.meta.env
+    // No need to expose it to client bundle for security reasons
   },
 });

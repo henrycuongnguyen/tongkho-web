@@ -1,0 +1,111 @@
+---
+/**
+ * News Folder Page (SSG)
+ * Dynamic route for database-driven news folders
+ * URL: /tin-tuc/danh-muc/{folder-name}
+ *
+ * Generates static pages for all published folders at build time.
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+import { db } from '@/db';
+import { eq } from 'drizzle-orm';
+import { folder } from '@/db/schema/menu';
+import { getLatestNews } from '@/services/postgres-news-project-service';
+import { formatRelativeTime } from '@/utils/format';
+
+// Enable static site generation (SSG)
+export const prerender = true;
+
+// Generate static paths for all published folders
+export async function getStaticPaths() {
+  try {
+    const folders = await db
+      .select()
+      .from(folder)
+      .where(eq(folder.publish, 'T'));
+
+    return folders.map((f) => ({
+      params: { folder: f.name || '' },
+      props: { folder: f },
+    }));
+  } catch (error) {
+    console.error('[FolderPage] Error fetching folders:', error);
+    return [];
+  }
+}
+
+// Get folder data from props
+const { folder: currentFolder } = Astro.props;
+
+// Fetch latest news (TODO: filter by folder when folder-article relationship exists)
+const news = await getLatestNews(20);
+
+// SEO
+const pageTitle = `${currentFolder.label || currentFolder.name} | Tin tức | TongkhoBDS`;
+const pageDescription = `Tin tức, bài viết về ${currentFolder.label || currentFolder.name} trên TongkhoBDS.com`;
+---
+
+<MainLayout
+  title={pageTitle}
+  description={pageDescription}
+>
+  <!-- Page Header -->
+  <div class="bg-gradient-to-r from-primary-50 to-primary-100 py-12">
+    <div class="container-custom">
+      <h1 class="text-4xl font-bold text-secondary-900 mb-2">
+        {currentFolder.label || currentFolder.name}
+      </h1>
+      <p class="text-lg text-secondary-600">
+        Tin tức, bài viết và thông tin hữu ích
+      </p>
+    </div>
+  </div>
+
+  <!-- News Articles -->
+  <div class="container-custom py-12">
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {news.length > 0 ? (
+        news.map((article) => (
+          <article class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+            {article.thumbnail && (
+              <a href={`/tin-tuc/${article.slug}`} class="block">
+                <img
+                  src={article.thumbnail}
+                  alt={article.title}
+                  class="w-full h-48 object-cover"
+                  loading="lazy"
+                />
+              </a>
+            )}
+            <div class="p-6">
+              <a href={`/tin-tuc/${article.slug}`} class="block group">
+                <h2 class="text-xl font-semibold text-secondary-900 group-hover:text-primary-500 transition-colors mb-2 line-clamp-2">
+                  {article.title}
+                </h2>
+              </a>
+              {article.excerpt && (
+                <p class="text-secondary-600 text-sm mb-4 line-clamp-3">
+                  {article.excerpt}
+                </p>
+              )}
+              <div class="flex items-center justify-between text-sm text-secondary-500">
+                {article.author && (
+                  <span>Bởi {article.author}</span>
+                )}
+                <time datetime={article.publishedAt}>
+                  {formatRelativeTime(article.publishedAt)}
+                </time>
+              </div>
+            </div>
+          </article>
+        ))
+      ) : (
+        <div class="col-span-full text-center py-12">
+          <p class="text-secondary-500 text-lg">
+            Chưa có bài viết nào trong danh mục này
+          </p>
+        </div>
+      )}
+    </div>
+  </div>
+</MainLayout>

@@ -474,6 +474,36 @@ Not:
 
 ## Data Structure Patterns
 
+### Data Organization in src/data/ [Phase 3]
+
+**Separation of concerns:**
+- `mock-properties.ts` – Dynamic property/project/news data (for rendering sections)
+- `menu-data.ts` – Build-time database menu generation (nav items)
+- `static-data.ts` – Static UI filter options (cities, property types, prices, areas)
+
+**Static Data Organization (static-data.ts)**
+Store immutable UI dropdown options in `src/data/static-data.ts`:
+
+```typescript
+// ✅ GOOD - Static filter options
+export const cities = [
+  { value: 'ha-noi', label: 'Hà Nội' },
+  { value: 'ho-chi-minh', label: 'TP. Hồ Chí Minh' },
+];
+
+export const propertyTypes = [
+  { value: 'can-ho', label: 'Căn hộ chung cư' },
+  { value: 'nha-rieng', label: 'Nhà riêng' },
+];
+
+export const priceRanges = [
+  { value: '0-500', label: 'Dưới 500 triệu' },
+  { value: '500-1000', label: '500 triệu - 1 tỷ' },
+];
+```
+
+**Usage:** Imported by filter components (hero-search.tsx, etc.)
+
 ### Mock Data Organization
 Store mock data in `src/data/` with clear exports:
 
@@ -713,6 +743,186 @@ When tests are introduced:
 
 ---
 
+## Database & Service Layer Standards [Phase 1]
+
+### Service Layer Architecture
+Services encapsulate business logic and database access:
+
+```typescript
+// src/services/menu-service.ts pattern
+export async function buildMenuStructure(): Promise<MenuStructure> {
+  return getCached('menu_structure', async () => {
+    // Fetch from DB
+    // Transform to domain models
+    // Return typed structure
+  }, cacheTTL);
+}
+```
+
+**Rules:**
+- One responsibility per service file
+- Use interfaces for input/output types (MenuStructure, MenuPropertyType)
+- Implement caching for build-time performance
+- Graceful error handling with fallback data
+- Console logging for debugging (cache hits/misses, errors)
+
+### Drizzle ORM Schema Guidelines
+Schemas define database table structure:
+
+```typescript
+// src/db/schema/menu.ts pattern
+export const propertyType = pgTable('property_type', {
+  id: serial('id').primaryKey(),
+  title: varchar('title', { length: 512 }),
+  transactionType: integer('transaction_type'),
+  aactive: boolean('aactive').default(true),
+});
+
+export type PropertyTypeRow = typeof propertyType.$inferSelect;
+```
+
+**Rules:**
+- Column names match database (snake_case)
+- Types match PostgreSQL types (varchar, integer, boolean)
+- Export inferred types for TypeScript safety
+- Use `.default()` for common defaults
+- Document V1 table mappings in comments
+
+### Database Client Usage
+```typescript
+// src/db/index.ts pattern
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
+
+const connectionString = import.meta.env.DATABASE_URL || process.env.DATABASE_URL;
+const client = postgres(connectionString, {
+  max: 10,
+  connect_timeout: 10,  // 10 seconds connection timeout
+  idle_timeout: 30,     // 30 seconds idle timeout
+});
+export const db = drizzle(client, { schema });
+```
+
+**Rules:**
+- Use DATABASE_URL environment variable (via `import.meta.env` or `process.env`)
+- Connection pooling (max: 10 connections)
+- Set reasonable timeouts (10s connect, 30s idle)
+- Export single db instance for import throughout app
+- Handle connection errors gracefully during build
+
+### Environment Variables [Phase 2]
+Environment variables must be loaded at build time for data generation:
+
+```typescript
+// astro.config.mjs pattern
+import { loadEnv } from 'vite';
+
+const env = loadEnv(process.env.NODE_ENV || 'development', process.cwd(), '');
+```
+
+**Rules:**
+- Load DATABASE_URL before building menu data
+- Never expose to client bundle (security risk)
+- Fallback gracefully if variable missing
+- Log missing variables for troubleshooting
+- Do NOT commit `.env` files; use `.env.example`
+
+**Typical .env contents:**
+```
+DATABASE_URL=postgresql://user:password@localhost:5432/tongkho
+NODE_ENV=development
+```
+
+**Security:**
+- DATABASE_URL contains credentials → keep it secret
+- Use `import.meta.env` safely (NOT exposed to client)
+- Never log full connection strings
+- Use connection pooling to limit active connections
+
+### Database Queries in Services
+```typescript
+// Query pattern with type safety
+const result = await db
+  .select({
+    id: propertyType.id,
+    title: propertyType.title,
+  })
+  .from(propertyType)
+  .where(and(
+    eq(propertyType.aactive, true),
+    eq(propertyType.transactionType, 1)
+  ));
+```
+
+**Rules:**
+- Explicitly select needed columns (no SELECT *)
+- Use `and()`, `eq()`, `isNull()` from drizzle-orm
+- Always filter by `aactive=true` (V1 soft-delete pattern)
+- Use `.orderBy()` for consistent results
+- Wrap in try-catch with error logging
+
+### Caching Strategy (Build-Time)
+```typescript
+const cache = new Map<string, MenuCacheEntry<unknown>>();
+
+function getCached<T>(
+  key: string,
+  compute: () => Promise<T>,
+  ttl: number
+): Promise<T> {
+  const cached = cache.get(key);
+  if (cached && !isExpired(cached)) return cached.data;
+  return compute().then(data => {
+    cache.set(key, { data, timestamp: Date.now(), ttl });
+    return data;
+  });
+}
+```
+
+**Rules:**
+- Cache only at build time (no runtime caching)
+- 1-hour TTL (3600000ms) default for menu data
+- Use string keys that describe the cache entry
+- Log cache hits/misses for debugging
+- Provide manual `clearMenuCache()` function
+
+### Recursive Data Structures [Phase 4]
+For hierarchical data (e.g., nested news folders), use recursive type definitions:
+
+```typescript
+// MenuFolder with optional nested children
+interface MenuFolder {
+  id: number;
+  parent: number | null;
+  name: string | null;
+  label: string | null;
+  publish: string; // 'T' = published
+  displayOrder: number | null;
+  subFolders?: MenuFolder[];  // Recursive property for children
+}
+
+// Transformation function that recursively maps hierarchy
+function folderToNavItem(folder: MenuFolder): NavItem {
+  const navItem: NavItem = {
+    label: folder.label || folder.name || "",
+    href: `/tin-tuc/danh-muc/${folder.name}`,
+  };
+
+  // Recursively transform sub-folders
+  if (folder.subFolders && folder.subFolders.length > 0) {
+    navItem.children = folder.subFolders.map(folderToNavItem);
+  }
+
+  return navItem;
+}
+```
+
+**Rules:**
+- Use optional `?` for recursive properties to indicate tree leaves
+- Provide separate fetch functions for parent and child data if needed
+- Transform hierarchies recursively to match expected output format
+- Set limits on depth if necessary (e.g., max 5 levels)
+
 ## Performance Checklist
 
 - Use `<picture>` elements for responsive images
@@ -721,6 +931,9 @@ When tests are introduced:
 - Preload critical fonts (Inter, Be Vietnam Pro)
 - Never use `<script>` tags (defeats static generation)
 - Use CSS containment for large grids (`contain: layout`)
+- **Database:** Ensure queries have indexes on filtered columns (transaction_type, parent, display_order)
+- **Services:** Implement caching for repeated data fetches during build
+- **Schemas:** Use explicit column selection in queries (no SELECT *)
 
 ---
 
@@ -826,3 +1039,7 @@ For external URLs (future CDN integration):
 | 1.0 | 2026-01-28 | Initial code standards documentation |
 | 1.1 | 2026-01-30 | Add Component Documentation Standards section with JSDoc templates |
 | 1.2 | 2026-02-05 | Add Image Guidelines section for Astro image optimization |
+| 1.3 | 2026-02-06 | Phase 1: Add Database & Service Layer standards (Drizzle ORM, menu service, caching, V1 soft-delete pattern) |
+| 1.4 | 2026-02-06 | Phase 2: Add Environment Variable handling, connection timeouts, build-time data loading security |
+| 1.5 | 2026-02-06 | Phase 3: Add static-data.ts pattern for UI filter options; document separation of concerns (mock-data vs menu-data vs static-data) |
+| 1.6 | 2026-02-06 | Phase 4: Add Recursive Data Structures guidelines for hierarchical data patterns; document folderToNavItem() recursive transformation pattern |

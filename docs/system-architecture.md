@@ -47,8 +47,14 @@
 - **Autoprefixer:** Vendor prefix handling
 - **Custom CSS:** Scoped styles in Astro components
 
+### Database Layer [NEW - Phase 1]
+- **Drizzle ORM:** TypeScript-first ORM for PostgreSQL
+- **PostgreSQL:** Backend database (V1 legacy schema)
+- **Database Client:** postgres-js library for connection pooling
+
 ### Content & Assets
-- **Mock Data:** TypeScript arrays in `src/data/`
+- **Mock Data:** TypeScript arrays in `src/data/` (fallback)
+- **Database-Driven:** Menu structures from PostgreSQL (property types, news folders)
 - **Icons:** Lucide via Iconify JSON
 - **Images:** Static assets in `public/`
 - **Fonts:** Inter (body), Be Vietnam Pro (headings)
@@ -73,9 +79,8 @@ src/
 │   ├── footer/          # Footer section
 │   │   └── footer.astro
 │   ├── header/          # Header & navigation
-│   │   ├── header.astro
-│   │   ├── header-mobile-menu.tsx
-│   │   └── header-nav-data.ts
+│   │   ├── header.astro                      # Uses database menu + static data [Phase 3]
+│   │   └── header-mobile-menu.tsx
 │   └── home/            # Homepage sections
 │       ├── hero-section.astro
 │       ├── hero-search.tsx
@@ -85,16 +90,34 @@ src/
 │       ├── customers-section.astro
 │       └── news-section.astro
 ├── data/
-│   └── mock-properties.ts  # All mock data (properties, projects, news)
+│   ├── mock-properties.ts  # All mock data (properties, projects, news)
+│   ├── menu-data.ts        # Build-time menu generation [Phase 2]
+│   └── static-data.ts      # Static filter options (cities, types, prices) [Phase 3]
+├── db/                     # [NEW] Database layer
+│   ├── index.ts            # Drizzle ORM client initialization
+│   ├── schema/             # Database schema definitions
+│   │   ├── index.ts        # Schema exports
+│   │   ├── menu.ts         # propertyType, folder tables
+│   │   ├── real-estate.ts  # Property/listing schema
+│   │   ├── project.ts      # Project schema
+│   │   └── news.ts         # News schema
+│   └── migrations/         # Database migrations
+│       ├── 0000_*.sql      # Base schema
+│       ├── 0001_*.sql      # Menu indexes
+│       └── README-*.md     # Migration docs
+├── services/               # [NEW] Business logic services
+│   └── menu-service.ts     # Menu generation (property types, news folders)
 ├── layouts/
 │   ├── base-layout.astro   # HTML <head>, meta tags, fonts
 │   └── main-layout.astro   # Header + <main> + footer wrapper
 ├── pages/
-│   └── index.astro         # Homepage
+│   ├── index.astro         # Homepage
+│   └── tin-tuc/danh-muc/[folder].astro  # Dynamic news folder pages [Phase 4]
 ├── styles/
 │   └── global.css          # Global Tailwind + custom styles
 ├── types/
-│   └── property.ts         # TypeScript interfaces
+│   ├── property.ts         # Property/Project/News interfaces
+│   └── menu.ts             # Menu service types
 └── utils/
     └── format.ts           # Formatting utilities (price, date, slug)
 
@@ -134,13 +157,13 @@ Static HTML + CSS
 ```
 pages/index.astro (Homepage)
 ├── layouts/main-layout.astro
-│   ├── components/header/header.astro
-│   │   └── header-nav-data.ts (NavItems)
-│   ├── components/header/header-mobile-menu.tsx (React)
+│   ├── components/header/header.astro [Phase 3]
+│   │   ├── menu-data.ts (getMainNavItems) → Database-driven nav
+│   │   └── header-mobile-menu.tsx (React)
 │   │
 │   ├── components/home/hero-section.astro
 │   ├── components/home/hero-search.tsx (React)
-│   │   └── header-nav-data.ts (Cities, types, filters)
+│   │   └── static-data.ts (cities, propertyTypes, prices, areas) [Phase 3]
 │   │
 │   ├── components/home/featured-project-section.astro
 │   │   └── mock-properties.ts (mockProjects)
@@ -158,7 +181,47 @@ pages/index.astro (Homepage)
 │   │   └── mock-properties.ts (mockNews)
 │   │
 │   └── components/footer/footer.astro
-│       └── header-nav-data.ts (NavItems)
+│       └── menu-data.ts (getMainNavItems) → Database-driven nav
+```
+
+**Database-Driven Menu Generation (Phase 4):**
+```
+Astro Build Process
+  ├─ Folder Pages Generation (Phase 4)
+  │   └─ /tin-tuc/danh-muc/[folder].astro
+  │       ├─ Fetch all newsFolders via buildMenuStructure()
+  │       ├─ Generate dynamic routes for each folder
+  │       └─ Output: /dist/tin-tuc/danh-muc/{folder-name}/index.html (27 pages)
+  │
+  ├─ Navigation Menu Generation
+  │   └─ header.astro
+  │       └─ Calls getMainNavItems() from menu-data.ts
+  │           └─ Calls buildMainNav() from menu-service.ts
+  │               ├─ Check in-memory cache (1-hour TTL)
+  │               ├─ If missing: buildMenuStructure()
+  │               │   ├─ fetchPropertyTypesByTransaction(1,2,3)
+  │               │   │   └─ Query: propertyType table (transaction_type)
+  │               │   ├─ fetchNewsFolders()
+  │               │   │   ├─ Query: folder table (parent=11, publish='T')
+  │               │   │   └─ For each parent: fetchSubFolders(parentId)
+  │               │   │       └─ Recursive: folder table (parent=parentId, publish='T')
+  │               │   └─ Cache result (1 hour)
+  │               └─ Transform to NavItem[] with nested children
+  │                   ├─ folderToNavItem() recursively builds children
+  │                   ├─ label: folder.label | folder.name
+  │                   ├─ href: /tin-tuc/danh-muc/{folder.name}
+  │                   └─ children?: NavItem[] (sub-folders)
+  │       └─ Error handling: Return FALLBACK_MENU if DB unavailable
+  │
+  ├─ Filter Options (Phase 3)
+  │   └─ hero-search.tsx uses static-data.ts
+  │       ├─ cities[] (Hà Nội, TP.HCM, etc.)
+  │       ├─ propertyTypes[] (Căn hộ, Nhà riêng, etc.)
+  │       ├─ priceRanges[] (500M-1T, 1-2T, etc.)
+  │       └─ areaRanges[] (<30m², 30-50m², etc.)
+  │
+  └─ Build outputs static HTML with embedded menu + 27 folder pages
+     └─ No runtime database calls (data baked into HTML)
 ```
 
 ### 3. Data Source: Mock Data
@@ -341,16 +404,23 @@ npm run dev
 ### Production Build
 ```
 npm run build
+  ├─ Environment: Load DATABASE_URL from .env (Phase 2)
   ├─ Step 1: astro check
   │   └─ TypeScript validation (strict mode)
   ├─ Step 2: astro build
+  │   ├─ Menu Generation (Phase 2)
+  │   │   ├─ menu-data.ts: getMainNavItems() executes
+  │   │   │   ├─ Fetch from database via menu-service.ts
+  │   │   │   ├─ Fallback to FALLBACK_MENU if unavailable
+  │   │   │   └─ Embed result in static HTML
+  │   │   └─ Logs: menu item count, fetch duration, errors
   │   ├─ Scan src/pages → generate routes
   │   ├─ Render Astro components to HTML
   │   ├─ Prerender React components
   │   ├─ Process Tailwind CSS
   │   └─ Bundle assets
   └─ Output: dist/ directory
-     ├─ index.html (homepage)
+     ├─ index.html (homepage with embedded menu)
      ├─ sitemap.xml
      ├─ _astro/ (CSS, JS chunks)
      └─ images/
@@ -700,6 +770,79 @@ const visibleProperties = properties.filter(p =>
 
 ---
 
+## Phase 4: Hierarchical News Folder Support [NEW]
+
+### Hierarchical Menu Architecture
+```
+Frontend (Header/Nav + Folder Pages)
+    ↓
+Astro Build Time
+    ↓
+menu-service.ts
+├─ buildMenuStructure()      # Main entry point with caching
+│   ├─ Cache check (1-hour TTL)
+│   ├─ fetchPropertyTypesByTransaction(1,2,3)  # Query property types by transaction
+│   ├─ fetchNewsFolders()        # Query parent folders + sub-folders recursively
+│   │   ├─ SELECT folders WHERE parent=11 AND publish='T' (parent folders)
+│   │   └─ FOR EACH parent: fetchSubFolders(parentId)
+│   │       └─ Recursive: SELECT folders WHERE parent=parentId AND publish='T'
+│   └─ Parallel data fetching with Promise.all()
+├─ folderToNavItem()         # Recursively transform MenuFolder → NavItem
+│   ├─ Map folder.name to slug
+│   ├─ Generate href: /tin-tuc/danh-muc/{slug}
+│   └─ Recursively map subFolders[] to children[]
+└─ buildMainNav()            # Generate NavItem[] with nested children
+    ↓
+[folder].astro Dynamic Page Generation (Phase 4)
+├─ Get all newsFolders via buildMenuStructure()
+├─ Generate static paths for each folder
+├─ Render: /tin-tuc/danh-muc/{folder-name}/
+└─ Output: 27 static HTML files
+    ↓
+Static HTML Generation (Astro output)
+    ↓
+Browser (No runtime database calls)
+```
+
+### Data Structure: MenuFolder Hierarchy
+```typescript
+interface MenuFolder {
+  id: number;
+  parent: number | null;
+  name: string | null;
+  label: string | null;
+  publish: string; // 'T' = published
+  displayOrder: number | null;
+  subFolders?: MenuFolder[];  // Recursive children [Phase 4]
+}
+```
+
+Example tree:
+```
+Tin Tức (parent=11)
+├── Bất Động Sản
+│   ├── Thị Trường
+│   └── Pháp Lý
+├── Dự Án
+└── Khác
+```
+
+### Database Schema Files
+- **src/db/schema/menu.ts:** propertyType, folder table schemas
+- **src/db/migrations/0001_add_menu_indexes.sql:** Performance indexes on transaction_type, parent, display_order
+
+### Service Implementation Details
+- **Cache Layer:** In-memory Map with configurable TTL (default 1 hour)
+- **Error Handling:** Graceful fallback to static menu if DB unavailable
+- **Type Safety:** MenuPropertyType, MenuFolder, MenuStructure interfaces
+- **Logging:** Debug logs for cache hits/misses, data fetching
+
+### Performance Optimization
+- In-memory caching eliminates repeated DB queries during build
+- Parallel Promise.all() for property types + news folders
+- Indexes on propertyType.transaction_type, folder.parent, folder.display_order
+- No runtime database calls (data resolved at build time)
+
 ## Referenced Documentation
 
 See detailed V1 schema documentation for deeper analysis:
@@ -713,5 +856,9 @@ See detailed V1 schema documentation for deeper analysis:
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.4 | 2026-02-06 | Phase 4 complete: Hierarchical news folder support with parent-child relationships; fetchSubFolders() for recursive queries; folderToNavItem() recursive transformation; Dynamic [folder].astro pages generating 27 static folder pages at /tin-tuc/danh-muc/{folder-name} |
+| 2.3 | 2026-02-06 | Phase 3 complete: Separated static-data.ts for filter dropdowns; Updated header component flow; NavItem moved to menu.ts; Removed header-nav-data.ts; Updated data flow diagrams |
+| 2.2 | 2026-02-06 | Phase 2 complete: Added build-time menu generation flow, menu-data module, environment variable loading, fallback strategy |
+| 2.1 | 2026-02-06 | Phase 1: Added menu service architecture, database schema layer, Drizzle ORM integration, caching strategy |
 | 2.0 | 2026-02-06 | Added V1 legacy architecture reference, V1→V2 comparison, data pattern reusability |
 | 1.0 | 2026-01-28 | Initial system architecture documentation |

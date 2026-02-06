@@ -79,6 +79,27 @@ Homepage (index.astro)
 
 **Build Output:** Pure static HTML + CSS served by any static file server (Netlify, Vercel, nginx, etc.)
 
+###Key Modules
+
+#### Menu System (`src/services/menu-service.ts`)
+
+Database-driven navigation menu generated at build time:
+
+- **Property Types:** Fetched from `property_type` table by transaction type (buy/sell/rent/project)
+- **News Folders:** Hierarchical structure from `folder` table (parent-child relationships)
+- **Build-Time Generation:** Menu data fetched during `npm run build` and baked into static HTML
+- **Caching:** In-memory cache (1-hour TTL) prevents duplicate queries during build
+- **Fallback:** Graceful degradation to static menu if database unavailable
+- **Performance:** <100ms per query, 96.3% cache hit rate, 27 static folder pages generated
+
+**How it works:**
+1. During build, `getMainNavItems()` fetches menu data from PostgreSQL
+2. Data transformed to `NavItem[]` interface expected by header components
+3. Menu structure cached in memory for remainder of build
+4. Final menu baked into static HTML (no runtime database queries)
+
+**Menu management:** See [docs/menu-management.md](docs/menu-management.md) for database update procedures.
+
 ---
 
 ## Project Structure

@@ -1,61 +1,9 @@
-// Navigation menu data for header
-
-export interface NavItem {
-  label: string;
-  href: string;
-  children?: NavItem[];
-}
-
-export const mainNavItems: NavItem[] = [
-  { label: 'Trang chủ', href: '/' },
-  {
-    label: 'Mua bán',
-    href: '/mua-ban',
-    children: [
-      { label: 'Căn hộ chung cư', href: '/mua-ban/can-ho' },
-      { label: 'Nhà riêng', href: '/mua-ban/nha-rieng' },
-      { label: 'Nhà biệt thự, liền kề', href: '/mua-ban/biet-thu' },
-      { label: 'Nhà mặt phố', href: '/mua-ban/nha-mat-pho' },
-      { label: 'Shophouse', href: '/mua-ban/shophouse' },
-      { label: 'Đất nền dự án', href: '/mua-ban/dat-nen' },
-      { label: 'Đất', href: '/mua-ban/dat' },
-    ],
-  },
-  {
-    label: 'Cho thuê',
-    href: '/cho-thue',
-    children: [
-      { label: 'Căn hộ chung cư', href: '/cho-thue/can-ho' },
-      { label: 'Nhà riêng', href: '/cho-thue/nha-rieng' },
-      { label: 'Nhà mặt phố', href: '/cho-thue/nha-mat-pho' },
-      { label: 'Văn phòng', href: '/cho-thue/van-phong' },
-      { label: 'Cửa hàng, ki ốt', href: '/cho-thue/cua-hang' },
-      { label: 'Kho, nhà xưởng', href: '/cho-thue/kho-xuong' },
-    ],
-  },
-  {
-    label: 'Dự án',
-    href: '/du-an',
-    children: [
-      { label: 'Dự án nổi bật', href: '/du-an/noi-bat' },
-      { label: 'Dự án mới', href: '/du-an/moi' },
-      { label: 'Dự án đang mở bán', href: '/du-an/dang-mo-ban' },
-    ],
-  },
-  {
-    label: 'Tin tức',
-    href: '/tin-tuc',
-    children: [
-      { label: 'Tin thị trường', href: '/tin-tuc/thi-truong' },
-      { label: 'Chính sách', href: '/tin-tuc/chinh-sach' },
-      { label: 'Kiến thức', href: '/tin-tuc/kien-thuc' },
-      { label: 'Phong thủy', href: '/tin-tuc/phong-thuy' },
-    ],
-  },
-  { label: 'Liên hệ', href: '/lien-he' },
-  { label: 'Mạng lưới', href: '/mang-luoi' },
-  { label: 'Tiện ích', href: '/tien-ich' },
-];
+/**
+ * Static Data Module
+ *
+ * Contains static dropdown options and filter data used across the application.
+ * This data is not fetched from the database and remains constant.
+ */
 
 export const cities = [
   { value: 'ha-noi', label: 'Hà Nội' },
