@@ -12,7 +12,7 @@
 
 import { db } from "@/db";
 import { propertyType, folder } from "@/db/schema/menu";
-import { eq, and } from "drizzle-orm";
+import { eq, and, isNull } from "drizzle-orm";
 import type {
   MenuPropertyType,
   MenuFolder,
@@ -69,6 +69,14 @@ export function clearMenuCache(): void {
 /**
  * Fetch property types by transaction type
  *
+ * Smart fetching strategy:
+ * 1. First try to fetch root items (parentId IS NULL)
+ * 2. If no root items found, fetch all items for that transaction type
+ *
+ * This handles different data structures:
+ * - Transaction types with hierarchical data (e.g., Dự án) → shows only roots
+ * - Transaction types with flat data (e.g., Mua bán, Cho thuê) → shows all items
+ *
  * @param transactionType - 1 = Mua bán (sale), 2 = Cho thuê (rent), 3 = Dự án (project)
  * @returns Array of active property types for the transaction type
  */
@@ -76,7 +84,8 @@ export async function fetchPropertyTypesByTransaction(
   transactionType: number
 ): Promise<MenuPropertyType[]> {
   try {
-    const result = await db
+    // Step 1: Try to get root items (parentId IS NULL)
+    const rootItems = await db
       .select({
         id: propertyType.id,
         title: propertyType.title,
@@ -90,14 +99,35 @@ export async function fetchPropertyTypesByTransaction(
       .where(
         and(
           eq(propertyType.aactive, true),
-          eq(propertyType.transactionType, transactionType)
-          // Removed isNull(parentId) filter to fetch all property types
-          // regardless of hierarchy level
+          eq(propertyType.transactionType, transactionType),
+          isNull(propertyType.parentId) // Only root items
         )
       );
 
+    // Step 2: If root items exist, use them. Otherwise, get all items.
+    const result =
+      rootItems.length > 0
+        ? rootItems
+        : await db
+            .select({
+              id: propertyType.id,
+              title: propertyType.title,
+              parentId: propertyType.parentId,
+              transactionType: propertyType.transactionType,
+              vietnamese: propertyType.vietnamese,
+              slug: propertyType.slug,
+              aactive: propertyType.aactive,
+            })
+            .from(propertyType)
+            .where(
+              and(
+                eq(propertyType.aactive, true),
+                eq(propertyType.transactionType, transactionType)
+              )
+            );
+
     console.log(
-      `[MenuService] Fetched ${result.length} property types for transaction type ${transactionType}`
+      `[MenuService] Fetched ${result.length} property types for transaction type ${transactionType} (${rootItems.length > 0 ? 'root items only' : 'all items'})`
     );
 
     return result.map((row) => ({
