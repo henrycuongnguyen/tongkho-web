@@ -21,22 +21,22 @@ const mainNavItems = await getMainNavItems();
           <div class="relative group">
             <a
               href={item.href}
-              class="flex items-center gap-1 py-2 text-secondary-700 hover:text-primary-500 transition-colors font-medium text-sm whitespace-nowrap"
+              class="flex items-center gap-1 py-2 text-secondary-700 hover:text-primary-500 transition-colors duration-200 font-medium text-sm whitespace-nowrap cursor-pointer"
             >
               {item.label}
               {item.children && (
-                <svg class="w-4 h-4 transition-transform group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-4 h-4 transition-transform duration-200 group-hover:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
                 </svg>
               )}
             </a>
             {item.children && (
               <div class="absolute top-full left-0 z-50 pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <div class="bg-white rounded-xl shadow-xl border border-secondary-100 py-2 min-w-[200px]">
+                <div class="bg-white rounded-xl shadow-xl border border-secondary-100 py-2 min-w-[280px] max-w-[400px] max-h-[480px] overflow-y-auto scroll-smooth">
                   {item.children.map((child) => (
                     <a
                       href={child.href}
-                      class="block px-4 py-2 text-secondary-600 hover:text-primary-500 hover:bg-primary-50 transition-colors"
+                      class="block px-4 py-2.5 text-secondary-600 hover:text-primary-500 hover:bg-primary-50 transition-colors duration-150 cursor-pointer"
                     >
                       {child.label}
                     </a>
