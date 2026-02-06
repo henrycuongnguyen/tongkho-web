@@ -481,8 +481,237 @@ areaRanges[]     → < 30m², 30-50m², 50-80m², etc.
 
 ---
 
+## V1 Legacy Architecture (Reference)
+
+TongKho V1 (Web2py + PostgreSQL + Elasticsearch) is the legacy system from which the new Astro-based frontend evolved. Understanding V1 patterns helps contextualize data source decisions.
+
+### V1 Technology Stack
+- **Framework:** Web2py (Python web framework)
+- **ORM:** PyDAL (Python Data Abstraction Layer)
+- **Database:** PostgreSQL (57 tables across 6 domains)
+- **Search:** Elasticsearch (3 indexes: real_estate, project, locations)
+- **Frontend:** Server-rendered HTML templates (Vue.js, traditional MVC)
+
+### V1 System Architecture
+
+```
+┌────────────────────────────────────────────────┐
+│          WEB2PY APPLICATION LAYER              │
+│  (Controllers + Models + Views)                │
+└────────────────────────────────────────────────┘
+              ↓          ↑
+        HTTP Requests   HTML Responses
+              ↓          ↑
+┌────────────────────────────────────────────────┐
+│       PostgreSQL DATABASE                      │
+│  ├─ Real Estate (property, transaction, etc)  │
+│  ├─ Office System (hierarchy, staff, roles)   │
+│  ├─ Permission & Menu (ACL system)            │
+│  ├─ Messaging (SMS, Zalo, notifications)      │
+│  ├─ Financial (banking, commissions)          │
+│  └─ Configuration (enums, tags, SEO)          │
+└────────────────────────────────────────────────┘
+              ↓          ↑
+        INSERT/UPDATE   SELECT queries
+              ↓          ↑
+┌────────────────────────────────────────────────┐
+│    ELASTICSEARCH CLUSTER                       │
+│  ├─ real_estate index (40+ fields)            │
+│  ├─ project index (15+ fields)                │
+│  └─ locations index (autocomplete)            │
+└────────────────────────────────────────────────┘
+              ↓
+        JSON Search Results
+              ↓
+   Client-Side Rendering (Vue.js)
+              ↓
+     Web Browser (User)
+```
+
+### V1 Key Features
+- **Real-Time Property Sync:** DB insert → auto-index in ES
+- **Geographic Hierarchy:** 5-level office structure (Vùng→Tỉnh→Huyện→Xã→Tổ)
+- **Soft-Delete Pattern:** All records have `aactive` flag (not hard DELETE)
+- **Audit Trail:** 95% transactional table coverage with `created_on`, `created_by`, `updated_on`
+- **Permission Model (V4):** auth_group + post_office_id + function_scope_permission with JSON conditions
+- **Batch Processing:** Location mapping sync (2000-20000 records), commission accrual jobs
+
+### V1 Search Query Pipeline
+```
+User Search Input
+    ↓
+real_estate_handle.py (controller)
+    ├─ Parse filters (city, district, property type, price range)
+    ├─ Geo-distance expansion (5km default radius)
+    ├─ Location ID expansion (via LocationHandler)
+    └─ Featured logic (context-aware)
+    ↓
+BUILD ELASTICSEARCH QUERY
+    ├─ Base condition: aactive=true + slug exists
+    ├─ Complex bool query (must/should/filter/must_not)
+    ├─ Pagination: from/size (max 1000 for geo)
+    └─ Sort: created_time desc (default)
+    ↓
+Elasticsearch Response
+    ├─ 40+ field hits (id, title, price, latlng, etc)
+    ├─ Script field: created_time_updated (UTC+7 formatted)
+    └─ Track total hits: accurate count
+    ↓
+CONVERT TO DAL FORMAT
+    ├─ Field transformations (latlng dict → string)
+    ├─ Timezone normalization
+    └─ Fallback on parse errors
+    ↓
+Web2py Controller Returns JSON → Vue.js Renders
+```
+
+---
+
+## V1 vs V2 Comparison
+
+| Aspect | V1 (Legacy) | V2 (New Astro) | Purpose |
+|--------|-----------|----------------|---------|
+| **Framework** | Web2py (Python, server-rendered) | Astro 5.2 (TypeScript, static-generated) | Simplify tech stack, improve performance |
+| **Frontend** | Server-side templates + Vue.js | React components (prerendered to HTML) | Reduce JavaScript overhead, improve SEO |
+| **Deployment** | Application server + database | Static files + CDN | Eliminate server management, scale globally |
+| **Database** | PostgreSQL (production DB) | Mock data (static in repo, future: API) | Separate frontend from backend concerns |
+| **Search** | Elasticsearch direct integration | Future: Decoupled search API | Decouple frontend from search infrastructure |
+| **Data Binding** | Real-time DB-ES sync (application logic) | Future: Static content + backend API | Stateless frontend architecture |
+| **JavaScript** | Vue.js interactive UI | Zero (prerendered static HTML) | Improved performance, accessibility, SEO |
+| **SEO** | Server-side rendering (good) | Static HTML output (excellent) | Better search engine indexing |
+| **Build Complexity** | Simple (direct execution) | Multi-step (TypeScript → HTML) | Trade: complexity for performance |
+| **Scalability** | Vertical (upgrade server) | Horizontal (CDN + static caching) | Global distribution without backend scaling |
+
+### Migration Path: V1 → V2
+```
+Phase 1: Static Frontend (Current)
+  ├─ Homepage only
+  ├─ Mock data in TypeScript
+  └─ No backend integration
+
+Phase 2: Dynamic Content (Next)
+  ├─ Property detail pages (dynamic routes)
+  ├─ Link to V1 API endpoints (REST calls from client)
+  └─ Location autocomplete from Elasticsearch
+
+Phase 3: Full Backend Integration (Future)
+  ├─ New API layer (decoupled from V1)
+  ├─ Real database (replace mock data)
+  ├─ Authentication/authorization
+  └─ Admin dashboard (server-rendered)
+
+Phase 4: Legacy System Replacement
+  ├─ V1 API deprecation
+  ├─ Data migration (PostgreSQL → new schema)
+  └─ ES index rebuild (new mappings)
+```
+
+---
+
+## Data Pattern Reusability (V1 → V2)
+
+### Soft-Delete Pattern
+**V1 Implementation:** All tables have `aactive` boolean field
+```sql
+UPDATE real_estate SET aactive=FALSE WHERE id=123  -- Soft delete
+SELECT * FROM real_estate WHERE aactive=TRUE       -- Query filter
+```
+
+**V2 Recommendation:** Adopt same pattern for audit trail preservation
+```typescript
+// Component receives properties, filters locally
+const activeProperties = properties.filter(p => p.isActive);
+```
+
+---
+
+### Audit Trail Pattern
+**V1 Implementation:** `created_on`, `created_by`, `updated_on` on all transactional tables
+- PostgreSQL trigger auto-maintains `updated_on`
+- `transaction_history` table provides immutable state change log
+
+**V2 Recommendation:** When implementing backend API
+```typescript
+// API response includes audit metadata
+interface AuditedEntity {
+  id: string;
+  createdAt: ISO8601;
+  createdBy: string;
+  updatedAt: ISO8601;
+}
+```
+
+---
+
+### Hierarchical Office Structure
+**V1 Implementation:** Self-referencing `parent_id` in `post_office` table, 5-level hierarchy
+- Unlimited depth possible
+- Level constraints enforced via CHECK (1-5)
+
+**V2 Recommendation:** Recursive data structure for admin features
+```typescript
+interface OfficeHierarchy {
+  id: string;
+  name: string;
+  level: 1 | 2 | 3 | 4 | 5;
+  parentId: string | null;
+  children?: OfficeHierarchy[];
+}
+```
+
+---
+
+### Geographic Scoping
+**V1 Implementation:** Hierarchical locations (city → district → ward → street)
+- Elasticsearch `locations` index for autocomplete
+- Location mapping batch sync (periodic job)
+
+**V2 Recommendation:** Use Elasticsearch locations index as data source
+```typescript
+// Frontend autocomplete search
+const locations = await es.search({
+  index: 'locations',
+  q: 'Hà',
+  fields: ['n_name', 'n_normalizedname']
+});
+```
+
+---
+
+### Permission Model (Function-Level Data Scoping)
+**V1 Implementation:** JSON-based `function_scope_permission.conditions`
+```json
+{
+  "operator": "AND",
+  "conditions": [
+    {"field": "post_office_id", "operator": "in", "values": [1, 2]},
+    {"field": "status", "operator": "not_in", "values": [5]}
+  ]
+}
+```
+
+**V2 Recommendation:** Frontend enforcement for static content (no auth yet)
+```typescript
+// Future: Server-side filtering via API
+const visibleProperties = properties.filter(p =>
+  userOffices.includes(p.officeId) && p.status !== 5
+);
+```
+
+---
+
+## Referenced Documentation
+
+See detailed V1 schema documentation for deeper analysis:
+- [V1 Database Schema Reference](./v1-database-schema.md) - 57 tables, 120+ relationships
+- [V1 Elasticsearch Schema Reference](./v1-elasticsearch-schema.md) - 3 indexes, search patterns
+- [V1 Data Flow & Synchronization](./v1-data-flow.md) - Real-time sync, batch processing
+
+---
+
 ## Document History
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.0 | 2026-02-06 | Added V1 legacy architecture reference, V1→V2 comparison, data pattern reusability |
 | 1.0 | 2026-01-28 | Initial system architecture documentation |
