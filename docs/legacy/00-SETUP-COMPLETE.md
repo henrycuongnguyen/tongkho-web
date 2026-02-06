@@ -1,41 +1,32 @@
 # Legacy Code Reference System - Setup Complete ✓
 
-**Setup Date:** 2026-02-06
-**Status:** ✅ Complete with Junction Setup
+**Setup Date:** 2026-02-06  
+**Status:** Ready to use
 
 ---
 
 ## What Was Created
 
-### 1. Shared Reference Architecture
+### 1. Directory Structure
 ```
-D:\worktrees\
-├── shared\
-│   └── legacy-reference\           # Shared legacy codebases (outside git)
-│       ├── README.md
-│       ├── resaland_v1\            # Real estate V1 codebase
-│       └── tongkho_v1\             # Inventory V1 codebase
-│
-├── tongkho-web-feature-menu\       # Worktree 1 (plananylyzschema branch)
-│   └── reference\ → junction → ..\shared\legacy-reference\
-│
-└── tongkho-web-main\               # Worktree 2 (main branch) - future
-    └── reference\ → junction → ..\shared\legacy-reference\
-```
+reference/                          # Legacy codebases (read-only)
+├── README.md                       # How to use reference directory
+├── resaland_v1/
+│   ├── README.md                   # Resaland V1 overview & search guide
+│   └── [original codebase]
+└── tongkho_v1/
+    ├── README.md                   # Tongkho V1 overview & search guide
+    └── [original codebase]
 
-### 2. Documentation Structure
-```
-docs/legacy/                        # Documentation in git repo
+docs/legacy/                        # Documentation
 ├── 00-SETUP-COMPLETE.md            # This file
 ├── legacy-code-index.md            # Master index (START HERE)
 ├── resaland-v1-features.md         # Detailed Resaland docs (template)
 └── tongkho-v1-features.md          # Detailed Tongkho docs (template)
 ```
 
-### 3. Configuration Changes
-- **Updated `.gitignore`**: Excludes `reference/` junction (not the target)
-- **Created Junction**: `reference/` → `../shared/legacy-reference/`
-- **Benefit**: Reference available on ALL branches and ALL worktrees automatically
+### 2. Configuration Changes
+- **Updated `.gitignore`**: Legacy codebases won't be committed (read-only reference)
 
 ---
 
