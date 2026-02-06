@@ -12,7 +12,7 @@
 
 import { db } from "@/db";
 import { propertyType, folder } from "@/db/schema/menu";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import type {
   MenuPropertyType,
   MenuFolder,
@@ -90,8 +90,9 @@ export async function fetchPropertyTypesByTransaction(
       .where(
         and(
           eq(propertyType.aactive, true),
-          eq(propertyType.transactionType, transactionType),
-          isNull(propertyType.parentId) // Only root types (no parent)
+          eq(propertyType.transactionType, transactionType)
+          // Removed isNull(parentId) filter to fetch all property types
+          // regardless of hierarchy level
         )
       );
 
