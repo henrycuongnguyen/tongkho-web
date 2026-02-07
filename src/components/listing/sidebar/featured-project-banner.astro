@@ -1,0 +1,64 @@
+---
+/**
+ * Featured Project Banner
+ * Display highlighted projects in sidebar
+ */
+import { getFeaturedProjects } from '@/services/featured-project-service';
+
+interface Props {
+  limit?: number;
+  excludeProjectId?: number;
+}
+
+const { limit = 5, excludeProjectId } = Astro.props;
+
+const projects = await getFeaturedProjects(limit, excludeProjectId);
+
+const FALLBACK_IMAGE = '/images/placeholder-project.jpg';
+---
+
+{projects.length > 0 && (
+  <div class="bg-white rounded-lg shadow-sm p-4">
+    <h3 class="font-semibold text-slate-800 mb-4">Dự án nổi bật</h3>
+
+    <div class="space-y-4">
+      {projects.map((project) => (
+        <a
+          href={`/du-an/${project.slug}`}
+          class="block group"
+        >
+          <div class="flex gap-3">
+            {/* Project Image */}
+            <div class="w-20 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-100">
+              <img
+                src={project.mainImage || FALLBACK_IMAGE}
+                alt={project.title}
+                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                loading="lazy"
+                onerror={`this.src='${FALLBACK_IMAGE}'`}
+              />
+            </div>
+
+            {/* Project Info */}
+            <div class="flex-1 min-w-0">
+              <h4 class="font-medium text-sm text-slate-800 line-clamp-2 group-hover:text-orange-500 transition-colors">
+                {project.title}
+              </h4>
+              <p class="text-xs text-slate-500 mt-1 truncate">
+                {[project.district, project.city].filter(Boolean).join(', ')}
+              </p>
+            </div>
+          </div>
+        </a>
+      ))}
+    </div>
+
+    {/* View All Link */}
+    <a
+      href="/du-an"
+      class="block mt-4 pt-3 border-t border-slate-100 text-center text-sm text-orange-500 hover:text-orange-600 transition-colors"
+    >
+      Xem tất cả dự án →
+    </a>
+  </div>
+)}

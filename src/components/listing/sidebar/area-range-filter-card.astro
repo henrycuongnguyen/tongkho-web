@@ -1,0 +1,81 @@
+---
+/**
+ * Area Range Filter Card
+ * 10 predefined area ranges + custom input
+ */
+
+interface Props {
+  currentMin?: number;
+  currentMax?: number;
+}
+
+const { currentMin, currentMax } = Astro.props;
+
+// Area ranges in m²
+const AREA_RANGES = [
+  { label: 'Dưới 30 m²', min: 0, max: 30 },
+  { label: '30 - 50 m²', min: 30, max: 50 },
+  { label: '50 - 80 m²', min: 50, max: 80 },
+  { label: '80 - 100 m²', min: 80, max: 100 },
+  { label: '100 - 150 m²', min: 100, max: 150 },
+  { label: '150 - 200 m²', min: 150, max: 200 },
+  { label: '200 - 300 m²', min: 200, max: 300 },
+  { label: '300 - 500 m²', min: 300, max: 500 },
+  { label: '500 - 1000 m²', min: 500, max: 1000 },
+  { label: 'Trên 1000 m²', min: 1000, max: null },
+];
+
+// Check if range is active
+function isActive(range: typeof AREA_RANGES[0]): boolean {
+  if (currentMin === undefined && currentMax === undefined) return false;
+  return currentMin === range.min && (currentMax === range.max || (!range.max && !currentMax));
+}
+
+// Build URL for range
+function getRangeUrl(range: typeof AREA_RANGES[0]): string {
+  const params = new URLSearchParams(window?.location?.search || '');
+  if (range.min > 0) {
+    params.set('dtnn', String(range.min));
+  } else {
+    params.delete('dtnn');
+  }
+  if (range.max) {
+    params.set('dtcn', String(range.max));
+  } else {
+    params.delete('dtcn');
+  }
+  params.delete('page'); // Reset to page 1
+  const query = params.toString();
+  return query ? `?${query}` : window?.location?.pathname || '/mua-ban/toan-quoc';
+}
+---
+
+<div class="bg-white rounded-lg shadow-sm p-4">
+  <h3 class="font-semibold text-slate-800 mb-3">Lọc theo diện tích</h3>
+
+  <div class="space-y-1.5">
+    {AREA_RANGES.map((range) => (
+      <a
+        href={getRangeUrl(range)}
+        class:list={[
+          'block px-3 py-2 text-sm rounded-lg transition-colors',
+          isActive(range)
+            ? 'bg-orange-50 text-orange-600 font-medium'
+            : 'text-slate-600 hover:bg-slate-50'
+        ]}
+      >
+        {range.label}
+      </a>
+    ))}
+  </div>
+
+  <!-- Clear filter -->
+  {(currentMin !== undefined || currentMax !== undefined) && (
+    <a
+      href="?"
+      class="block mt-3 text-center text-sm text-orange-500 hover:text-orange-600"
+    >
+      Xóa bộ lọc diện tích
+    </a>
+  )}
+</div>

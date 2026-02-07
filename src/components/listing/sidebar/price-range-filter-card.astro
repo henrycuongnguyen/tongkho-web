@@ -1,0 +1,93 @@
+---
+/**
+ * Price Range Filter Card
+ * 13 predefined price ranges + custom input
+ */
+
+interface Props {
+  currentMin?: number;
+  currentMax?: number;
+}
+
+const { currentMin, currentMax } = Astro.props;
+
+// Price ranges (matching v1)
+const PRICE_RANGES = [
+  { label: 'Dưới 500 triệu', min: 0, max: 500_000_000 },
+  { label: '500 - 800 triệu', min: 500_000_000, max: 800_000_000 },
+  { label: '800 triệu - 1 tỷ', min: 800_000_000, max: 1_000_000_000 },
+  { label: '1 - 2 tỷ', min: 1_000_000_000, max: 2_000_000_000 },
+  { label: '2 - 3 tỷ', min: 2_000_000_000, max: 3_000_000_000 },
+  { label: '3 - 5 tỷ', min: 3_000_000_000, max: 5_000_000_000 },
+  { label: '5 - 7 tỷ', min: 5_000_000_000, max: 7_000_000_000 },
+  { label: '7 - 10 tỷ', min: 7_000_000_000, max: 10_000_000_000 },
+  { label: '10 - 15 tỷ', min: 10_000_000_000, max: 15_000_000_000 },
+  { label: '15 - 20 tỷ', min: 15_000_000_000, max: 20_000_000_000 },
+  { label: '20 - 30 tỷ', min: 20_000_000_000, max: 30_000_000_000 },
+  { label: '30 - 50 tỷ', min: 30_000_000_000, max: 50_000_000_000 },
+  { label: 'Trên 50 tỷ', min: 50_000_000_000, max: null },
+];
+
+// Check if range is active
+function isActive(range: typeof PRICE_RANGES[0]): boolean {
+  if (currentMin === undefined && currentMax === undefined) return false;
+  return currentMin === range.min && (currentMax === range.max || (!range.max && !currentMax));
+}
+
+// Build URL for range
+function getRangeUrl(range: typeof PRICE_RANGES[0]): string {
+  const params = new URLSearchParams(window?.location?.search || '');
+  if (range.min > 0) {
+    params.set('gtn', formatPriceParam(range.min));
+  } else {
+    params.delete('gtn');
+  }
+  if (range.max) {
+    params.set('gcn', formatPriceParam(range.max));
+  } else {
+    params.delete('gcn');
+  }
+  params.delete('page'); // Reset to page 1
+  const query = params.toString();
+  return query ? `?${query}` : window?.location?.pathname || '/mua-ban/toan-quoc';
+}
+
+// Format price for URL param
+function formatPriceParam(amount: number): string {
+  if (amount >= 1_000_000_000) {
+    const ty = amount / 1_000_000_000;
+    return `${ty}-ty`;
+  }
+  return `${amount / 1_000_000}-trieu`;
+}
+---
+
+<div class="bg-white rounded-lg shadow-sm p-4">
+  <h3 class="font-semibold text-slate-800 mb-3">Lọc theo giá</h3>
+
+  <div class="space-y-1.5">
+    {PRICE_RANGES.map((range) => (
+      <a
+        href={getRangeUrl(range)}
+        class:list={[
+          'block px-3 py-2 text-sm rounded-lg transition-colors',
+          isActive(range)
+            ? 'bg-orange-50 text-orange-600 font-medium'
+            : 'text-slate-600 hover:bg-slate-50'
+        ]}
+      >
+        {range.label}
+      </a>
+    ))}
+  </div>
+
+  <!-- Clear filter -->
+  {(currentMin !== undefined || currentMax !== undefined) && (
+    <a
+      href="?"
+      class="block mt-3 text-center text-sm text-orange-500 hover:text-orange-600"
+    >
+      Xóa bộ lọc giá
+    </a>
+  )}
+</div>

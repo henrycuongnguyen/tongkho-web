@@ -1,0 +1,87 @@
+---
+/**
+ * Location Autocomplete Component (HTMX)
+ * Zero-JS autocomplete using HTMX for SSR search
+ */
+
+interface Props {
+  /** Placeholder text */
+  placeholder?: string;
+  /** Base transaction URL (e.g., /mua-ban) */
+  baseUrl?: string;
+  /** Input name for form submission */
+  name?: string;
+}
+
+const {
+  placeholder = 'Tìm tỉnh, quận, phường, dự án...',
+  baseUrl = '/mua-ban',
+  name = 'location',
+} = Astro.props;
+
+const searchUrl = `/api/location/search?base=${encodeURIComponent(baseUrl)}`;
+---
+
+<div class="location-autocomplete relative">
+  <input
+    type="text"
+    name={name}
+    placeholder={placeholder}
+    autocomplete="off"
+    class="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+    hx-get={searchUrl}
+    hx-trigger="keyup changed delay:300ms"
+    hx-target="#location-results"
+    hx-swap="innerHTML"
+    hx-indicator="#location-spinner"
+    hx-include="this"
+  />
+
+  <!-- Loading Spinner -->
+  <div id="location-spinner" class="htmx-indicator absolute right-3 top-1/2 -translate-y-1/2">
+    <svg class="w-5 h-5 text-slate-400 animate-spin" fill="none" viewBox="0 0 24 24">
+      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+    </svg>
+  </div>
+
+  <!-- Results Dropdown -->
+  <div
+    id="location-results"
+    class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-auto empty:hidden"
+  ></div>
+</div>
+
+<script is:inline>
+  // Inject query value into HTMX request (input value → q param)
+  document.addEventListener('htmx:configRequest', function(evt) {
+    const input = evt.detail.elt;
+    if (input.closest('.location-autocomplete') && input.tagName === 'INPUT') {
+      evt.detail.parameters.q = input.value;
+    }
+  });
+
+  // Close dropdown on click outside
+  document.addEventListener('click', function(evt) {
+    const container = evt.target.closest('.location-autocomplete');
+    if (!container) {
+      document.querySelectorAll('#location-results').forEach(el => el.innerHTML = '');
+    }
+  });
+
+  // Close on Escape key
+  document.addEventListener('keydown', function(evt) {
+    if (evt.key === 'Escape') {
+      document.querySelectorAll('#location-results').forEach(el => el.innerHTML = '');
+    }
+  });
+</script>
+
+<style>
+  .htmx-indicator {
+    display: none;
+  }
+  .htmx-request .htmx-indicator {
+    display: block;
+  }
+</style>

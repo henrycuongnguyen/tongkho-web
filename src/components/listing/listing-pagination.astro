@@ -1,0 +1,115 @@
+---
+/**
+ * Listing Pagination
+ * Server-side pagination with page links
+ */
+interface Props {
+  currentPage: number;
+  totalPages: number;
+  baseUrl: string;
+}
+
+const { currentPage, totalPages, baseUrl } = Astro.props;
+
+// Generate page numbers to display
+function getPageNumbers(current: number, total: number): (number | 'ellipsis')[] {
+  const pages: (number | 'ellipsis')[] = [];
+
+  if (total <= 7) {
+    // Show all pages if 7 or less
+    for (let i = 1; i <= total; i++) pages.push(i);
+  } else if (current <= 4) {
+    // Near start
+    for (let i = 1; i <= 5; i++) pages.push(i);
+    pages.push('ellipsis');
+    pages.push(total);
+  } else if (current >= total - 3) {
+    // Near end
+    pages.push(1);
+    pages.push('ellipsis');
+    for (let i = total - 4; i <= total; i++) pages.push(i);
+  } else {
+    // Middle
+    pages.push(1);
+    pages.push('ellipsis');
+    for (let i = current - 1; i <= current + 1; i++) pages.push(i);
+    pages.push('ellipsis');
+    pages.push(total);
+  }
+
+  return pages;
+}
+
+const pageNumbers = getPageNumbers(currentPage, totalPages);
+
+// Build page URL
+function getPageUrl(page: number): string {
+  const url = new URL(baseUrl, 'http://localhost');
+  if (page > 1) {
+    url.searchParams.set('page', String(page));
+  }
+  return url.pathname + url.search;
+}
+---
+
+<nav class="flex items-center justify-center gap-1" aria-label="Pagination">
+  <!-- Previous -->
+  {currentPage > 1 ? (
+    <a
+      href={getPageUrl(currentPage - 1)}
+      class="flex items-center gap-1 px-3 py-2 text-sm text-slate-600 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Trước
+    </a>
+  ) : (
+    <span class="flex items-center gap-1 px-3 py-2 text-sm text-slate-300 cursor-not-allowed">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Trước
+    </span>
+  )}
+
+  <!-- Page numbers -->
+  <div class="flex items-center gap-1">
+    {pageNumbers.map((page) =>
+      page === 'ellipsis' ? (
+        <span class="px-2 py-2 text-slate-400">...</span>
+      ) : page === currentPage ? (
+        <span class="min-w-[36px] h-9 flex items-center justify-center text-sm font-medium text-white bg-orange-500 rounded-lg">
+          {page}
+        </span>
+      ) : (
+        <a
+          href={getPageUrl(page)}
+          class="min-w-[36px] h-9 flex items-center justify-center text-sm text-slate-600 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+        >
+          {page}
+        </a>
+      )
+    )}
+  </div>
+
+  <!-- Next -->
+  {currentPage < totalPages ? (
+    <a
+      href={getPageUrl(currentPage + 1)}
+      class="flex items-center gap-1 px-3 py-2 text-sm text-slate-600 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-colors"
+    >
+      Sau
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+    </a>
+  ) : (
+    <span class="flex items-center gap-1 px-3 py-2 text-sm text-slate-300 cursor-not-allowed">
+      Sau
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+      </svg>
+    </span>
+  )}
+</nav>

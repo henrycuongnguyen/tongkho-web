@@ -1,0 +1,39 @@
+---
+/**
+ * Sidebar Wrapper
+ * Contains all sidebar widgets for listing page
+ */
+import type { PropertySearchFilters } from '@/services/elasticsearch/types';
+import type { SidebarFilterBlock } from '@/services/sidebar-filter-service';
+import QuickContactBanner from './quick-contact-banner.astro';
+import PriceRangeFilterCard from './price-range-filter-card.astro';
+import AreaRangeFilterCard from './area-range-filter-card.astro';
+import DynamicSidebarFilters from './dynamic-sidebar-filters.astro';
+import FeaturedProjectBanner from './featured-project-banner.astro';
+
+interface Props {
+  filters: PropertySearchFilters;
+  dynamicFilterBlocks?: SidebarFilterBlock[];
+}
+
+const { filters, dynamicFilterBlocks = [] } = Astro.props;
+---
+
+<div class="space-y-4">
+  <!-- Quick Contact -->
+  <QuickContactBanner />
+
+  <!-- Price Range Filter -->
+  <PriceRangeFilterCard currentMin={filters.minPrice} currentMax={filters.maxPrice} />
+
+  <!-- Area Range Filter -->
+  <AreaRangeFilterCard currentMin={filters.minArea} currentMax={filters.maxArea} />
+
+  <!-- Dynamic Filters (context-aware) -->
+  {dynamicFilterBlocks.length > 0 && (
+    <DynamicSidebarFilters blocks={dynamicFilterBlocks} />
+  )}
+
+  <!-- Featured Projects -->
+  <FeaturedProjectBanner limit={5} />
+</div>

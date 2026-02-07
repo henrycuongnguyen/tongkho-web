@@ -1,0 +1,132 @@
+---
+/**
+ * Dynamic Listing Route
+ * Handles: /mua-ban, /cho-thue, /du-an with filters
+ * URL pattern: /{transaction}/{location}/{price}?filters
+ */
+import ListingWithSidebarLayout from '@/layouts/listing-with-sidebar-layout.astro';
+import ListingBreadcrumb from '@/components/listing/listing-breadcrumb.astro';
+import ListingFilter from '@/components/listing/listing-filter.astro';
+import ListingGrid from '@/components/listing/listing-grid.astro';
+import ListingPagination from '@/components/listing/listing-pagination.astro';
+import SidebarWrapper from '@/components/listing/sidebar/sidebar-wrapper.astro';
+import { searchProperties } from '@/services/elasticsearch/property-search-service';
+import { getProvinceBySlug } from '@/services/location/location-service';
+import { fetchPropertyTypesByTransaction } from '@/services/menu-service';
+import { parseListingUrl, getPageTitle, getPageDescription } from '@/utils/listing-url-parser';
+import type { PropertySearchFilters } from '@/services/elasticsearch/types';
+
+// Valid transaction slugs
+const VALID_TRANSACTIONS = ['mua-ban', 'cho-thue', 'du-an'];
+
+// Get URL params
+const { slug } = Astro.params;
+const url = new URL(Astro.request.url);
+const slugParts = slug?.split('/').filter(Boolean) || [];
+
+// Validate first segment is a valid transaction type
+if (slugParts.length === 0 || !VALID_TRANSACTIONS.includes(slugParts[0])) {
+  return Astro.redirect('/404');
+}
+
+// Parse URL to filters
+const filters: PropertySearchFilters = parseListingUrl(slugParts, url.searchParams);
+
+// Resolve location slug to IDs if present
+// @ts-expect-error - temp storage from parser
+const locationSlug = filters._locationSlug;
+if (locationSlug) {
+  const province = await getProvinceBySlug(locationSlug);
+  if (province) {
+    filters.provinceIds = [province.id];
+  }
+  // @ts-expect-error - cleanup
+  delete filters._locationSlug;
+}
+
+// Get property types for filter
+const propertyTypes = await fetchPropertyTypesByTransaction(filters.transactionType);
+
+// Query ElasticSearch
+const searchResult = await searchProperties(filters);
+const { hits: properties, total, took } = searchResult;
+
+// Build metadata
+const title = getPageTitle(filters);
+const description = getPageDescription(filters, total);
+
+// Pagination info
+const currentPage = filters.page || 1;
+const pageSize = filters.pageSize || 20;
+const totalPages = Math.ceil(total / pageSize);
+---
+
+<ListingWithSidebarLayout title={title} description={description}>
+  <!-- Breadcrumb -->
+  <ListingBreadcrumb filters={filters} />
+
+  <!-- Filter Section -->
+  <ListingFilter
+    transactionType={filters.transactionType}
+    propertyTypes={propertyTypes.map(pt => ({ id: pt.id, title: pt.title || '', slug: pt.slug || '' }))}
+    currentFilters={{
+      propertyTypes: filters.propertyTypes,
+      minPrice: filters.minPrice?.toString(),
+      maxPrice: filters.maxPrice?.toString(),
+      minArea: filters.minArea?.toString(),
+      maxArea: filters.maxArea?.toString(),
+      bedrooms: filters.bedrooms?.toString(),
+      bathrooms: filters.bathrooms?.toString(),
+    }}
+    currentPath={url.pathname}
+  />
+
+  <!-- Results Header -->
+  <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-xl font-semibold text-slate-900">
+          {title.replace(' - Tongkho BĐS', '')}
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Tìm thấy <span class="font-medium text-slate-700">{total.toLocaleString('vi-VN')}</span> kết quả
+          <span class="text-slate-400">({took}ms)</span>
+        </p>
+      </div>
+
+      <!-- Sort Dropdown -->
+      <div class="flex items-center gap-2">
+        <label for="sort" class="text-sm text-slate-600">Sắp xếp:</label>
+        <select
+          id="sort"
+          class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          onchange="window.location.href = this.value"
+        >
+          <option value={`?sort=newest`} selected={filters.sort === 'newest'}>Mới nhất</option>
+          <option value={`?sort=oldest`} selected={filters.sort === 'oldest'}>Cũ nhất</option>
+          <option value={`?sort=price_asc`} selected={filters.sort === 'price_asc'}>Giá thấp đến cao</option>
+          <option value={`?sort=price_desc`} selected={filters.sort === 'price_desc'}>Giá cao đến thấp</option>
+          <option value={`?sort=area_asc`} selected={filters.sort === 'area_asc'}>Diện tích nhỏ đến lớn</option>
+          <option value={`?sort=area_desc`} selected={filters.sort === 'area_desc'}>Diện tích lớn đến nhỏ</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Property Grid -->
+  <ListingGrid properties={properties} />
+
+  <!-- Pagination -->
+  {totalPages > 1 && (
+    <ListingPagination
+      currentPage={currentPage}
+      totalPages={totalPages}
+      baseUrl={url.pathname}
+    />
+  )}
+
+  <!-- Sidebar -->
+  <Fragment slot="sidebar">
+    <SidebarWrapper filters={filters} />
+  </Fragment>
+</ListingWithSidebarLayout>

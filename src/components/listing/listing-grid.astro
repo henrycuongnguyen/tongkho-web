@@ -1,0 +1,32 @@
+---
+/**
+ * Listing Grid
+ * Displays property cards in responsive grid
+ */
+import type { PropertyDocument } from '@/services/elasticsearch/types';
+import ListingPropertyCard from './listing-property-card.astro';
+
+interface Props {
+  properties: PropertyDocument[];
+}
+
+const { properties } = Astro.props;
+---
+
+{properties.length > 0 ? (
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+    {properties.map((property) => (
+      <ListingPropertyCard property={property} />
+    ))}
+  </div>
+) : (
+  <div class="bg-white rounded-lg shadow-sm p-8 text-center">
+    <svg class="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+    </svg>
+    <h3 class="text-lg font-medium text-slate-700 mb-2">Không tìm thấy kết quả</h3>
+    <p class="text-slate-500">
+      Thử thay đổi bộ lọc hoặc tìm kiếm với từ khóa khác.
+    </p>
+  </div>
+)}
