@@ -14,9 +14,11 @@ interface Props {
   baseUrl: string;
   /** Current selected province slug (optional) */
   currentProvince?: string;
+  /** Selected locations for multi-select (optional) */
+  selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
 }
 
-const { provinces, baseUrl, currentProvince } = Astro.props;
+const { provinces, baseUrl, currentProvince, selectedLocations = [] } = Astro.props;
 
 // Find current province nId for fetching districts
 const selectedProvince = currentProvince
@@ -105,6 +107,7 @@ const selectedProvince = currentProvince
   <LocationAutocomplete
     placeholder="Hoặc tìm kiếm địa điểm..."
     baseUrl={baseUrl}
+    selectedLocations={selectedLocations}
   />
 </div>
 
@@ -161,31 +164,71 @@ const selectedProvince = currentProvince
         item.classList.remove('text-secondary-700');
 
         if (nId) {
-          // Load districts via HTMX
-          districtPanel.innerHTML = `
-            <div class="flex items-center justify-center h-full">
-              <svg class="w-4 h-4 animate-spin text-secondary-400" fill="none" viewBox="0 0 24 24">
-                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
-              </svg>
-            </div>
-          `;
+          // Get province slug for navigation
+          const provinceSlug = item.dataset.provinceSlug || '';
 
-          // Use HTMX to fetch districts
-          // @ts-ignore - htmx is loaded globally
-          if (window.htmx) {
-            // @ts-ignore
-            window.htmx.ajax('GET', `/api/location/districts?province=${nId}&base=${baseUrl}`, {
-              target: districtPanel,
-              swap: 'innerHTML'
-            });
+          if (provinceSlug) {
+            // Navigate to province-filtered URL
+            const targetUrl = `${baseUrl}/${provinceSlug}`;
+            const currentUrl = window.location.pathname;
+
+            // Check if already on this province to avoid unnecessary reload
+            if (currentUrl !== targetUrl) {
+              // Navigate to province page - districts will auto-load via hx-trigger="load once"
+              window.location.href = targetUrl;
+            } else {
+              // Already on this province page - just refresh districts
+              districtPanel.innerHTML = `
+                <div class="flex items-center justify-center h-full">
+                  <svg class="w-4 h-4 animate-spin text-secondary-400" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                  </svg>
+                </div>
+              `;
+
+              // Use HTMX to fetch districts
+              // @ts-ignore - htmx is loaded globally
+              if (window.htmx) {
+                // @ts-ignore
+                window.htmx.ajax('GET', `/api/location/districts?province=${nId}&base=${baseUrl}`, {
+                  target: districtPanel,
+                  swap: 'innerHTML'
+                });
+              } else {
+                // Fallback: fetch manually
+                fetch(`/api/location/districts?province=${nId}&base=${baseUrl}`)
+                  .then(res => res.text())
+                  .then(html => {
+                    districtPanel.innerHTML = html;
+                  });
+              }
+            }
           } else {
-            // Fallback: fetch manually
-            fetch(`/api/location/districts?province=${nId}&base=${baseUrl}`)
-              .then(res => res.text())
-              .then(html => {
-                districtPanel.innerHTML = html;
+            // No slug - just load districts without navigation
+            districtPanel.innerHTML = `
+              <div class="flex items-center justify-center h-full">
+                <svg class="w-4 h-4 animate-spin text-secondary-400" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+                </svg>
+              </div>
+            `;
+
+            // @ts-ignore
+            if (window.htmx) {
+              // @ts-ignore
+              window.htmx.ajax('GET', `/api/location/districts?province=${nId}&base=${baseUrl}`, {
+                target: districtPanel,
+                swap: 'innerHTML'
               });
+            } else {
+              fetch(`/api/location/districts?province=${nId}&base=${baseUrl}`)
+                .then(res => res.text())
+                .then(html => {
+                  districtPanel.innerHTML = html;
+                });
+            }
           }
         } else {
           // Reset - navigate to base URL

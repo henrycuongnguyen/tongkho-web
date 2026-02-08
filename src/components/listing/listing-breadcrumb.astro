@@ -14,9 +14,11 @@ interface Props {
   filters: PropertySearchFilters;
   provinceName?: string;  // Pass from parent if resolved
   propertyTypeName?: string;  // Pass from parent if resolved
+  /** Selected locations (for multi-location breadcrumb) */
+  selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
 }
 
-const { filters, provinceName, propertyTypeName } = Astro.props;
+const { filters, provinceName, propertyTypeName, selectedLocations = [] } = Astro.props;
 
 // Transaction type labels and slugs
 const TRANSACTION_TYPES: Record<number, { label: string; slug: string }> = {
@@ -26,7 +28,7 @@ const TRANSACTION_TYPES: Record<number, { label: string; slug: string }> = {
 };
 
 /**
- * Build breadcrumb items based on filters
+ * Build breadcrumb items based on filters (v1 compatible with hierarchy)
  */
 function buildBreadcrumbs(): BreadcrumbItem[] {
   const items: BreadcrumbItem[] = [
@@ -34,26 +36,49 @@ function buildBreadcrumbs(): BreadcrumbItem[] {
   ];
 
   const txType = TRANSACTION_TYPES[filters.transactionType] || TRANSACTION_TYPES[1];
+  const baseUrl = `/${txType.slug}`;
 
   // Transaction type
   items.push({
     text: txType.label,
-    url: provinceName || propertyTypeName ? `/${txType.slug}` : ''
+    url: provinceName || propertyTypeName || selectedLocations.length > 0 ? baseUrl : ''
   });
 
   // Property type (if single selection)
   if (propertyTypeName) {
     items.push({
       text: propertyTypeName,
-      url: provinceName ? `/${txType.slug}?property_types=${filters.propertyTypes?.[0]}` : ''
+      url: provinceName || selectedLocations.length > 0 ? `${baseUrl}?property_types=${filters.propertyTypes?.[0]}` : ''
     });
   }
 
-  // Province
-  if (provinceName) {
+  // Location hierarchy: Province → District → Ward (v1 compatible)
+  if (selectedLocations.length > 0) {
+    // Find province and districts from selectedLocations
+    const provinces = selectedLocations.filter(loc => loc.type === 'province');
+    const districts = selectedLocations.filter(loc => loc.type === 'district');
+
+    // If multi-location, only show first province and districts
+    if (provinces.length > 0) {
+      const province = provinces[0];
+      items.push({
+        text: province.name,
+        url: districts.length > 0 ? `${baseUrl}/${province.slug}` : ''
+      });
+    }
+
+    // Show all districts in hierarchy
+    districts.forEach((district, index) => {
+      items.push({
+        text: district.name,
+        url: index < districts.length - 1 ? `${baseUrl}/${district.slug}` : ''
+      });
+    });
+  } else if (provinceName) {
+    // Fallback to simple province display
     items.push({
       text: provinceName,
-      url: ''  // Current context
+      url: ''
     });
   }
 
