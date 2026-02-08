@@ -3,4 +3,4 @@ export * from './news';
 export * from './project';
 export * from './menu';
 export * from './location';
-export * from './auth';
+// export * from './auth'; // Removed - auth feature disabled
