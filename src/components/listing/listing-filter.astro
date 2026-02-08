@@ -34,9 +34,11 @@ interface Props {
   };
   /** Current URL path */
   currentPath: string;
+  /** Selected locations for multi-select (optional) */
+  selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
 }
 
-const { transactionType, propertyTypes, provinces = [], currentProvince, currentFilters, currentPath } = Astro.props;
+const { transactionType, propertyTypes, provinces = [], currentProvince, currentFilters, currentPath, selectedLocations = [] } = Astro.props;
 
 // Transaction type to base URL mapping
 const TRANSACTION_BASE_URLS: Record<number, string> = {
@@ -63,6 +65,7 @@ const isPropertyTypeActive = (id: number) =>
         provinces={provinces}
         baseUrl={baseUrl}
         currentProvince={currentProvince}
+        selectedLocations={selectedLocations}
       />
     </div>
 
@@ -278,25 +281,97 @@ const isPropertyTypeActive = (id: number) =>
       selectedPrice = priceInput?.value || '';
       selectedArea = areaInput?.value || '';
 
-      const params = new URLSearchParams();
+      // Extract location slug from current path (e.g., /mua-ban/ha-noi → ha-noi)
+      const pathParts = currentPath.split('/').filter(Boolean);
+      let locationSlug = pathParts.length > 1 ? pathParts[1] : null;
 
-      if (selectedPropertyTypes.length) params.set('property_types', selectedPropertyTypes.join(','));
+      // Build URL parts: [transaction]/[location]/[price-slug]
+      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
+
+      // Calculate price slug first to determine if we need location
+      let priceSlug = '';
       if (selectedPrice) {
         const [minP, maxP] = selectedPrice.split('-');
-        if (minP) params.set('gtn', minP);
-        if (maxP) params.set('gcn', maxP);
+        const minPriceTrieu = minP ? parseFloat(minP) : 0;
+        const maxPriceTrieu = maxP ? parseFloat(maxP) : 0;
+
+        if (minPriceTrieu || maxPriceTrieu) {
+          priceSlug = buildPriceSlug(minPriceTrieu, maxPriceTrieu);
+        }
       }
+
+      // Add location (required if price slug exists, per v1 format)
+      // If no specific location but has price filter, use "toan-quoc"
+      if (locationSlug && locationSlug !== 'toan-quoc') {
+        urlParts.push(locationSlug);
+      } else if (priceSlug) {
+        // Price slug requires location arg, use "toan-quoc" for nationwide
+        urlParts.push('toan-quoc');
+      }
+
+      // Add price slug (arg3 position in v1 format)
+      if (priceSlug) {
+        urlParts.push(priceSlug);
+      }
+
+      // Build base URL path
+      let targetUrl = '/' + urlParts.join('/');
+
+      // Add query params for other filters
+      const params = new URLSearchParams();
+
+      if (selectedPropertyTypes.length) {
+        params.set('property_types', selectedPropertyTypes.join(','));
+      }
+
       if (selectedArea) {
         const [minA, maxA] = selectedArea.split('-');
         if (minA) params.set('dtnn', minA);
         if (maxA) params.set('dtcn', maxA);
       }
+
       if (selectedBedrooms) params.set('bedrooms', selectedBedrooms);
       if (selectedBathrooms) params.set('bathrooms', selectedBathrooms);
 
       const query = params.toString();
-      window.location.href = query ? `${baseUrl}?${query}` : baseUrl;
+      if (query) {
+        targetUrl += '?' + query;
+      }
+
+      window.location.href = targetUrl;
     });
+
+    // Helper: Build price slug (v1 format)
+    // Input values are in "triệu" units (e.g., 1000 = 1 tỷ, 500 = 500 triệu)
+    function buildPriceSlug(minTrieu: number, maxTrieu: number): string {
+      if (minTrieu === 0 && maxTrieu === 0) return 'gia-thuong-luong';
+
+      if (!minTrieu && maxTrieu) {
+        return `gia-duoi-${convertTrieuToPriceSlug(maxTrieu)}`;
+      }
+
+      if (minTrieu && (!maxTrieu || maxTrieu >= 60000)) {
+        return `gia-tren-${convertTrieuToPriceSlug(minTrieu)}`;
+      }
+
+      if (minTrieu && maxTrieu && minTrieu < maxTrieu) {
+        return `gia-tu-${convertTrieuToPriceSlug(minTrieu)}-den-${convertTrieuToPriceSlug(maxTrieu)}`;
+      }
+
+      return '';
+    }
+
+    // Helper: Convert triệu value to price slug part
+    // Input: 1000 (triệu) → Output: "1-ty"
+    // Input: 500 (triệu) → Output: "500-trieu"
+    function convertTrieuToPriceSlug(trieu: number): string {
+      if (trieu >= 1000) {
+        const ty = trieu / 1000;
+        const formatted = ty % 1 === 0 ? ty.toString() : ty.toFixed(1);
+        return `${formatted}-ty`;
+      }
+      return `${trieu.toFixed(0)}-trieu`;
+    }
 
     // Clear filters button
     const clearBtn = container.querySelector('[data-clear-filters]');

@@ -46,7 +46,17 @@ function getRangeUrl(range: typeof AREA_RANGES[0]): string {
   }
   params.delete('page'); // Reset to page 1
   const query = params.toString();
-  return query ? `?${query}` : Astro.url.pathname;
+  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
+}
+
+// Get URL without area filter (remove dtnn, dtcn params only)
+function getClearAreaUrl(): string {
+  const params = new URLSearchParams(Astro.url.search);
+  params.delete('dtnn');
+  params.delete('dtcn');
+  params.delete('page'); // Reset to page 1
+  const query = params.toString();
+  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
 }
 ---
 
@@ -72,7 +82,7 @@ function getRangeUrl(range: typeof AREA_RANGES[0]): string {
   <!-- Clear filter -->
   {(currentMin !== undefined || currentMax !== undefined) && (
     <a
-      href="?"
+      href={getClearAreaUrl()}
       class="block mt-3 text-center text-sm text-orange-500 hover:text-orange-600"
     >
       Xóa bộ lọc diện tích
