@@ -35,7 +35,7 @@ const FALLBACK_IMAGE = '/images/placeholder-project.jpg';
                 alt={project.title}
                 class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                 loading="lazy"
-                onerror={`this.src='${FALLBACK_IMAGE}'`}
+                onerror="if(!this.dataset.errorHandled){this.dataset.errorHandled='true';this.src='/images/placeholder-project.jpg';this.onerror=null}"
               />
             </div>
 
