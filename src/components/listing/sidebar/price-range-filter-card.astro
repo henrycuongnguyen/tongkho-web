@@ -36,7 +36,7 @@ function isActive(range: typeof PRICE_RANGES[0]): boolean {
 
 // Build URL for range
 function getRangeUrl(range: typeof PRICE_RANGES[0]): string {
-  const params = new URLSearchParams(window?.location?.search || '');
+  const params = new URLSearchParams(Astro.url.search);
   if (range.min > 0) {
     params.set('gtn', formatPriceParam(range.min));
   } else {
@@ -49,7 +49,7 @@ function getRangeUrl(range: typeof PRICE_RANGES[0]): string {
   }
   params.delete('page'); // Reset to page 1
   const query = params.toString();
-  return query ? `?${query}` : window?.location?.pathname || '/mua-ban/toan-quoc';
+  return query ? `?${query}` : Astro.url.pathname;
 }
 
 // Format price for URL param
