@@ -11,7 +11,7 @@ import ListingGrid from '@/components/listing/listing-grid.astro';
 import ListingPagination from '@/components/listing/listing-pagination.astro';
 import SidebarWrapper from '@/components/listing/sidebar/sidebar-wrapper.astro';
 import { searchProperties } from '@/services/elasticsearch/property-search-service';
-import { getProvinceBySlug, getAllProvinces } from '@/services/location/location-service';
+import { resolveLocationSlugs, getAllProvinces } from '@/services/location/location-service';
 import { fetchPropertyTypesByTransaction } from '@/services/menu-service';
 import { parseListingUrl, getPageTitle, getPageDescription } from '@/utils/listing-url-parser';
 import type { PropertySearchFilters } from '@/services/elasticsearch/types';
@@ -32,24 +32,77 @@ if (slugParts.length === 0 || !VALID_TRANSACTIONS.includes(slugParts[0])) {
 // Parse URL to filters
 const filters: PropertySearchFilters = parseListingUrl(slugParts, url.searchParams);
 
-// Resolve location slug to IDs if present
-// @ts-expect-error - temp storage from parser
-const locationSlug = filters._locationSlug;
-if (locationSlug) {
-  const province = await getProvinceBySlug(locationSlug);
-  if (province) {
-    filters.provinceIds = [province.id];
+// Get property types for resolving slug (v1 logic: segment 1 might be property type)
+const propertyTypes = await fetchPropertyTypesByTransaction(filters.transactionType);
+
+// Check if segment 1 is a property type slug instead of location
+const segment1 = slugParts.length > 1 ? slugParts[1] : null;
+let propertyTypeFromSlug: typeof propertyTypes[0] | undefined;
+
+if (segment1) {
+  // Try to find property type by slug
+  propertyTypeFromSlug = propertyTypes.find(pt => pt.slug === segment1);
+
+  if (propertyTypeFromSlug) {
+    // Segment 1 is property type, not location
+    filters.propertyTypes = [propertyTypeFromSlug.id];
+
+    // Clear location slug from parser (it was misidentified)
+    // @ts-expect-error - temp storage cleanup
+    if (filters._locationSlugs?.includes(segment1)) {
+      // @ts-expect-error
+      filters._locationSlugs = filters._locationSlugs.filter((s: string) => s !== segment1);
+    }
   }
-  // @ts-expect-error - cleanup
-  delete filters._locationSlug;
 }
 
-// Get property types and provinces for filter
-const propertyTypes = await fetchPropertyTypesByTransaction(filters.transactionType);
+// Batch resolve location slugs to nIds (multi-location support)
+// @ts-expect-error - temp storage from parser
+const locationSlugs = filters._locationSlugs || [];
+const resolvedLocations = locationSlugs.length > 0
+  ? await resolveLocationSlugs(locationSlugs)
+  : [];
+
+// Extract province and district nIds for ES query
+const provinceNIds = resolvedLocations
+  .filter(loc => loc.type === 'province')
+  .map(loc => loc.nId);
+
+const districtNIds = resolvedLocations
+  .filter(loc => loc.type === 'district')
+  .map(loc => loc.nId);
+
+// Merge with existing filters (preserve direct IDs from query params)
+if (provinceNIds.length > 0) {
+  filters.provinceIds = [...(filters.provinceIds || []), ...provinceNIds];
+}
+if (districtNIds.length > 0) {
+  filters.districtIds = [...(filters.districtIds || []), ...districtNIds];
+}
+
+// Store resolved locations for UI display (chips)
+const selectedLocations = resolvedLocations.map(loc => ({
+  nId: loc.nId,
+  name: loc.name,
+  slug: loc.slug,
+  type: loc.type
+}));
+
+// @ts-expect-error - cleanup temp storage
+delete filters._locationSlugs;
+
+// Get provinces for filter
 const provinces = await getAllProvinces(true);
 
-// Extract current province slug from URL
-const currentProvinceSlug = locationSlug || '';
+// Extract first province slug from selected locations (for sidebar state)
+const currentProvinceSlug = selectedLocations.find(loc => loc.type === 'province')?.slug || '';
+
+// Resolve property type name for breadcrumb (prioritize slug-based detection)
+const propertyTypeName = propertyTypeFromSlug?.title || (
+  filters.propertyTypes?.length === 1
+    ? propertyTypes.find(pt => pt.id === filters.propertyTypes![0])?.title || ''
+    : ''
+);
 
 // Query ElasticSearch
 const searchResult = await searchProperties(filters);
@@ -76,7 +129,11 @@ function buildSortUrl(sortOption: string): string {
 
 <ListingWithSidebarLayout title={title} description={description}>
   <!-- Breadcrumb -->
-  <ListingBreadcrumb filters={filters} />
+  <ListingBreadcrumb
+    filters={filters}
+    selectedLocations={selectedLocations}
+    propertyTypeName={propertyTypeName}
+  />
 
   <!-- Filter Section -->
   <ListingFilter
@@ -94,6 +151,7 @@ function buildSortUrl(sortOption: string): string {
       bathrooms: filters.bathrooms?.toString(),
     }}
     currentPath={url.pathname}
+    selectedLocations={selectedLocations}
   />
 
   <!-- Results Header -->

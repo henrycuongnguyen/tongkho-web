@@ -49,14 +49,19 @@ export const GET: APIRoute = async ({ request }) => {
     const href = r.type === 'project' ? `/du-an/${r.slug}` : `${baseUrl}/${r.slug}`;
     const icon = TYPE_ICONS[r.type] || '📍';
     return `
-      <a href="${escapeHtml(href)}"
-         class="flex items-center gap-3 px-4 py-3 hover:bg-orange-50 transition-colors border-b border-slate-100 last:border-0">
+      <button
+         type="button"
+         class="location-result-item w-full flex items-center gap-3 px-4 py-3 hover:bg-orange-50 transition-colors border-b border-slate-100 last:border-0 text-left"
+         data-slug="${escapeHtml(r.slug)}"
+         data-name="${escapeHtml(r.name)}"
+         data-type="${escapeHtml(r.type)}"
+         data-href="${escapeHtml(href)}">
         <span class="text-lg">${icon}</span>
         <div class="flex-1 min-w-0">
           <div class="font-medium text-slate-800 truncate">${escapeHtml(r.name)}</div>
           <div class="text-sm text-slate-500 truncate">${escapeHtml(r.fullName)}</div>
         </div>
-      </a>`;
+      </button>`;
   }).join('');
 
   return new Response(html, {
