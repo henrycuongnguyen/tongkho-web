@@ -1,0 +1,188 @@
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                    Infinite Loading Loop Flow - Category Page                          │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                        │
+│   ┌──────────────────┐                                                                │
+│   │  User navigates  │                                                                │
+│   │  to /mua-ban     │                                                                │
+│   └────────┬─────────┘                                                                │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  Page loads - ListingFilter component renders                │                    │
+│   │  currentPath = "/mua-ban" (from url.pathname)                │                    │
+│   │  currentFilters = { } (empty from URL query params)           │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  Clear Filters button renders                                │                    │
+│   │  Condition: currentFilters has values (server-side check)    │                    │
+│   │  [BUG: May show even when URL has no filter params]          │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  User clicks "Clear Filters" button                           │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  Event handler executes:                                      │                    │
+│   │                                                               │                    │
+│   │  ❌ BUGGY CODE (listing-filter.astro:304):                   │                    │
+│   │  clearBtn.addEventListener('click', () => {                   │                    │
+│   │    window.location.href = currentPath;  // Always navigates   │                    │
+│   │  });                                                          │                    │
+│   │                                                               │                    │
+│   │  Result: window.location.href = "/mua-ban"                   │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  Browser navigates to "/mua-ban"                              │                    │
+│   │  Current URL: /mua-ban                                        │                    │
+│   │  Target URL:  /mua-ban                                        │                    │
+│   │  → Same URL → Page reload triggered                           │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            └──────────────────────────────┐                                            │
+│                                           │                                            │
+│              ┌────────────────────────────┘                                            │
+│              │                                                                         │
+│              ▼                                                                         │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  🔄 INFINITE LOOP POINT                                       │                    │
+│   │  Page reloads → Component re-renders → Button shows again    │                    │
+│   │  If auto-triggered or repeatedly clicked → continuous reload │                    │
+│   └──────────────────────────────────────────────────────────────┘                    │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              THE FIX - Decision Tree                                   │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                        │
+│   ┌──────────────────┐                                                                │
+│   │  User clicks     │                                                                │
+│   │  Clear Filters   │                                                                │
+│   └────────┬─────────┘                                                                │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌───────────────────────────────────────────────────────────────────┐               │
+│   │  ✅ FIXED CODE:                                                    │               │
+│   │                                                                   │               │
+│   │  const currentUrl = window.location.pathname +                    │               │
+│   │                     window.location.search;                       │               │
+│   │  const targetUrl = currentPath;                                   │               │
+│   │                                                                   │               │
+│   │  if (currentUrl !== targetUrl) {                                  │               │
+│   │    // Different URL → Navigate                                    │               │
+│   │    window.location.href = targetUrl;                              │               │
+│   │  } else {                                                         │               │
+│   │    // Same URL → Just reset UI state (no navigation)              │               │
+│   │    resetFilterUIState();                                          │               │
+│   │  }                                                                │               │
+│   └────────┬──────────────────────────────────────┬───────────────────┘               │
+│            │                                      │                                    │
+│            ▼                                      ▼                                    │
+│   ┌─────────────────────┐           ┌──────────────────────────┐                      │
+│   │  currentUrl ===     │           │  currentUrl !==          │                      │
+│   │  targetUrl          │           │  targetUrl               │                      │
+│   │  (e.g., both are    │           │  (e.g., /mua-ban?filters │                      │
+│   │  /mua-ban)          │           │  vs /mua-ban)            │                      │
+│   └─────────┬───────────┘           └──────────┬───────────────┘                      │
+│             │                                   │                                      │
+│             ▼                                   ▼                                      │
+│   ┌─────────────────────┐           ┌──────────────────────────┐                      │
+│   │  ✅ Reset UI State  │           │  ✅ Navigate to clean    │                      │
+│   │  - Clear selections │           │     URL                  │                      │
+│   │  - Reset buttons    │           │  - Remove query params   │                      │
+│   │  - Reset inputs     │           │  - Show base results     │                      │
+│   │  - NO navigation    │           │  - Page reloads once     │                      │
+│   └─────────┬───────────┘           └──────────┬───────────────┘                      │
+│             │                                   │                                      │
+│             ▼                                   ▼                                      │
+│   ┌─────────────────────┐           ┌──────────────────────────┐                      │
+│   │  User sees clean    │           │  User sees clean         │                      │
+│   │  filter UI          │           │  results page            │                      │
+│   │  No page reload     │           │  Single reload           │                      │
+│   │  ✅ LOOP BROKEN     │           │  ✅ NORMAL BEHAVIOR      │                      │
+│   └─────────────────────┘           └──────────────────────────┘                      │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              Secondary Issue - HTMX                                    │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                        │
+│   ┌──────────────────┐                                                                │
+│   │  Page loads with │                                                                │
+│   │  selectedProvince│                                                                │
+│   └────────┬─────────┘                                                                │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  District panel renders with:                                 │                    │
+│   │  hx-trigger="load"                                            │                    │
+│   │  (location-selector.astro:87)                                 │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  HTMX fires GET /api/location/districts?province=X           │                    │
+│   │  Trigger: "load" → fires immediately on element insertion    │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  API returns HTML with district links                         │                    │
+│   │  <a href="/mua-ban/ha-noi">Hà Nội</a>                        │                    │
+│   │  <a href="/mua-ban/ho-chi-minh">TP.HCM</a>                   │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  HTML inserted via hx-swap="innerHTML"                        │                    │
+│   │  No recursive hx-trigger in response → OK                     │                    │
+│   └────────┬─────────────────────────────────────────────────────┘                    │
+│            │                                                                           │
+│            ▼                                                                           │
+│   ┌──────────────────────────────────────────────────────────────┐                    │
+│   │  ⚠️ POTENTIAL ISSUE:                                          │                    │
+│   │  If "load" fires multiple times per page load                 │                    │
+│   │  → Multiple API calls → Loading spinner continuously visible │                    │
+│   │                                                               │                    │
+│   │  FIX: Change to "load once" instead of "load"                │                    │
+│   │  hx-trigger="load once"                                       │                    │
+│   └──────────────────────────────────────────────────────────────┘                    │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
+
+
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                                   Summary                                              │
+├────────────────────────────────────────────────────────────────────────────────────────┤
+│                                                                                        │
+│  PRIMARY BUG (CRITICAL):                                                               │
+│  • File: src/components/listing/listing-filter.astro:304                               │
+│  • Issue: window.location.href = currentPath without checking current URL              │
+│  • Impact: Infinite page reload when currentPath === current URL                       │
+│  • Fix: Add condition to check if navigation needed before window.location.href        │
+│                                                                                        │
+│  SECONDARY ISSUE:                                                                      │
+│  • File: src/components/listing/sidebar/location-selector.astro:87                     │
+│  • Issue: hx-trigger="load" may fire repeatedly                                        │
+│  • Impact: Multiple API calls, continuous loading spinner                              │
+│  • Fix: Change to hx-trigger="load once"                                               │
+│                                                                                        │
+│  TESTING:                                                                              │
+│  1. Visit /mua-ban with no filters                                                     │
+│  2. Click "Clear Filters" (if visible)                                                 │
+│  3. Verify page does NOT reload (with fix applied)                                     │
+│  4. Apply filters, then click "Clear Filters"                                          │
+│  5. Verify page navigates to /mua-ban once only                                        │
+│                                                                                        │
+└────────────────────────────────────────────────────────────────────────────────────────┘
