@@ -438,6 +438,58 @@ For external URLs (future CDN integration):
 
 ---
 
+## HTMX Integration Patterns
+
+When using HTMX for dynamic content loading, follow these best practices:
+
+### Trigger Patterns
+
+**Load Only Once (Static Content)**
+```html
+<!-- ✅ CORRECT - Load districts on page load, then stop -->
+<div
+  data-district-panel
+  hx-get="/api/location/districts?province=1"
+  hx-trigger="load once"
+  hx-swap="innerHTML"
+>
+  Loading...
+</div>
+```
+
+**Load Repeatedly (Dynamic Content)**
+```html
+<!-- ✅ CORRECT - Refresh on user action -->
+<div
+  data-notifications
+  hx-get="/api/notifications"
+  hx-trigger="click, every 5s"
+  hx-swap="innerHTML"
+>
+  Notifications
+</div>
+```
+
+### Anti-Pattern: Infinite Requests
+```html
+<!-- ❌ WRONG - Loads every page load, can cause infinite requests -->
+<div
+  hx-get="/api/districts"
+  hx-trigger="load"
+>
+  Never use bare "load" for static content
+</div>
+```
+
+**When to use `load once`:**
+- Initial page load content (districts for selected province)
+- Hierarchical data that changes only on user action
+- API calls that should execute only once during component lifetime
+
+**Reference:** See `src/components/listing/sidebar/location-selector.astro` (line 87) for correct pattern.
+
+---
+
 ## Performance Checklist
 
 - Use `<picture>` elements for responsive images
@@ -446,11 +498,13 @@ For external URLs (future CDN integration):
 - Preload critical fonts (Inter, Be Vietnam Pro)
 - Never use `<script>` tags (defeats static generation)
 - Use CSS containment for large grids (`contain: layout`)
+- For HTMX, use `hx-trigger="load once"` to prevent repeated requests
 
 ---
 
 ## Document Version
 
-- **Version:** 2.0
-- **Last Updated:** 2026-02-07
+- **Version:** 2.1
+- **Last Updated:** 2026-02-08
 - **Parent:** [Code Standards & Conventions](./code-standards.md)
+- **Latest Change:** Added HTMX trigger patterns and load once best practices

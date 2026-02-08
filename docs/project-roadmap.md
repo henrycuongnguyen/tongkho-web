@@ -2,9 +2,10 @@
 
 ## Current Status: Phase 2 In Progress, Phase 1 Complete
 
-**Version:** 2.1.0
-**Last Updated:** 2026-02-07
+**Version:** 2.2.0
+**Last Updated:** 2026-02-08
 **Overall Progress:** Foundation + Menu System Complete (100%), Dynamic Pages In Progress (50%)
+**Recent Fix:** Infinite loading loop issues resolved in filters, location selector, and sort dropdown
 
 ---
 
@@ -297,13 +298,23 @@ Phase 1 (Foundation) ✅
 ## Known Issues & Technical Debt
 
 ### Current Issues
-| Issue | Severity | Priority | Notes |
-|---|---|---|---|
-| Mock data only | Medium | High | Need backend Phase 3 |
-| No real search | Medium | High | Search UI is visual only |
-| Mobile menu interactions | Low | Medium | Needs testing/polish |
-| Image optimization | Low | Medium | Add WebP, lazy loading |
-| Analytics missing | Low | Low | Planned post-launch |
+| Issue | Severity | Priority | Status | Notes |
+|---|---|---|---|---|
+| Mock data only | Medium | High | Open | Need backend Phase 3 |
+| No real search | Medium | High | Open | Search UI is visual only |
+| Mobile menu interactions | Low | Medium | Open | Needs testing/polish |
+| Image optimization | Low | Medium | Open | Add WebP, lazy loading |
+| Analytics missing | Low | Low | Open | Planned post-launch |
+
+### Recently Resolved Issues
+| Issue | Fix | Details |
+|---|---|---|
+| Infinite reload on clear filters | Same-URL check | Added check before navigation in listing-filter.astro (line 304-336) - prevents reload if already on base URL |
+| HTMX district panel reloading | load once trigger | Changed hx-trigger from "load" to "load once" in location-selector.astro (line 87) - loads only once on page load |
+| Province reset navigation loop | Same-URL check | Added URL comparison check before navigating to baseUrl in location-selector.astro (line 194-196) |
+| Sort dropdown unnecessary reloads | Same-URL check | Added URL validation in onchange handler in [...slug].astro (line 118) - prevents reload when selecting same sort option |
+
+**Pattern:** All fixes implement same-URL navigation check. Always compare `window.location.pathname + window.location.search` against target URL before calling `window.location.href`.
 
 ### Technical Debt
 - [ ] Add unit tests (utilities, formatters)
@@ -395,6 +406,7 @@ Before moving to Phase 2:
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.2 | 2026-02-08 | Docs: Infinite loading fixes documented; added client-side navigation safety pattern, HTMX load once best practice, resolved 4 issues in filters/location/sort |
 | 2.0 | 2026-02-07 | Scout: Renamed Phase 1→Menu System (complete), Phase 2→Dynamic Pages (in progress with pre-built components), added service layer patterns, updated timeline |
 | 1.1 | 2026-02-06 | SSG menu integration complete; Phase 1 milestone met |
 | 1.0 | 2026-01-28 | Initial roadmap; Foundation MVP complete |
