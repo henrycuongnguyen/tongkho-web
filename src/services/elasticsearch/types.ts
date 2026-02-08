@@ -7,8 +7,8 @@
 export interface PropertySearchFilters {
   transactionType: number;          // 1=mua bán, 2=cho thuê, 3=dự án
   propertyTypes?: number[];         // [12, 13, 14]
-  provinceIds?: number[];           // [1, 2]
-  districtIds?: number[];           // [10, 11, 12]
+  provinceIds?: string[];           // ["VN-HN", "VN-SG"] - Use nId (string) for ES compatibility
+  districtIds?: string[];           // ["VN-HN-HBT", "VN-HN-HKM"] - Use nId (string) for ES compatibility
   minPrice?: number;                // VND
   maxPrice?: number;                // VND
   minArea?: number;                 // m²
@@ -59,8 +59,8 @@ export interface PropertyDocument {
   district_name?: string;
   city?: string;
   city_name?: string;
-  province_id?: number;
-  district_id?: number;
+  province_id?: string;             // String nId (e.g., "VN-HN") for ES compatibility
+  district_id?: string;             // String nId (e.g., "VN-HN-HBT") for ES compatibility
   main_image?: string;
   thumbnail?: string;
   images?: string;

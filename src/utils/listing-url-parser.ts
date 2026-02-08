@@ -44,15 +44,34 @@ export function parseListingUrl(
     // Otherwise it might be a property type slug - handled later
   }
 
-  // Parse location (arg2) - placeholder for now
-  // Will be resolved via LocationService lookup
-  if (slugParts.length > 1) {
-    const locationSlug = slugParts[1];
-    if (locationSlug !== 'toan-quoc') {
-      // Store slug for later resolution
-      // @ts-expect-error - temporary storage
-      filters._locationSlug = locationSlug;
+  // Parse location (arg2) - first location from path
+  const firstLocationSlug = slugParts.length > 1 ? slugParts[1] : null;
+
+  // Parse addresses query param (additional locations, comma-separated)
+  const addressesParam = searchParams.get('addresses');
+  const additionalSlugs = addressesParam
+    ? addressesParam.split(',').map(s => s.trim()).filter(Boolean)
+    : [];
+
+  // Merge: first location + additional addresses (v1 logic)
+  const locationSlugs: string[] = [];
+
+  // Add first location from path if valid
+  if (firstLocationSlug && firstLocationSlug !== 'toan-quoc') {
+    locationSlugs.push(firstLocationSlug);
+  }
+
+  // Add additional locations from addresses param (avoid duplicates)
+  for (const slug of additionalSlugs) {
+    if (!locationSlugs.includes(slug)) {
+      locationSlugs.push(slug);
     }
+  }
+
+  // Store for batch resolution in page component
+  if (locationSlugs.length > 0) {
+    // @ts-expect-error - temporary storage for batch resolution
+    filters._locationSlugs = locationSlugs;
   }
 
   // Parse price slug (arg3)
@@ -110,15 +129,15 @@ export function parseListingUrl(
     filters.radius = Number(radius);
   }
 
-  // Province/district IDs (direct)
+  // Province/district IDs (direct) - Use string nIds for ES compatibility
   const provinceIds = searchParams.get('province_ids');
   if (provinceIds) {
-    filters.provinceIds = provinceIds.split(',').map(Number).filter(n => !isNaN(n));
+    filters.provinceIds = provinceIds.split(',').filter(id => id.trim().length > 0);
   }
 
   const districtIds = searchParams.get('district_ids');
   if (districtIds) {
-    filters.districtIds = districtIds.split(',').map(Number).filter(n => !isNaN(n));
+    filters.districtIds = districtIds.split(',').filter(id => id.trim().length > 0);
   }
 
   // Keyword search
@@ -188,16 +207,22 @@ function convertPriceSlugToNumber(slug: string): number {
 
 /**
  * Build listing URL from filters (reverse of parser)
+ * Supports multi-location with addresses query param (v1 compatible)
  */
-export function buildListingUrl(filters: PropertySearchFilters): string {
+export function buildListingUrl(
+  filters: PropertySearchFilters,
+  options?: { locationSlugs?: string[] }
+): string {
   const parts: string[] = [];
 
   // Arg1: Transaction type
   const transactionSlug = TRANSACTION_TYPE_TO_SLUG[filters.transactionType] || 'mua-ban';
   parts.push(transactionSlug);
 
-  // Arg2: Location (placeholder - needs slug from location service)
-  parts.push('toan-quoc');
+  // Arg2: First location slug (if multi-location, use first one)
+  const locationSlugs = options?.locationSlugs || [];
+  const firstLocation = locationSlugs.length > 0 ? locationSlugs[0] : 'toan-quoc';
+  parts.push(firstLocation);
 
   // Arg3: Price slug (optional)
   if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
@@ -212,6 +237,12 @@ export function buildListingUrl(filters: PropertySearchFilters): string {
 
   // Add query params
   const params = new URLSearchParams();
+
+  // Multi-location: Add addresses param for additional locations (v1 compatible)
+  if (locationSlugs.length > 1) {
+    const additionalLocations = locationSlugs.slice(1).join(',');
+    params.set('addresses', additionalLocations);
+  }
 
   if (filters.propertyTypes?.length) {
     params.set('property_types', filters.propertyTypes.join(','));

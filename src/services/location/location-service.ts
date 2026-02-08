@@ -244,6 +244,53 @@ export async function getDistrictBySlug(
 }
 
 /**
+ * Batch resolve location slugs to nIds and metadata (v1 multi-location support)
+ * Resolves both provinces and districts in one query
+ */
+export async function resolveLocationSlugs(
+  slugs: string[]
+): Promise<Array<{
+  nId: string;
+  name: string;
+  slug: string;
+  type: 'province' | 'district';
+  provinceId?: string; // For districts only
+}>> {
+  if (slugs.length === 0) return [];
+
+  try {
+    const rows = await db
+      .select({
+        nId: locations.nId,
+        name: locations.nName,
+        slug: locations.nSlug,
+        level: locations.nLevel,
+        provinceId: locations.nParentid,
+      })
+      .from(locations)
+      .where(
+        and(
+          sql`${locations.nSlug} IN (${sql.join(slugs.map(s => sql`${s}`), sql`, `)})`,
+          ne(locations.nStatus, '6'),
+          eq(locations.aactive, true)
+        )
+      );
+
+    return rows.map(row => ({
+      nId: row.nId || '',
+      name: row.name || '',
+      slug: row.slug || '',
+      type: row.level === '0' ? 'province' : 'district',
+      ...(row.level === '1' && { provinceId: row.provinceId || '' })
+    }));
+
+  } catch (error) {
+    console.error('[LocationService] Failed to resolve location slugs:', error);
+    return [];
+  }
+}
+
+/**
  * Clear location cache (for testing)
  */
 export function clearLocationCache(): void {
