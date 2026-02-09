@@ -1,0 +1,271 @@
+---
+/**
+ * Property Type Dropdown Component
+ * Shows all property types with checkboxes (v1 style)
+ */
+interface PropertyType {
+  id: number;
+  title: string;
+  slug: string;
+  icon?: string;
+}
+
+interface Props {
+  /** Available property types for this transaction */
+  propertyTypes: PropertyType[];
+  /** Currently selected property type IDs */
+  selectedTypeIds?: number[];
+  /** Base URL for building filter URLs */
+  baseUrl: string;
+}
+
+const { propertyTypes, selectedTypeIds = [], baseUrl } = Astro.props;
+
+// Property type icons mapping (from v1)
+const PROPERTY_TYPE_ICONS: Record<string, string> = {
+  'chung-cu': 'icon-RealEstateHouse',
+  'nha-rieng': 'icon-Villa',
+  'nha-biet-thu': 'icon-Villa',
+  'nha-mat-pho': 'icon-Office',
+  'dat-nen': 'icon-Plot',
+  'ban-dat': 'icon-Plot',
+  'trang-trai-khu-nghi-duong': 'icon-Farm',
+  'condotel': 'icon-Apartment',
+  'nha-kho-nha-xuong': 'icon-Warehouse',
+  'loai-bat-dong-san-khac': 'icon-RealEstateHouse',
+  'shophouse': 'icon-Shop',
+  'nha-tro-phong-tro': 'icon-Apartment',
+  'van-phong': 'icon-Office',
+  'cua-hang-ki-ot': 'icon-Shop',
+  'khac': 'icon-RealEstateHouse',
+};
+
+// Get icon for property type
+function getTypeIcon(slug: string): string {
+  return PROPERTY_TYPE_ICONS[slug] || 'icon-RealEstateHouse';
+}
+---
+
+<div class="property-type-dropdown relative">
+  <!-- Trigger Button -->
+  <button
+    type="button"
+    class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+    data-property-type-trigger
+  >
+    <span class="truncate text-secondary-700 font-medium" data-selected-count>
+      {selectedTypeIds.length > 0
+        ? `Đã chọn ${selectedTypeIds.length} loại`
+        : 'Chọn loại hình'}
+    </span>
+    <svg
+      class="w-4 h-4 text-secondary-400 shrink-0 transition-transform"
+      data-dropdown-arrow
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  <!-- Dropdown Panel -->
+  <div
+    class="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-secondary-100 w-full min-w-[320px] max-h-[400px] overflow-hidden hidden z-[9999]"
+    data-property-type-panel
+  >
+    <!-- Header -->
+    <div class="px-4 py-3 border-b border-secondary-100 flex items-center justify-between">
+      <h5 class="text-sm font-semibold text-secondary-800">Loại mua bán</h5>
+      <button
+        type="button"
+        class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+        data-reset-types
+      >
+        Đặt lại
+      </button>
+    </div>
+
+    <!-- Scrollable Content -->
+    <div class="overflow-y-auto max-h-[280px] px-4 py-2">
+      {propertyTypes.map((type) => {
+        const isChecked = selectedTypeIds.includes(type.id);
+        const iconClass = getTypeIcon(type.slug);
+
+        return (
+          <label
+            class="flex items-center justify-between gap-3 py-2.5 px-2 rounded-md hover:bg-secondary-50 cursor-pointer transition-colors group"
+          >
+            <div class="flex items-center gap-3 flex-1">
+              <i class={`${iconClass} text-lg text-secondary-500 group-hover:text-primary-500 transition-colors`}></i>
+              <span class="text-sm text-secondary-700 group-hover:text-secondary-900">
+                {type.title}
+              </span>
+            </div>
+            <input
+              type="checkbox"
+              class="w-4 h-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+              value={type.id}
+              data-type-slug={type.slug}
+              checked={isChecked}
+              data-property-type-checkbox
+            />
+          </label>
+        );
+      })}
+    </div>
+
+    <!-- Actions -->
+    <div class="px-4 py-3 border-t border-secondary-100 bg-secondary-50">
+      <button
+        type="button"
+        class="w-full px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+        data-apply-types
+      >
+        Áp dụng
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /**
+   * Property Type Dropdown Logic
+   */
+  function initPropertyTypeDropdowns() {
+    document.querySelectorAll('[data-property-type-trigger]').forEach((trigger) => {
+      const container = trigger.closest('.property-type-dropdown') as HTMLElement;
+      if (!container || container.dataset.initialized) return;
+
+      container.dataset.initialized = 'true';
+
+      const panel = container.querySelector('[data-property-type-panel]') as HTMLElement;
+      const arrow = container.querySelector('[data-dropdown-arrow]') as SVGElement;
+      const selectedCountEl = container.querySelector('[data-selected-count]') as HTMLElement;
+      const resetBtn = container.querySelector('[data-reset-types]') as HTMLButtonElement;
+      const applyBtn = container.querySelector('[data-apply-types]') as HTMLButtonElement;
+      const checkboxes = container.querySelectorAll('[data-property-type-checkbox]') as NodeListOf<HTMLInputElement>;
+
+      let isOpen = false;
+
+      // Generate unique ID for this dropdown
+      const dropdownId = `property-type-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Close function for dropdown manager
+      function closeDropdown() {
+        isOpen = false;
+        panel?.classList.add('hidden');
+        arrow?.classList.remove('rotate-180');
+      }
+
+      // Register with dropdown manager
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.register(dropdownId, closeDropdown);
+      }
+
+      // Toggle dropdown
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (!isOpen) {
+          // Notify dropdown manager to close other dropdowns
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.open(dropdownId);
+          }
+        }
+
+        isOpen = !isOpen;
+        panel?.classList.toggle('hidden', !isOpen);
+        arrow?.classList.toggle('rotate-180', isOpen);
+
+        if (!isOpen) {
+          // Notify dropdown manager this dropdown is closed
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(dropdownId);
+          }
+        }
+      });
+
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (!container.contains(e.target as Node) && isOpen) {
+          closeDropdown();
+          // Notify dropdown manager
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(dropdownId);
+          }
+        }
+      });
+
+      // Update selected count
+      function updateSelectedCount() {
+        const checked = Array.from(checkboxes).filter(cb => cb.checked);
+        if (selectedCountEl) {
+          selectedCountEl.textContent = checked.length > 0
+            ? `Đã chọn ${checked.length} loại`
+            : 'Chọn loại hình';
+        }
+      }
+
+      // Update count on checkbox change
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', updateSelectedCount);
+      });
+
+      // Reset button
+      resetBtn?.addEventListener('click', () => {
+        checkboxes.forEach(cb => cb.checked = false);
+        updateSelectedCount();
+      });
+
+      // Apply button - trigger custom event for parent to handle
+      applyBtn?.addEventListener('click', () => {
+        const selectedIds = Array.from(checkboxes)
+          .filter(cb => cb.checked)
+          .map(cb => parseInt(cb.value));
+
+        // Dispatch custom event
+        container.dispatchEvent(new CustomEvent('apply-property-types', {
+          detail: { selectedIds },
+          bubbles: true,
+        }));
+
+        // Close dropdown
+        isOpen = false;
+        panel?.classList.add('hidden');
+        arrow?.classList.remove('rotate-180');
+      });
+    });
+  }
+
+  // Initialize on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPropertyTypeDropdowns);
+  } else {
+    initPropertyTypeDropdowns();
+  }
+
+  // Run on Astro View Transitions
+  document.addEventListener('astro:page-load', initPropertyTypeDropdowns);
+</script>
+
+<style>
+  /* Smooth scrollbar */
+  [data-property-type-panel] {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-secondary-300)) transparent;
+  }
+
+  [data-property-type-panel]::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  [data-property-type-panel]::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  [data-property-type-panel]::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--color-secondary-300));
+    border-radius: 3px;
+  }
+</style>
