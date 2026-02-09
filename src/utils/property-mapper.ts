@@ -45,18 +45,68 @@ function mapPropertyType(propertyTypeName?: string, propertyTypeId?: number): Pr
 }
 
 /**
- * Determine price unit based on price value and transaction type
+ * Parse price from price_description or raw price value
+ * Returns { displayPrice: number, unit: PriceUnit }
+ *
+ * Examples:
+ * - "7.3 tỷ" -> { displayPrice: 7.3, unit: 'billion' }
+ * - "300 triệu" -> { displayPrice: 300, unit: 'million' }
+ * - "5 triệu/tháng" -> { displayPrice: 5, unit: 'per_month' }
  */
-function determinePriceUnit(price: number, transactionType?: number): PriceUnit {
+function parsePrice(
+  rawPrice: number,
+  priceDescription?: string,
+  transactionType?: number
+): { displayPrice: number; unit: PriceUnit } {
+  // If price_description exists, parse it
+  if (priceDescription) {
+    const lowerDesc = priceDescription.toLowerCase();
+
+    // Check for negotiable/contact
+    if (lowerDesc.includes('thỏa thuận') || lowerDesc.includes('liên hệ')) {
+      return { displayPrice: -1, unit: 'VND' };
+    }
+
+    // Extract number from description
+    const numberMatch = priceDescription.match(/[\d,.]+/);
+    if (numberMatch) {
+      const numStr = numberMatch[0].replace(/,/g, '.');
+      const num = parseFloat(numStr);
+
+      // Determine unit from description
+      if (lowerDesc.includes('tỷ')) {
+        return { displayPrice: num, unit: 'billion' };
+      }
+      if (lowerDesc.includes('triệu/tháng') || lowerDesc.includes('tr/th')) {
+        return { displayPrice: num, unit: 'per_month' };
+      }
+      if (lowerDesc.includes('triệu') || lowerDesc.includes('tr')) {
+        return { displayPrice: num, unit: 'million' };
+      }
+    }
+  }
+
+  // Fallback: calculate from raw price (in VND)
+  if (rawPrice <= 0) {
+    return { displayPrice: -1, unit: 'VND' };
+  }
+
+  // For rent (transaction type 2), use per_month
   if (transactionType === 2) {
-    return 'per_month';
+    if (rawPrice >= 1_000_000_000) {
+      return { displayPrice: rawPrice / 1_000_000_000, unit: 'billion' };
+    }
+    return { displayPrice: Math.round(rawPrice / 1_000_000), unit: 'per_month' };
   }
 
-  if (price >= 1_000_000_000) {
-    return 'billion';
+  // For sale, use billion or million
+  if (rawPrice >= 1_000_000_000) {
+    const billions = rawPrice / 1_000_000_000;
+    // Round to 1 decimal place
+    return { displayPrice: Math.round(billions * 10) / 10, unit: 'billion' };
   }
 
-  return 'million';
+  return { displayPrice: Math.round(rawPrice / 1_000_000), unit: 'million' };
 }
 
 /**
@@ -80,7 +130,7 @@ function parseImages(images?: string): string[] {
  */
 export function mapPropertyDocumentToProperty(doc: PropertyDocument): Property {
   const transactionType = mapTransactionType(doc.transaction_type);
-  const priceUnit = determinePriceUnit(doc.price, doc.transaction_type);
+  const { displayPrice, unit } = parsePrice(doc.price, doc.price_description, doc.transaction_type);
 
   return {
     id: doc.id.toString(),
@@ -88,8 +138,8 @@ export function mapPropertyDocumentToProperty(doc: PropertyDocument): Property {
     slug: doc.slug || '',
     type: mapPropertyType(doc.property_type_name, doc.property_type_id),
     transactionType,
-    price: doc.price || 0,
-    priceUnit,
+    price: displayPrice,
+    priceUnit: unit,
     area: doc.area || 0,
     bedrooms: doc.bedrooms || undefined,
     bathrooms: doc.bathrooms || undefined,
