@@ -1,9 +1,11 @@
 ---
 /**
- * Listing Filter Component (Astro + Client JS)
- * Filter form with location selector, range sliders
+ * Listing Filter Component - Horizontal Layout
+ * All filters in horizontal sticky bar at top of page
  */
 import LocationSelector from './sidebar/location-selector.astro';
+import PropertyTypeDropdown from './sidebar/property-type-dropdown.astro';
+import PriceRangeDropdown from "@components/ui/price-range-dropdown.astro";
 import RangeSliderDropdown from "@components/ui/range-slider-dropdown.astro";
 import type { Province } from '@/services/location/types';
 
@@ -11,6 +13,7 @@ interface PropertyType {
   id: number;
   title: string;
   slug: string;
+  vietnamese?: string | null;
 }
 
 interface Props {
@@ -22,6 +25,8 @@ interface Props {
   provinces?: Province[];
   /** Current province slug from URL */
   currentProvince?: string;
+  /** Current district slug from URL */
+  currentDistrict?: string;
   /** Current filter values from URL */
   currentFilters: {
     propertyTypes?: number[];
@@ -34,11 +39,11 @@ interface Props {
   };
   /** Current URL path */
   currentPath: string;
-  /** Selected locations for multi-select (optional) */
+  /** Selected location (single location only, max 1 item) */
   selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
 }
 
-const { transactionType, propertyTypes, provinces = [], currentProvince, currentFilters, currentPath, selectedLocations = [] } = Astro.props;
+const { transactionType, propertyTypes, provinces = [], currentProvince, currentDistrict, currentFilters, currentPath, selectedLocations = [] } = Astro.props;
 
 // Transaction type to base URL mapping
 const TRANSACTION_BASE_URLS: Record<number, string> = {
@@ -56,147 +61,147 @@ const isPropertyTypeActive = (id: number) =>
   currentFilters.propertyTypes?.includes(id) ?? false;
 ---
 
-<div class="bg-white rounded-xl shadow-lg p-4 mb-4" data-listing-filter data-base-url={baseUrl} data-current-path={currentPath}>
-  <div class="space-y-4">
-    <!-- Location Selector: Province dropdown + Districts + Autocomplete -->
-    <div>
-      <h3 class="text-sm font-semibold text-secondary-800 mb-2">Địa điểm</h3>
-      <LocationSelector
-        provinces={provinces}
-        baseUrl={baseUrl}
-        currentProvince={currentProvince}
-        selectedLocations={selectedLocations}
-      />
-    </div>
-
-    <!-- Property Types (multi-select pills) -->
-    <div>
-      <h3 class="text-sm font-semibold text-secondary-800 mb-2">Loại hình</h3>
-      <div class="flex flex-wrap gap-2">
-        {propertyTypes.map((type) => {
-          const isActive = isPropertyTypeActive(type.id);
-          return (
-            <button
-              type="button"
-              class:list={[
-                'property-type-btn px-3 py-1.5 text-sm rounded-full border transition-colors cursor-pointer',
-                isActive
-                  ? 'bg-primary-500 text-white border-primary-500'
-                  : 'bg-white text-secondary-600 border-secondary-200 hover:border-primary-300',
-              ]}
-              data-type-id={type.id}
-              data-active={isActive ? 'true' : 'false'}
-            >
-              {type.title}
-            </button>
-          );
-        })}
+<div class="bg-white border-b border-secondary-200 shadow-sm sticky top-0 z-50 backdrop-filter backdrop-blur-sm" data-listing-filter data-base-url={baseUrl} data-current-path={currentPath}>
+  <div class="container-custom py-4">
+    <div class="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+      <!-- Location Selector -->
+      <div class="flex-1 min-w-[200px]">
+        <LocationSelector
+          provinces={provinces}
+          baseUrl={baseUrl}
+          currentProvince={currentProvince}
+          currentDistrict={currentDistrict}
+          selectedLocations={selectedLocations}
+        />
       </div>
-    </div>
 
-    <!-- Price Range Slider -->
-    <div>
-      <h3 class="text-sm font-semibold text-secondary-800 mb-2">Mức giá</h3>
-      <RangeSliderDropdown type="price" name="price" />
-    </div>
+      <!-- Property Types Dropdown -->
+      <div class="flex-1 min-w-[180px]">
+        <PropertyTypeDropdown
+          propertyTypes={propertyTypes}
+          selectedTypeIds={currentFilters.propertyTypes}
+          baseUrl={baseUrl}
+        />
+      </div>
 
-    <!-- Area Range Slider -->
-    <div>
-      <h3 class="text-sm font-semibold text-secondary-800 mb-2">Diện tích</h3>
-      <RangeSliderDropdown type="area" name="area" />
-    </div>
+      <!-- Price Range -->
+      <div class="flex-1 min-w-[180px]">
+        <PriceRangeDropdown
+          transactionType={transactionType}
+          currentMin={currentFilters.minPrice ? (Number(currentFilters.minPrice) / 1_000_000).toString() : undefined}
+          currentMax={currentFilters.maxPrice ? (Number(currentFilters.maxPrice) / 1_000_000).toString() : undefined}
+        />
+      </div>
 
-    <!-- Advanced Filters (collapsible) -->
-    <details class="group">
-      <summary class="text-sm text-primary-500 hover:text-primary-600 cursor-pointer flex items-center gap-1">
-        <span>Bộ lọc nâng cao</span>
-        <svg class="w-4 h-4 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-        </svg>
-      </summary>
+      <!-- Area Range -->
+      <div class="flex-1 min-w-[180px]">
+        <RangeSliderDropdown
+          type="area"
+          name="area"
+          currentMin={currentFilters.minArea ? Number(currentFilters.minArea) : undefined}
+          currentMax={currentFilters.maxArea ? Number(currentFilters.maxArea) : undefined}
+        />
+      </div>
 
-      <div class="grid grid-cols-2 gap-4 pt-4 mt-2 border-t border-secondary-100">
-        <!-- Bedrooms -->
-        <div>
-          <h3 class="text-sm font-medium text-secondary-700 mb-2">Số phòng ngủ</h3>
-          <div class="flex flex-wrap gap-1">
-            {ROOM_OPTIONS.map((option) => {
-              const isActive = currentFilters.bedrooms === option;
-              return (
-                <button
-                  type="button"
-                  class:list={[
-                    'room-btn px-3 py-1 text-sm rounded border transition-colors cursor-pointer',
-                    isActive
-                      ? 'bg-primary-500 text-white border-primary-500'
-                      : 'bg-white text-secondary-600 border-secondary-200 hover:border-primary-300',
-                  ]}
-                  data-room-type="bedrooms"
-                  data-value={option}
-                  data-active={isActive ? 'true' : 'false'}
-                >
-                  {option}
-                </button>
-              );
-            })}
+      <!-- Advanced Filters + Actions -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Advanced Filters Dropdown -->
+        <div class="relative" data-advanced-dropdown>
+          <button
+            type="button"
+            class="px-3 py-2.5 border border-secondary-300 rounded-lg bg-white hover:bg-secondary-50 transition-colors"
+            title="Bộ lọc nâng cao"
+            data-advanced-trigger
+          >
+            <svg class="w-5 h-5 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+          </button>
+
+          <div class="absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-secondary-100 p-4 z-[9999] hidden" data-advanced-panel>
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Bedrooms -->
+              <div>
+                <h3 class="text-xs font-medium text-secondary-700 mb-2">Phòng ngủ</h3>
+                <div class="flex flex-wrap gap-1">
+                  {ROOM_OPTIONS.map((option) => {
+                    const isActive = currentFilters.bedrooms === option;
+                    return (
+                      <button
+                        type="button"
+                        class:list={[
+                          'room-btn px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer',
+                          isActive
+                            ? 'bg-primary-500 text-white border-primary-500'
+                            : 'bg-white text-secondary-600 border-secondary-200 hover:border-primary-300',
+                        ]}
+                        data-room-type="bedrooms"
+                        data-value={option}
+                        data-active={isActive ? 'true' : 'false'}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <!-- Bathrooms -->
+              <div>
+                <h3 class="text-xs font-medium text-secondary-700 mb-2">Phòng tắm</h3>
+                <div class="flex flex-wrap gap-1">
+                  {ROOM_OPTIONS.map((option) => {
+                    const isActive = currentFilters.bathrooms === option;
+                    return (
+                      <button
+                        type="button"
+                        class:list={[
+                          'room-btn px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer',
+                          isActive
+                            ? 'bg-primary-500 text-white border-primary-500'
+                            : 'bg-white text-secondary-600 border-secondary-200 hover:border-primary-300',
+                        ]}
+                        data-room-type="bathrooms"
+                        data-value={option}
+                        data-active={isActive ? 'true' : 'false'}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
-        <!-- Bathrooms -->
-        <div>
-          <h3 class="text-sm font-medium text-secondary-700 mb-2">Số phòng tắm</h3>
-          <div class="flex flex-wrap gap-1">
-            {ROOM_OPTIONS.map((option) => {
-              const isActive = currentFilters.bathrooms === option;
-              return (
-                <button
-                  type="button"
-                  class:list={[
-                    'room-btn px-3 py-1 text-sm rounded border transition-colors cursor-pointer',
-                    isActive
-                      ? 'bg-primary-500 text-white border-primary-500'
-                      : 'bg-white text-secondary-600 border-secondary-200 hover:border-primary-300',
-                  ]}
-                  data-room-type="bathrooms"
-                  data-value={option}
-                  data-active={isActive ? 'true' : 'false'}
-                >
-                  {option}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-    </details>
-
-    <!-- Apply Filters Button -->
-    <div class="pt-3 border-t border-secondary-100">
-      <button
-        type="button"
-        class="w-full py-2.5 bg-primary-500 text-white text-sm font-medium rounded-lg hover:bg-primary-600 transition-colors flex items-center justify-center gap-2"
-        data-apply-filters
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-        </svg>
-        Áp dụng bộ lọc
-      </button>
-
-      <!-- Clear Filters -->
-      {(currentFilters.propertyTypes?.length || currentFilters.minPrice || currentFilters.maxPrice ||
-        currentFilters.minArea || currentFilters.maxArea || currentFilters.bedrooms || currentFilters.bathrooms) && (
+        <!-- Search Button -->
         <button
           type="button"
-          class="w-full mt-2 py-2 text-secondary-600 hover:text-secondary-800 text-sm border border-secondary-200 rounded-lg transition-colors flex items-center justify-center gap-2"
-          data-clear-filters
+          class="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shrink-0"
+          data-apply-filters
         >
+          <span>Tìm kiếm</span>
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          Xóa bộ lọc
         </button>
-      )}
+
+        <!-- Clear Filters -->
+        {(currentFilters.propertyTypes?.length || currentFilters.minPrice || currentFilters.maxPrice ||
+          currentFilters.minArea || currentFilters.maxArea || currentFilters.bedrooms || currentFilters.bathrooms) && (
+          <button
+            type="button"
+            class="px-3 py-2 text-secondary-600 hover:text-secondary-800 text-xs border border-secondary-200 rounded-lg transition-colors h-[38px]"
+            data-clear-filters
+            title="Xóa bộ lọc"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
     </div>
   </div>
 </div>
@@ -213,29 +218,34 @@ const isPropertyTypeActive = (id: number) =>
     let selectedBedrooms = '';
     let selectedBathrooms = '';
 
-    // Property type buttons
-    const propertyTypeBtns = container.querySelectorAll('.property-type-btn') as NodeListOf<HTMLButtonElement>;
-    propertyTypeBtns.forEach((btn) => {
-      if (btn.dataset.active === 'true') {
-        selectedPropertyTypes.push(btn.dataset.typeId || '');
+    // Initialize from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyTypesParam = urlParams.get('property_types');
+    if (propertyTypesParam) {
+      selectedPropertyTypes = propertyTypesParam.split(',').filter(Boolean);
+    }
+
+    // Listen for property type dropdown apply event
+    container.addEventListener('apply-property-types', ((e: CustomEvent) => {
+      selectedPropertyTypes = e.detail.selectedIds.map(String);
+    }) as EventListener);
+
+    // Advanced dropdown toggle
+    const advancedTrigger = container.querySelector('[data-advanced-trigger]');
+    const advancedPanel = container.querySelector('[data-advanced-panel]');
+
+    advancedTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      advancedPanel?.classList.toggle('hidden');
+    });
+
+    // Close advanced dropdown on outside click
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const dropdown = container.querySelector('[data-advanced-dropdown]');
+      if (dropdown && !dropdown.contains(target)) {
+        advancedPanel?.classList.add('hidden');
       }
-
-      btn.addEventListener('click', () => {
-        const typeId = btn.dataset.typeId || '';
-        const isActive = btn.dataset.active === 'true';
-
-        if (isActive) {
-          selectedPropertyTypes = selectedPropertyTypes.filter(id => id !== typeId);
-          btn.dataset.active = 'false';
-          btn.classList.remove('bg-primary-500', 'text-white', 'border-primary-500');
-          btn.classList.add('bg-white', 'text-secondary-600', 'border-secondary-200');
-        } else {
-          selectedPropertyTypes.push(typeId);
-          btn.dataset.active = 'true';
-          btn.classList.add('bg-primary-500', 'text-white', 'border-primary-500');
-          btn.classList.remove('bg-white', 'text-secondary-600', 'border-secondary-200');
-        }
-      });
     });
 
     // Room buttons
@@ -275,20 +285,24 @@ const isPropertyTypeActive = (id: number) =>
     // Apply filters button
     const applyBtn = container.querySelector('[data-apply-filters]');
     applyBtn?.addEventListener('click', () => {
-      const priceInput = container.querySelector('[name="price"]') as HTMLInputElement;
+      const priceMinInput = container.querySelector('[name="price-min"]') as HTMLInputElement;
+      const priceMaxInput = container.querySelector('[name="price-max"]') as HTMLInputElement;
       const areaInput = container.querySelector('[name="area"]') as HTMLInputElement;
 
-      selectedPrice = priceInput?.value || '';
+      // Build price value from min-max inputs
+      const priceMin = priceMinInput?.value || '';
+      const priceMax = priceMaxInput?.value || '';
+      selectedPrice = (priceMin || priceMax) ? `${priceMin}-${priceMax}` : '';
       selectedArea = areaInput?.value || '';
 
-      // Extract location slug from current path (e.g., /mua-ban/ha-noi → ha-noi)
+      // Extract location slug from current path
       const pathParts = currentPath.split('/').filter(Boolean);
       let locationSlug = pathParts.length > 1 ? pathParts[1] : null;
 
-      // Build URL parts: [transaction]/[location]/[price-slug]
+      // Build URL parts
       const urlParts: string[] = [baseUrl.replace(/^\//, '')];
 
-      // Calculate price slug first to determine if we need location
+      // Calculate price slug
       let priceSlug = '';
       if (selectedPrice) {
         const [minP, maxP] = selectedPrice.split('-');
@@ -300,24 +314,21 @@ const isPropertyTypeActive = (id: number) =>
         }
       }
 
-      // Add location (required if price slug exists, per v1 format)
-      // If no specific location but has price filter, use "toan-quoc"
+      // Add location
       if (locationSlug && locationSlug !== 'toan-quoc') {
         urlParts.push(locationSlug);
       } else if (priceSlug) {
-        // Price slug requires location arg, use "toan-quoc" for nationwide
         urlParts.push('toan-quoc');
       }
 
-      // Add price slug (arg3 position in v1 format)
+      // Add price slug
       if (priceSlug) {
         urlParts.push(priceSlug);
       }
 
-      // Build base URL path
       let targetUrl = '/' + urlParts.join('/');
 
-      // Add query params for other filters
+      // Add query params
       const params = new URLSearchParams();
 
       if (selectedPropertyTypes.length) {
@@ -341,8 +352,7 @@ const isPropertyTypeActive = (id: number) =>
       window.location.href = targetUrl;
     });
 
-    // Helper: Build price slug (v1 format)
-    // Input values are in "triệu" units (e.g., 1000 = 1 tỷ, 500 = 500 triệu)
+    // Helper functions
     function buildPriceSlug(minTrieu: number, maxTrieu: number): string {
       if (minTrieu === 0 && maxTrieu === 0) return 'gia-thuong-luong';
 
@@ -361,9 +371,6 @@ const isPropertyTypeActive = (id: number) =>
       return '';
     }
 
-    // Helper: Convert triệu value to price slug part
-    // Input: 1000 (triệu) → Output: "1-ty"
-    // Input: 500 (triệu) → Output: "500-trieu"
     function convertTrieuToPriceSlug(trieu: number): string {
       if (trieu >= 1000) {
         const ty = trieu / 1000;
@@ -376,39 +383,30 @@ const isPropertyTypeActive = (id: number) =>
     // Clear filters button
     const clearBtn = container.querySelector('[data-clear-filters]');
     clearBtn?.addEventListener('click', () => {
-      // Check if already on target URL to prevent infinite reload
       const currentUrl = window.location.pathname + window.location.search;
       const targetUrl = currentPath;
 
       if (currentUrl !== targetUrl) {
-        // Navigate to base URL without filters
         window.location.href = targetUrl;
-      } else {
-        // Already on base URL - just reset UI state without navigation
-        selectedPropertyTypes = [];
-        selectedBedrooms = '';
-        selectedBathrooms = '';
-
-        // Reset property type buttons
-        propertyTypeBtns.forEach(btn => {
-          btn.dataset.active = 'false';
-          btn.classList.remove('bg-primary-500', 'text-white', 'border-primary-500');
-          btn.classList.add('bg-white', 'text-secondary-600', 'border-secondary-200');
-        });
-
-        // Reset room buttons
-        roomBtns.forEach(btn => {
-          btn.dataset.active = 'false';
-          btn.classList.remove('bg-primary-500', 'text-white', 'border-primary-500');
-          btn.classList.add('bg-white', 'text-secondary-600', 'border-secondary-200');
-        });
-
-        // Reset range inputs
-        const priceInput = container.querySelector('[name="price"]') as HTMLInputElement;
-        const areaInput = container.querySelector('[name="area"]') as HTMLInputElement;
-        if (priceInput) priceInput.value = '';
-        if (areaInput) areaInput.value = '';
       }
     });
   });
 </script>
+
+<style>
+  /* Ensure smooth dropdown animations */
+  [data-advanced-panel] {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
