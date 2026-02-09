@@ -4,20 +4,82 @@
  */
 
 import { db } from '@/db';
-import { locations } from '@/db/schema';
-import { eq, and, ne, isNotNull, sql } from 'drizzle-orm';
+import { locations, locationsWithCountProperty } from '@/db/schema';
+import { eq, and, ne, isNotNull, sql, isNull } from 'drizzle-orm';
 import type { Province, District, LocationHierarchy } from './types';
 
 // In-memory cache for build-time optimization
 let cachedHierarchy: LocationHierarchy | null = null;
 
 /**
- * Get all provinces from database
+ * Get all provinces from locations_with_count_property table
+ * V1-compatible: includes property counts, images, and optimized for performance
+ * @param limit - Number of provinces to return (default: all)
  * @param useNewAddresses - true for modern addresses (default), false for legacy
+ */
+export async function getAllProvincesWithCount(limit?: number, useNewAddresses = true): Promise<Province[]> {
+  try {
+    // Query from materialized aggregate table for performance
+    // V1 logic: query all rows (id > 0), only filter mergedintoid if useNewAddresses=true
+    let query = db
+      .select({
+        id: locationsWithCountProperty.id,
+        cityId: locationsWithCountProperty.cityId,
+        title: locationsWithCountProperty.title,
+        slug: locationsWithCountProperty.slug,
+        propertyCount: locationsWithCountProperty.propertyCount,
+        cityImage: locationsWithCountProperty.cityImage,
+        cityImageWeb: locationsWithCountProperty.cityImageWeb,
+        cityLatlng: locationsWithCountProperty.cityLatlng,
+        displayOrder: locationsWithCountProperty.displayOrder,
+        mergedintoid: locationsWithCountProperty.mergedintoid,
+      })
+      .from(locationsWithCountProperty);
+
+    // V1 logic: only filter by mergedintoid if grant='2' (new addresses)
+    if (useNewAddresses) {
+      query = query.where(isNull(locationsWithCountProperty.mergedintoid));
+    }
+
+    // Order by display_order (V1 uses this for featured cities)
+    query = query.orderBy(locationsWithCountProperty.displayOrder);
+
+    // Apply limit if specified
+    const rows = limit ? await query.limit(limit) : await query;
+
+    console.log(`[LocationService] Found ${rows.length} provinces from locations_with_count_property (useNewAddresses=${useNewAddresses})`);
+
+    // Transform to Province type
+    const provinces: Province[] = rows.map(row => ({
+      id: row.id,
+      nId: row.cityId || '',
+      name: row.title || '',
+      slug: row.slug || '',
+      districtCount: 0, // Not needed when using propertyCount
+      propertyCount: row.propertyCount || 0,
+      cityImage: row.cityImage || undefined,
+      cityImageWeb: row.cityImageWeb || undefined,
+      cityLatlng: row.cityLatlng || undefined,
+      displayOrder: row.displayOrder || undefined,
+    }));
+
+    return provinces;
+
+  } catch (error) {
+    console.error('[LocationService] Failed to load provinces with count:', error);
+    console.error(error);
+    return [];
+  }
+}
+
+/**
+ * Get all provinces from database (legacy function)
+ * @param useNewAddresses - true for modern addresses (default), false for legacy
+ * @deprecated Use getAllProvincesWithCount for better performance
  */
 export async function getAllProvinces(useNewAddresses = true): Promise<Province[]> {
   try {
-    // Query provinces (n_level = '0')
+    // Query provinces (n_level = 'TinhThanh' not '0')
     const rows = await db
       .select({
         id: locations.id,
@@ -29,7 +91,7 @@ export async function getAllProvinces(useNewAddresses = true): Promise<Province[
       .from(locations)
       .where(
         and(
-          eq(locations.nLevel, '0'),
+          eq(locations.nLevel, 'TinhThanh'), // Changed from '0' to 'TinhThanh'
           ne(locations.nStatus, '6'),
           eq(locations.aactive, true)
         )
@@ -50,7 +112,7 @@ export async function getAllProvinces(useNewAddresses = true): Promise<Province[
           .where(
             and(
               eq(locations.nParentid, province.nId!),
-              eq(locations.nLevel, '1'),
+              eq(locations.nLevel, 'QuanHuyen'), // Changed from '1' to 'QuanHuyen'
               ne(locations.nStatus, '6'),
               eq(locations.aactive, true)
             )
@@ -95,7 +157,7 @@ export async function getDistrictsByProvinces(
       .where(
         and(
           sql`${locations.nParentid} IN ${provinceNIds}`,
-          eq(locations.nLevel, '1'),
+          eq(locations.nLevel, 'QuanHuyen'),
           ne(locations.nStatus, '6'),
           eq(locations.aactive, true)
         )
@@ -128,6 +190,7 @@ export async function getDistrictsByProvinces(
 
 /**
  * Build complete location hierarchy (for build-time generation)
+ * Uses V1-compatible table for better performance
  */
 export async function buildLocationHierarchy(): Promise<LocationHierarchy> {
   // Return cached if available
@@ -135,7 +198,8 @@ export async function buildLocationHierarchy(): Promise<LocationHierarchy> {
     return cachedHierarchy;
   }
 
-  const provinces = await getAllProvinces(true);
+  // Use V1-compatible function with property counts and images
+  const provinces = await getAllProvincesWithCount(undefined, true);
   const provinceNIds = provinces.map(p => p.nId);
   const districtsByProvince = await getDistrictsByProvinces(provinceNIds);
 
@@ -163,7 +227,7 @@ export async function getProvinceBySlug(slug: string): Promise<Province | null> 
       .where(
         and(
           eq(locations.nSlug, slug),
-          eq(locations.nLevel, '0'),
+          eq(locations.nLevel, 'TinhThanh'),
           ne(locations.nStatus, '6'),
           eq(locations.aactive, true)
         )
@@ -179,7 +243,7 @@ export async function getProvinceBySlug(slug: string): Promise<Province | null> 
       .where(
         and(
           eq(locations.nParentid, rows[0].nId!),
-          eq(locations.nLevel, '1'),
+          eq(locations.nLevel, 'QuanHuyen'),
           ne(locations.nStatus, '6'),
           eq(locations.aactive, true)
         )
@@ -220,7 +284,7 @@ export async function getDistrictBySlug(
         and(
           eq(locations.nSlug, districtSlug),
           eq(locations.nParentid, provinceNId),
-          eq(locations.nLevel, '1'),
+          eq(locations.nLevel, 'QuanHuyen'),
           ne(locations.nStatus, '6'),
           eq(locations.aactive, true)
         )
@@ -280,8 +344,8 @@ export async function resolveLocationSlugs(
       nId: row.nId || '',
       name: row.name || '',
       slug: row.slug || '',
-      type: row.level === '0' ? 'province' : 'district',
-      ...(row.level === '1' && { provinceId: row.provinceId || '' })
+      type: row.level === 'TinhThanh' ? 'province' : 'district',
+      ...(row.level === 'QuanHuyen' && { provinceId: row.provinceId || '' })
     }));
 
   } catch (error) {

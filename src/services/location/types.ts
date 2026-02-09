@@ -2,13 +2,18 @@
  * Location types for provinces, districts, wards
  */
 
-// Province data
+// Province data (extended with V1 fields from locations_with_count_property)
 export interface Province {
   id: number;
-  nId: string;          // n_id in DB
+  nId: string;          // n_id in DB (city_id in locations_with_count_property)
   name: string;         // "Hà Nội"
   slug: string;         // "ha-noi"
   districtCount: number;
+  propertyCount?: number;       // From locations_with_count_property
+  cityImage?: string;           // From locations_with_count_property
+  cityImageWeb?: string;        // From locations_with_count_property
+  cityLatlng?: string;          // From locations_with_count_property
+  displayOrder?: number;        // From locations_with_count_property
 }
 
 // District data

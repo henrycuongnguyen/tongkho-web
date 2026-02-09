@@ -107,12 +107,27 @@ function buildLocationQuery(query: string) {
  * Parse ES hit to LocationSearchResult
  */
 function parseLocationHit(source: LocationDocument): LocationSearchResult {
-  const level = parseInt(source.n_level || '0', 10);
+  const levelStr = source.n_level || '0';
 
-  // Determine type based on level
+  // Determine type based on level (support both string and integer formats)
   let type: LocationSearchResult['type'] = 'province';
-  if (level === 1) type = 'district';
-  if (level === 2) type = 'ward';
+  let level = 0;
+
+  if (levelStr === 'QuanHuyen' || levelStr === '1') {
+    type = 'district';
+    level = 1;
+  } else if (levelStr === 'PhuongXa' || levelStr === '2') {
+    type = 'ward';
+    level = 2;
+  } else if (levelStr === 'TinhThanh' || levelStr === '0') {
+    type = 'province';
+    level = 0;
+  } else {
+    // Fallback to integer parsing for backward compatibility
+    level = parseInt(levelStr, 10);
+    if (level === 1) type = 'district';
+    else if (level === 2) type = 'ward';
+  }
 
   // Build full name
   const fullNameParts: string[] = [source.n_name || ''];
