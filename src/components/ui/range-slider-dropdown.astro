@@ -36,6 +36,10 @@ interface Props {
   max?: number;
   step?: number;
   formatFn?: FormatFn;
+  /** Current minimum value (from filters) */
+  currentMin?: number;
+  /** Current maximum value (from filters) */
+  currentMax?: number;
 }
 
 const DEFAULTS = {
@@ -86,7 +90,7 @@ const DEFAULTS = {
   },
 };
 
-const { type, id, name, placeholder, quickPicks, min, max, step } = Astro.props;
+const { type, id, name, placeholder, quickPicks, min, max, step, currentMin, currentMax } = Astro.props;
 
 const config = DEFAULTS[type] || DEFAULTS.custom;
 const finalMin = min ?? config.min;
@@ -103,12 +107,12 @@ const finalName = name ?? type;
   <!-- Trigger Button -->
   <button
     type="button"
-    class="w-full px-3 py-2.5 border border-secondary-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-600 text-sm text-left flex items-center justify-between"
+    class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-700 text-sm text-left flex items-center justify-between transition-all"
     data-trigger
   >
-    <span data-display>{finalPlaceholder}</span>
+    <span class="font-medium" data-display>{finalPlaceholder}</span>
     <svg
-      class="w-4 h-4 text-secondary-400 transition-transform"
+      class="w-4 h-4 text-secondary-400 shrink-0 transition-transform"
       data-arrow
       fill="none"
       stroke="currentColor"
@@ -123,7 +127,7 @@ const finalName = name ?? type;
 
   <!-- Dropdown Panel -->
   <div
-    class="absolute top-full left-1/2 -translate-x-1/2 mt-1 bg-white rounded-xl shadow-2xl border border-secondary-100 p-4 z-50 w-full hidden"
+    class="absolute top-full left-1/2 -translate-x-1/2 mt-2 bg-white rounded-xl shadow-xl border border-secondary-100 p-4 z-[9999] w-full hidden"
     data-panel
   >
     <h4 class="text-lg font-bold text-secondary-800 text-center mb-3">{finalTitle}</h4>
@@ -209,10 +213,13 @@ const finalName = name ?? type;
     configStep: finalStep,
     configPlaceholder: finalPlaceholder,
     configType: type,
+    configCurrentMin: currentMin,
+    configCurrentMax: currentMax,
   }}
 >
-  // Initialize each range dropdown
-  document.querySelectorAll("[data-range-dropdown]").forEach((dropdown) => {
+  // Initialize range dropdowns on page load + Astro View Transitions
+  function initRangeDropdowns() {
+    document.querySelectorAll("[data-range-dropdown]").forEach((dropdown) => {
     // Skip if already initialized
     if (dropdown.dataset.initialized) return;
     dropdown.dataset.initialized = "true";
@@ -250,8 +257,16 @@ const finalName = name ?? type;
     const STEP = config.step;
     const PLACEHOLDER = config.placeholder;
 
-    let minVal = MIN;
-    let maxVal = MAX;
+    // Initialize with current values from filters if provided
+    let minVal = (typeof configCurrentMin === 'number' && configCurrentMin >= MIN && configCurrentMin <= MAX)
+      ? configCurrentMin
+      : MIN;
+    let maxVal = (typeof configCurrentMax === 'number' && configCurrentMax >= MIN && configCurrentMax <= MAX)
+      ? configCurrentMax
+      : MAX;
+
+    // Generate unique ID for this dropdown
+    const dropdownId = `range-slider-${type}-${Math.random().toString(36).substr(2, 9)}`;
 
     // Format functions for different types
     function formatPrice(value) {
@@ -278,8 +293,9 @@ const finalName = name ?? type;
       if (minInput.value !== String(minVal)) minInput.value = String(minVal);
       if (maxInput.value !== String(maxVal)) maxInput.value = String(maxVal);
 
-      const minPercent = (minVal / MAX) * 100;
-      const maxPercent = (maxVal / MAX) * 100;
+      // Calculate percentage based on range (MAX - MIN), not just MAX
+      const minPercent = ((minVal - MIN) / (MAX - MIN)) * 100;
+      const maxPercent = ((maxVal - MIN) / (MAX - MIN)) * 100;
       track.style.left = `${minPercent}%`;
       track.style.right = `${100 - maxPercent}%`;
       thumbMin.style.left = `calc(${minPercent}% - 10px)`;
@@ -323,7 +339,8 @@ const finalName = name ?? type;
         if (!isDragging) return;
         const rect = sliderContainer.getBoundingClientRect();
         const percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
-        const value = Math.round(((percent / 100) * MAX) / STEP) * STEP;
+        // Calculate value based on range (MAX - MIN), not just MAX
+        const value = MIN + Math.round(((percent / 100) * (MAX - MIN)) / STEP) * STEP;
 
         if (isMin) {
           minVal = Math.min(value, maxVal - STEP);
@@ -357,17 +374,50 @@ const finalName = name ?? type;
     setupDrag(thumbMin, true);
     setupDrag(thumbMax, false);
 
+    // Close function for dropdown manager
+    function closeDropdown() {
+      panel.classList.add("hidden");
+      arrow.classList.remove("rotate-180");
+    }
+
+    // Register with dropdown manager
+    if (typeof window.dropdownManager !== 'undefined') {
+      window.dropdownManager.register(dropdownId, closeDropdown);
+    }
+
     // Toggle dropdown
-    trigger.addEventListener("click", () => {
+    trigger.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const isOpen = !panel.classList.contains("hidden");
+
+      if (!isOpen) {
+        // Notify dropdown manager to close other dropdowns
+        if (typeof window.dropdownManager !== 'undefined') {
+          window.dropdownManager.open(dropdownId);
+        }
+      }
+
       panel.classList.toggle("hidden");
       arrow.classList.toggle("rotate-180");
+
+      const nowOpen = !panel.classList.contains("hidden");
+      if (!nowOpen) {
+        // Notify dropdown manager this dropdown is closed
+        if (typeof window.dropdownManager !== 'undefined') {
+          window.dropdownManager.close(dropdownId);
+        }
+      }
     });
 
     // Close on outside click
     document.addEventListener("click", (e) => {
-      if (!dropdown.contains(e.target)) {
-        panel.classList.add("hidden");
-        arrow.classList.remove("rotate-180");
+      const isOpen = !panel.classList.contains("hidden");
+      if (!dropdown.contains(e.target) && isOpen) {
+        closeDropdown();
+        // Notify dropdown manager
+        if (typeof window.dropdownManager !== 'undefined') {
+          window.dropdownManager.close(dropdownId);
+        }
       }
     });
 
@@ -405,6 +455,17 @@ const finalName = name ?? type;
       updateUI();
     });
 
-    updateUI();
-  });
+      updateUI();
+    });
+  }
+
+  // Run on initial load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initRangeDropdowns);
+  } else {
+    initRangeDropdowns();
+  }
+
+  // Run on Astro View Transitions
+  document.addEventListener('astro:page-load', initRangeDropdowns);
 </script>

@@ -86,10 +86,18 @@ const searchUrl = `/api/location/search?base=${encodeURIComponent(baseUrl)}`;
   </button>
 </div>
 
-<script is:inline define:vars={{ baseUrl, selectedLocations }}>
-  (function() {
-    const MAX_LOCATIONS = 10;
-    const STORAGE_PREFIX = 'selected-addresses';
+<script define:vars={{ baseUrl, selectedLocations }}>
+  const MAX_LOCATIONS = 10;
+  const STORAGE_PREFIX = 'selected-addresses';
+
+  // Initialize location autocomplete - runs on page load + Astro View Transitions
+  function initLocationAutocomplete() {
+    const container = document.querySelector('.location-autocomplete-multi');
+    if (!container) return;
+
+    // Skip if already initialized
+    if (container.dataset.initialized) return;
+    container.dataset.initialized = 'true';
 
     // Server-side selected locations (from props)
     const initialLocations = selectedLocations || [];
@@ -122,11 +130,11 @@ const searchUrl = `/api/location/search?base=${encodeURIComponent(baseUrl)}`;
 
     // Render chips
     function renderChips() {
-      const container = document.getElementById('location-chips-container');
-      if (!container) return;
+      const chipsContainer = document.getElementById('location-chips-container');
+      if (!chipsContainer) return;
 
       const locations = getStoredLocations();
-      container.innerHTML = locations.map(loc => `
+      chipsContainer.innerHTML = locations.map(loc => `
         <div class="location-chip inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full text-sm" data-slug="${loc.slug}">
           <span class="font-medium">${loc.name}</span>
           <button
@@ -142,7 +150,7 @@ const searchUrl = `/api/location/search?base=${encodeURIComponent(baseUrl)}`;
       `).join('');
 
       // Attach remove handlers
-      container.querySelectorAll('.chip-remove').forEach(btn => {
+      chipsContainer.querySelectorAll('.chip-remove').forEach(btn => {
         btn.addEventListener('click', function(e) {
           e.preventDefault();
           const chip = this.closest('.location-chip');
@@ -199,15 +207,16 @@ const searchUrl = `/api/location/search?base=${encodeURIComponent(baseUrl)}`;
     }
 
     // Inject query into HTMX request
-    document.addEventListener('htmx:configRequest', function(evt) {
+    const htmxConfigHandler = function(evt) {
       const input = evt.detail.elt;
-      if (input.id === 'location-search-input') {
+      if (input && input.id === 'location-search-input') {
         evt.detail.parameters.q = input.value;
       }
-    });
+    };
+    document.addEventListener('htmx:configRequest', htmxConfigHandler);
 
     // Handle result item click (add to selection)
-    document.addEventListener('click', function(evt) {
+    const resultClickHandler = function(evt) {
       const item = evt.target.closest('.location-result-item');
       if (item) {
         evt.preventDefault();
@@ -225,34 +234,63 @@ const searchUrl = `/api/location/search?base=${encodeURIComponent(baseUrl)}`;
           if (results) results.innerHTML = '';
         }
       }
-    });
+    };
+    document.addEventListener('click', resultClickHandler);
 
     // Handle search button click
-    document.getElementById('location-search-btn')?.addEventListener('click', function() {
+    const searchBtn = document.getElementById('location-search-btn');
+    const searchBtnHandler = function() {
       const url = buildNavigationUrl();
       window.location.href = url;
-    });
+    };
+    if (searchBtn) {
+      searchBtn.addEventListener('click', searchBtnHandler);
+    }
 
     // Close dropdown on click outside
-    document.addEventListener('click', function(evt) {
-      const container = evt.target.closest('.location-autocomplete-multi');
-      if (!container) {
+    const outsideClickHandler = function(evt) {
+      const clickedContainer = evt.target.closest('.location-autocomplete-multi');
+      if (!clickedContainer) {
         const results = document.getElementById('location-results');
         if (results) results.innerHTML = '';
       }
-    });
+    };
+    document.addEventListener('click', outsideClickHandler);
 
     // Close on Escape key
-    document.addEventListener('keydown', function(evt) {
+    const escapeKeyHandler = function(evt) {
       if (evt.key === 'Escape') {
         const results = document.getElementById('location-results');
         if (results) results.innerHTML = '';
       }
-    });
+    };
+    document.addEventListener('keydown', escapeKeyHandler);
 
     // Initial render
     renderChips();
-  })();
+
+    // Cleanup on before-swap (View Transition about to happen)
+    document.addEventListener('astro:before-swap', () => {
+      container.removeAttribute('data-initialized');
+      document.removeEventListener('htmx:configRequest', htmxConfigHandler);
+      document.removeEventListener('click', resultClickHandler);
+      document.removeEventListener('click', outsideClickHandler);
+      document.removeEventListener('keydown', escapeKeyHandler);
+      if (searchBtn) {
+        searchBtn.removeEventListener('click', searchBtnHandler);
+      }
+    }, { once: true });
+  }
+
+  // Run on initial load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLocationAutocomplete);
+  } else {
+    initLocationAutocomplete();
+  }
+
+  // Run on Astro View Transitions
+  document.addEventListener('astro:page-load', initLocationAutocomplete);
 </script>
 
 <style>
