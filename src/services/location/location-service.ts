@@ -320,6 +320,7 @@ export async function resolveLocationSlugs(
   type: 'province' | 'district';
   provinceId?: string; // For districts only
 }>> {
+  console.log('[LocationService] resolveLocationSlugs called with:', slugs);
   if (slugs.length === 0) return [];
 
   try {
@@ -339,6 +340,8 @@ export async function resolveLocationSlugs(
           eq(locations.aactive, true)
         )
       );
+
+    console.log('[LocationService] resolveLocationSlugs query returned rows:', rows.length, rows);
 
     return rows.map(row => ({
       nId: row.nId || '',

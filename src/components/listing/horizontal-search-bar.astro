@@ -69,10 +69,15 @@ const TRANSACTION_LABELS: Record<number, string> = {
 const baseUrl = TRANSACTION_BASE_URLS[transactionType] || '/mua-ban';
 const transactionLabel = TRANSACTION_LABELS[transactionType] || 'Loại BĐS';
 
-// Find selected province
+// Find selected province - default to Hà Nội if no province in URL
 const selectedProvince = currentProvince
   ? provinces.find(p => p.slug === currentProvince)
-  : null;
+  : provinces.find(p => p.name === 'Hà Nội' || p.slug === 'ha-noi') || null;
+
+// Debug: Log province selection
+console.log('[HorizontalSearchBar] currentProvince:', currentProvince);
+console.log('[HorizontalSearchBar] selectedProvince:', selectedProvince ? { nId: selectedProvince.nId, slug: selectedProvince.slug, name: selectedProvince.name } : null);
+console.log('[HorizontalSearchBar] provinces count:', provinces.length);
 
 // Get featured provinces (top 5 with images)
 const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).slice(0, 5);
@@ -88,7 +93,7 @@ const currentMaxPrice = currentFilters.maxPrice
 
 <div class="horizontal-search-bar bg-white border-b border-secondary-200 py-4 sticky top-0 z-50 shadow-sm">
   <div class="container-custom">
-    <div class="flex items-center gap-3 flex-wrap lg:flex-nowrap" data-search-bar data-base-url={baseUrl}>
+    <div class="flex items-center gap-3 flex-wrap lg:flex-nowrap" data-search-bar data-base-url={baseUrl} data-current-province-nid={selectedProvince?.nId || ''} data-current-province-slug={selectedProvince?.slug || ''}>
       <!-- Location Dropdown -->
       <div class="relative flex-1 min-w-[200px]">
         <button
@@ -386,15 +391,21 @@ const currentMaxPrice = currentFilters.maxPrice
     const districtLoading = searchBar.querySelector('[data-district-loading]') as HTMLDivElement;
     const districtEmpty = searchBar.querySelector('[data-district-empty]') as HTMLDivElement;
 
-    // Track current province selection
-    let currentProvinceNId: string | null = null;
+    // Track current province selection - initialize from data attributes (for page with province in URL)
+    const initialProvinceNId = searchBar?.getAttribute('data-current-province-nid');
+    let currentProvinceNId: string | null = (initialProvinceNId && initialProvinceNId.trim()) ? initialProvinceNId : null;
     let currentProvinceName: string | null = null;
     let districtsLoaded = false;
+
+    console.log('[HorizontalSearchBar] Initial province from data attribute:', currentProvinceNId);
+    console.log('[HorizontalSearchBar] searchBar element:', searchBar);
+    console.log('[HorizontalSearchBar] data-current-province-nid attr:', searchBar?.getAttribute('data-current-province-nid'));
+    console.log('[HorizontalSearchBar] data-current-province-slug attr:', searchBar?.getAttribute('data-current-province-slug'));
 
     // Listen for province selection and update display + load districts
     document.addEventListener('province-selected', ((e: CustomEvent) => {
       console.log('[HorizontalSearchBar] province-selected event received:', e.detail);
-      const { name, nId } = e.detail;
+      const { name, nId, slug } = e.detail;
 
       // Update location display
       if (locationDisplay) {
@@ -406,6 +417,13 @@ const currentMaxPrice = currentFilters.maxPrice
       currentProvinceNId = nId;
       currentProvinceName = name;
       districtsLoaded = false;
+
+      // CRITICAL FIX: Update data attributes for location search
+      if (searchBar) {
+        searchBar.setAttribute('data-current-province-nid', nId || '');
+        searchBar.setAttribute('data-current-province-slug', slug || '');
+        console.log('[HorizontalSearchBar] Updated data attributes - nId:', nId, 'slug:', slug);
+      }
 
       // Update dropdown header
       if (provinceNameDisplay) {
@@ -622,12 +640,60 @@ const currentMaxPrice = currentFilters.maxPrice
       }
     });
 
-    // District input focus - show dropdown if districts loaded
-    districtSearchInput?.addEventListener('focus', () => {
-      if (currentProvinceNId && districtsLoaded) {
-        districtDropdown?.classList.remove('hidden');
+    // Load districts when input is focused or clicked
+    function loadDistrictsOnDemand() {
+      console.log('[HorizontalSearchBar] loadDistrictsOnDemand triggered, currentProvinceNId:', currentProvinceNId, 'districtsLoaded:', districtsLoaded);
+
+      if (!currentProvinceNId) {
+        console.log('[HorizontalSearchBar] No province selected, skipping district load');
+        return; // No province selected, nothing to show
       }
-    });
+
+      // If districts already loaded, just show dropdown
+      if (districtsLoaded) {
+        console.log('[HorizontalSearchBar] Districts already loaded, showing dropdown');
+        districtDropdown?.classList.remove('hidden');
+        return;
+      }
+
+      // First focus with province but districts not loaded yet - load them
+      console.log('[HorizontalSearchBar] Loading districts for province:', currentProvinceNId);
+      districtLoading?.classList.remove('hidden');
+      districtEmpty?.classList.add('hidden');
+      districtListContainer.innerHTML = '';
+      districtDropdown?.classList.remove('hidden');
+
+      const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}`;
+      console.log('[HorizontalSearchBar] Fetching districts from:', url);
+      fetch(url)
+        .then(response => response.text())
+        .then(html => {
+          districtLoading?.classList.add('hidden');
+          districtListContainer.innerHTML = html;
+          districtsLoaded = true;
+
+          // Use grid layout for districts
+          districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-x-6', 'gap-y-2');
+
+          // Check if any districts were loaded
+          const districtLinks = districtListContainer?.querySelectorAll('a');
+          if (!districtLinks || districtLinks.length === 0) {
+            districtEmpty?.classList.remove('hidden');
+          }
+        })
+        .catch(error => {
+          console.error('[HorizontalSearchBar] Failed to load districts on focus:', error);
+          districtLoading?.classList.add('hidden');
+          districtEmpty?.classList.remove('hidden');
+          if (districtEmpty) {
+            districtEmpty.textContent = 'Lỗi khi tải quận/huyện';
+          }
+        });
+    }
+
+    // Attach both focus and click events to ensure dropdown shows
+    districtSearchInput?.addEventListener('focus', loadDistrictsOnDemand);
+    districtSearchInput?.addEventListener('click', loadDistrictsOnDemand);
 
     // District search/filter functionality with Elasticsearch integration
     let searchTimeout: number | null = null;
@@ -713,8 +779,19 @@ const currentMaxPrice = currentFilters.maxPrice
       districtListContainer.innerHTML = '';
       districtDropdown?.classList.remove('hidden');
 
-      // Call location search API
-      const searchUrl = `/api/location/search?q=${encodeURIComponent(query)}&base=${baseUrl}`;
+      // Call location search API with province context
+      const provinceNId = searchBar?.getAttribute('data-current-province-nid') || '';
+      const provinceSlug = searchBar?.getAttribute('data-current-province-slug') || '';
+
+      console.log('[LocationSearch] Province context:', { provinceNId, provinceSlug });
+
+      let searchUrl = `/api/location/search?q=${encodeURIComponent(query)}&base=${baseUrl}`;
+      if (provinceNId && provinceSlug) {
+        searchUrl += `&city_id=${encodeURIComponent(provinceNId)}&city_slug=${encodeURIComponent(provinceSlug)}`;
+        console.log('[LocationSearch] Search URL with province filter:', searchUrl);
+      } else {
+        console.log('[LocationSearch] No province selected, searching all locations');
+      }
 
       fetch(searchUrl)
         .then(response => response.text())
