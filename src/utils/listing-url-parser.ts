@@ -44,34 +44,14 @@ export function parseListingUrl(
     // Otherwise it might be a property type slug - handled later
   }
 
-  // Parse location (arg2) - first location from path
-  const firstLocationSlug = slugParts.length > 1 ? slugParts[1] : null;
+  // Parse location (arg2) - SINGLE location only (v1 format)
+  // Note: Multi-location selection via 'addresses' param is NOT supported
+  const locationSlug = slugParts.length > 1 ? slugParts[1] : null;
 
-  // Parse addresses query param (additional locations, comma-separated)
-  const addressesParam = searchParams.get('addresses');
-  const additionalSlugs = addressesParam
-    ? addressesParam.split(',').map(s => s.trim()).filter(Boolean)
-    : [];
-
-  // Merge: first location + additional addresses (v1 logic)
-  const locationSlugs: string[] = [];
-
-  // Add first location from path if valid
-  if (firstLocationSlug && firstLocationSlug !== 'toan-quoc') {
-    locationSlugs.push(firstLocationSlug);
-  }
-
-  // Add additional locations from addresses param (avoid duplicates)
-  for (const slug of additionalSlugs) {
-    if (!locationSlugs.includes(slug)) {
-      locationSlugs.push(slug);
-    }
-  }
-
-  // Store for batch resolution in page component
-  if (locationSlugs.length > 0) {
+  // Store single location for resolution in page component
+  if (locationSlug && locationSlug !== 'toan-quoc') {
     // @ts-expect-error - temporary storage for batch resolution
-    filters._locationSlugs = locationSlugs;
+    filters._locationSlugs = [locationSlug]; // Single location only
   }
 
   // Parse price slug (arg3)
