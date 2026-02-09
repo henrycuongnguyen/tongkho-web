@@ -391,6 +391,18 @@ const currentMaxPrice = currentFilters.maxPrice
     const districtLoading = searchBar.querySelector('[data-district-loading]') as HTMLDivElement;
     const districtEmpty = searchBar.querySelector('[data-district-empty]') as HTMLDivElement;
 
+    // District dropdown - close function for dropdown manager
+    const districtDropdownId = `district-${Math.random().toString(36).substr(2, 9)}`;
+
+    function closeDistrictDropdown() {
+      districtDropdown?.classList.add('hidden');
+    }
+
+    // Register with dropdown manager
+    if (typeof (window as any).dropdownManager !== 'undefined') {
+      (window as any).dropdownManager.register(districtDropdownId, closeDistrictDropdown);
+    }
+
     // Track current province selection - initialize from data attributes (for page with province in URL)
     const initialProvinceNId = searchBar?.getAttribute('data-current-province-nid');
     let currentProvinceNId: string | null = (initialProvinceNId && initialProvinceNId.trim()) ? initialProvinceNId : null;
@@ -489,11 +501,37 @@ const currentMaxPrice = currentFilters.maxPrice
       console.warn('[HorizontalSearchBar] Property type elements not found');
     }
 
-    // Toggle dropdown
+    // Property Type dropdown - close function for dropdown manager
+    const propertyTypeDropdownId = `property-type-${Math.random().toString(36).substr(2, 9)}`;
     let isPropertyTypeOpen = false;
+
+    function closePropertyTypeDropdown() {
+      isPropertyTypeOpen = false;
+      propertyTypePanel?.classList.add('hidden');
+      propertyTypeArrow?.classList.remove('rotate-180');
+    }
+
+    // Register with dropdown manager
+    if (typeof (window as any).dropdownManager !== 'undefined') {
+      (window as any).dropdownManager.register(propertyTypeDropdownId, closePropertyTypeDropdown);
+    }
+
+    // Toggle dropdown
     propertyTypeTrigger?.addEventListener('click', (e) => {
       e.stopPropagation();
       isPropertyTypeOpen = !isPropertyTypeOpen;
+
+      if (isPropertyTypeOpen) {
+        // Notify dropdown manager to close other dropdowns
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.open(propertyTypeDropdownId);
+        }
+      } else {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(propertyTypeDropdownId);
+        }
+      }
+
       propertyTypePanel?.classList.toggle('hidden', !isPropertyTypeOpen);
       propertyTypeArrow?.classList.toggle('rotate-180', isPropertyTypeOpen);
     });
@@ -530,6 +568,9 @@ const currentMaxPrice = currentFilters.maxPrice
       isPropertyTypeOpen = false;
       propertyTypePanel?.classList.add('hidden');
       propertyTypeArrow?.classList.remove('rotate-180');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(propertyTypeDropdownId);
+      }
     });
 
     // Price selection - read from hidden inputs (new PriceRangeDropdown component)
@@ -584,6 +625,12 @@ const currentMaxPrice = currentFilters.maxPrice
     let isAdvancedFiltersVisible = false;
     advancedFilterToggle?.addEventListener('click', (e) => {
       e.stopPropagation();
+
+      // Close all other dropdowns when toggling advanced filters
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.closeAll();
+      }
+
       isAdvancedFiltersVisible = !isAdvancedFiltersVisible;
       console.log('[HorizontalSearchBar] Toggle clicked, isVisible:', isAdvancedFiltersVisible);
 
@@ -629,13 +676,21 @@ const currentMaxPrice = currentFilters.maxPrice
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
       if (!searchBar.contains(target)) {
-        propertyTypePanel?.classList.add('hidden');
-        propertyTypeArrow?.classList.remove('rotate-180');
-        isPropertyTypeOpen = false;
+        if (isPropertyTypeOpen) {
+          propertyTypePanel?.classList.add('hidden');
+          propertyTypeArrow?.classList.remove('rotate-180');
+          isPropertyTypeOpen = false;
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(propertyTypeDropdownId);
+          }
+        }
 
         // Don't close district dropdown if clicking inside it
         if (!districtDropdown?.contains(target)) {
           districtDropdown?.classList.add('hidden');
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(districtDropdownId);
+          }
         }
       }
     });
@@ -647,6 +702,11 @@ const currentMaxPrice = currentFilters.maxPrice
       if (!currentProvinceNId) {
         console.log('[HorizontalSearchBar] No province selected, skipping district load');
         return; // No province selected, nothing to show
+      }
+
+      // Notify dropdown manager to close other dropdowns before showing district dropdown
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.open(districtDropdownId);
       }
 
       // If districts already loaded, just show dropdown
@@ -837,6 +897,9 @@ const currentMaxPrice = currentFilters.maxPrice
     closeDistrictDropdownBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
       districtDropdown?.classList.add('hidden');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(districtDropdownId);
+      }
     });
 
     // Close dropdown on Escape key
@@ -844,6 +907,9 @@ const currentMaxPrice = currentFilters.maxPrice
       if (e.key === 'Escape') {
         districtDropdown?.classList.add('hidden');
         districtSearchInput.blur();
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(districtDropdownId);
+        }
       }
     });
 
