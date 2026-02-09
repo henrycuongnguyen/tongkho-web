@@ -1,79 +1,84 @@
 /**
  * Featured Project Service
- * Query featured projects for sidebar
+ * Query featured projects for sidebar from news table by folder
+ * Matches v1 logic: /api_customer/news_by_folder.json?folder=banner-du-an-noi-bat
  */
 
 import { db } from '@/db';
-import { project } from '@/db/schema';
+import { news, folder } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
+import { getS3ImageUrl } from '@/utils/s3-url-helper';
 
 export interface FeaturedProject {
   id: number;
   title: string;
   slug: string;
   mainImage: string | null;
-  streetAddress: string | null;
-  district: string | null;
-  city: string | null;
+  description: string | null;
 }
 
-// Base URL for images
-const UPLOADS_BASE_URL = 'https://quanly.tongkhobds.com';
+// Featured projects folder name (same as v1)
+const FEATURED_PROJECTS_FOLDER = 'banner-du-an-noi-bat';
 
 /**
  * Get featured projects for sidebar
+ * Queries news table by folder name, matching v1 behavior
  */
 export async function getFeaturedProjects(
   limit: number = 5,
   excludeId?: number
 ): Promise<FeaturedProject[]> {
   try {
+    // First, get the folder ID by name
+    const folderRow = await db
+      .select({ id: folder.id })
+      .from(folder)
+      .where(eq(folder.name, FEATURED_PROJECTS_FOLDER))
+      .limit(1);
+
+    if (!folderRow.length) {
+      console.warn(`[FeaturedProjectService] Folder "${FEATURED_PROJECTS_FOLDER}" not found`);
+      return [];
+    }
+
+    const folderId = folderRow[0].id;
+
+    // Query news by folder ID
     const rows = await db
       .select({
-        id: project.id,
-        title: project.projectName,
-        slug: project.slug,
-        mainImage: project.mainImage,
-        streetAddress: project.streetAddress,
-        district: project.district,
-        city: project.city,
+        id: news.id,
+        name: news.name,
+        description: news.description,
+        avatar: news.avatar,
+        versionDocs: news.versionDocs,
+        displayOrder: news.displayOrder,
       })
-      .from(project)
+      .from(news)
       .where(
         and(
-          eq(project.isFeatured, true),
-          eq(project.aactive, true)
+          eq(news.folder, folderId),
+          eq(news.aactive, true)
         )
       )
-      .orderBy(desc(project.createdOn))
+      .orderBy(desc(news.displayOrder), desc(news.publishOn))
       .limit(limit + (excludeId ? 1 : 0));  // Get extra if we need to exclude
 
-    // Filter out excluded project and limit
+    // Filter out excluded news and limit
     const filtered = excludeId
-      ? rows.filter(p => p.id !== excludeId).slice(0, limit)
+      ? rows.filter(n => n.id !== excludeId).slice(0, limit)
       : rows.slice(0, limit);
 
     return filtered.map(row => ({
       id: row.id,
-      title: row.title || '',
-      slug: row.slug || '',
-      mainImage: getFullImageUrl(row.mainImage),
-      streetAddress: row.streetAddress,
-      district: row.district,
-      city: row.city,
+      title: row.name || '',
+      // Use version_docs (project slug) directly from news table, fallback to id
+      slug: row.versionDocs || String(row.id),
+      mainImage: getS3ImageUrl(row.avatar) || null,
+      description: row.description,
     }));
 
   } catch (error) {
     console.error('[FeaturedProjectService] Failed to fetch:', error);
     return [];
   }
-}
-
-/**
- * Get full image URL
- */
-function getFullImageUrl(path: string | null): string | null {
-  if (!path) return null;
-  if (path.startsWith('http')) return path;
-  return `${UPLOADS_BASE_URL}${path}`;
 }

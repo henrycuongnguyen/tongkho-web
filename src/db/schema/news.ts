@@ -1,4 +1,4 @@
-import { pgTable, serial, varchar, text, boolean, timestamp, integer } from 'drizzle-orm/pg-core';
+import { pgTable, serial, varchar, text, boolean, timestamp, integer, bigint } from 'drizzle-orm/pg-core';
 
 export const news = pgTable('news', {
   id: serial('id').primaryKey(),
@@ -11,6 +11,8 @@ export const news = pgTable('news', {
   createdOn: timestamp('created_on'),
   displayOrder: integer('display_order'),
   aactive: boolean('aactive').default(true),
+  locations: bigint('locations', { mode: 'number' }),
+  versionDocs: text('version_docs'),  // Project slug for linking to project detail page
 });
 
 export type NewsRow = typeof news.$inferSelect;

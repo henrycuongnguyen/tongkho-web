@@ -1,7 +1,8 @@
 ---
 /**
  * Featured Project Banner
- * Display highlighted projects in sidebar
+ * Display highlighted projects in sidebar from news table
+ * Matches v1 logic: queries news by folder "banner-du-an-noi-bat"
  */
 import { getFeaturedProjects } from '@/services/featured-project-service';
 
@@ -44,9 +45,11 @@ const FALLBACK_IMAGE = '/images/placeholder-project.jpg';
               <h4 class="font-medium text-sm text-slate-800 line-clamp-2 group-hover:text-orange-500 transition-colors">
                 {project.title}
               </h4>
-              <p class="text-xs text-slate-500 mt-1 truncate">
-                {[project.district, project.city].filter(Boolean).join(', ')}
-              </p>
+              {project.description && (
+                <p class="text-xs text-slate-500 mt-1 line-clamp-2">
+                  {project.description}
+                </p>
+              )}
             </div>
           </div>
         </a>
