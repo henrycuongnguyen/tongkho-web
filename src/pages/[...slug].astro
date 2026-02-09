@@ -145,13 +145,6 @@ function buildSortUrl(sortOption: string): string {
 ---
 
 <ListingWithSidebarLayout title={title} description={description}>
-  <!-- Breadcrumb -->
-  <ListingBreadcrumb
-    filters={filters}
-    selectedLocations={selectedLocations}
-    propertyTypeName={propertyTypeName}
-  />
-
   <!-- Horizontal Search Bar -->
   <HorizontalSearchBar
     transactionType={filters.transactionType}
@@ -178,8 +171,15 @@ function buildSortUrl(sortOption: string): string {
     currentPath={url.pathname}
   />
 
+  <!-- Breadcrumb -->
+  <ListingBreadcrumb
+    filters={filters}
+    selectedLocations={selectedLocations}
+    propertyTypeName={propertyTypeName}
+  />
+
   <!-- Results Header -->
-  <div class="bg-white rounded-lg shadow-sm p-4 mb-4">
+  <div class="py-4 mb-4">
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
       <div>
         <h1 class="text-xl font-semibold text-slate-900">
