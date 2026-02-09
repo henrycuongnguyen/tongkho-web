@@ -163,20 +163,16 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
     }
 
     // Log initialization
-    console.log('[location-selector] Initialized with province:', currentProvinceName || 'none', 'nId:', currentProvinceNId || 'none');
 
     // If province already selected on page load, listen for initial HTMX load
     if (currentProvinceNId && districtListContainer) {
-      console.log('[location-selector] Province pre-selected, waiting for initial district load');
       districtListContainer.addEventListener('htmx:afterSwap', () => {
-        console.log('[location-selector] Initial districts loaded for pre-selected province');
       }, { once: true });
     }
 
     // Toggle province modal on click
     provinceModalTrigger.addEventListener('click', (e) => {
       e.stopPropagation();
-      console.log('[location-selector] Province button clicked');
       const panel = document.querySelector('[data-province-dropdown-panel]');
       if (!panel) {
         console.error('[location-selector] Province panel not found');
@@ -184,18 +180,15 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       }
 
       const isHidden = panel.classList.contains('hidden');
-      console.log('[location-selector] Panel hidden:', isHidden);
 
       if (isHidden) {
         if (typeof (window as any).openProvinceDropdown === 'function') {
-          console.log('[location-selector] Opening province modal');
           (window as any).openProvinceDropdown();
         } else {
           console.error('[location-selector] openProvinceDropdown function not found');
         }
       } else {
         if (typeof (window as any).closeProvinceDropdown === 'function') {
-          console.log('[location-selector] Closing province modal');
           (window as any).closeProvinceDropdown();
         } else {
           console.error('[location-selector] closeProvinceDropdown function not found');
@@ -205,9 +198,7 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
 
     // Show district dropdown on focus
     districtSearchInput?.addEventListener('focus', () => {
-      console.log('[location-selector] Input focused, currentProvinceNId:', currentProvinceNId);
       if (currentProvinceNId) {
-        console.log('[location-selector] Showing dropdown on focus');
         districtDropdown?.classList.remove('hidden');
       } else {
         console.warn('[location-selector] No province selected, cannot show districts');
@@ -254,7 +245,6 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
 
     // Listen for province selection
     document.addEventListener('province-selected', ((e: CustomEvent) => {
-      console.log('[location-selector] province-selected event received:', e.detail);
       const { slug, name, nId } = e.detail;
 
       // Update state
@@ -264,16 +254,13 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       container.setAttribute('data-current-province-nid', nId);
       container.setAttribute('data-current-province-name', name);
 
-      console.log('[location-selector] State updated - slug:', slug, 'name:', name, 'nId:', nId);
 
       // Update both province displays
       if (provinceDisplay) {
         provinceDisplay.textContent = name;
-        console.log('[location-selector] Province button updated to:', name);
       }
       if (provinceNameDisplay) {
         provinceNameDisplay.textContent = name;
-        console.log('[location-selector] Province header updated to:', name);
       }
 
       // Load districts
@@ -281,11 +268,9 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
         const url = `/api/location/districts?province=${encodeURIComponent(nId)}&base=${encodeURIComponent(baseUrl)}`;
         districtListContainer.setAttribute('hx-get', url);
 
-        console.log('[location-selector] Loading districts for province:', nId);
 
         // Listen for HTMX swap completion (one-time listener)
         const handleSwap = () => {
-          console.log('[location-selector] Districts loaded, showing dropdown');
           // Show dropdown after districts are loaded
           districtDropdown?.classList.remove('hidden');
 

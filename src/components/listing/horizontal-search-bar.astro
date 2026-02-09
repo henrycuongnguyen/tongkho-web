@@ -75,9 +75,6 @@ const selectedProvince = currentProvince
   : provinces.find(p => p.name === 'Hà Nội' || p.slug === 'ha-noi') || null;
 
 // Debug: Log province selection
-console.log('[HorizontalSearchBar] currentProvince:', currentProvince);
-console.log('[HorizontalSearchBar] selectedProvince:', selectedProvince ? { nId: selectedProvince.nId, slug: selectedProvince.slug, name: selectedProvince.name } : null);
-console.log('[HorizontalSearchBar] provinces count:', provinces.length);
 
 // Get featured provinces (top 5 with images)
 const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).slice(0, 5);
@@ -573,20 +570,14 @@ const currentMaxPrice = currentFilters.maxPrice
     let currentProvinceName: string | null = null;
     let districtsLoaded = false;
 
-    console.log('[HorizontalSearchBar] Initial province from data attribute:', currentProvinceNId);
-    console.log('[HorizontalSearchBar] searchBar element:', searchBar);
-    console.log('[HorizontalSearchBar] data-current-province-nid attr:', searchBar?.getAttribute('data-current-province-nid'));
-    console.log('[HorizontalSearchBar] data-current-province-slug attr:', searchBar?.getAttribute('data-current-province-slug'));
 
     // Listen for province selection and update display + load districts
     document.addEventListener('province-selected', ((e: CustomEvent) => {
-      console.log('[HorizontalSearchBar] province-selected event received:', e.detail);
       const { name, nId, slug } = e.detail;
 
       // Update location display
       if (locationDisplay) {
         locationDisplay.textContent = name;
-        console.log('[HorizontalSearchBar] Location display updated to:', name);
       }
 
       // Update province tracking
@@ -598,7 +589,6 @@ const currentMaxPrice = currentFilters.maxPrice
       if (searchBar) {
         searchBar.setAttribute('data-current-province-nid', nId || '');
         searchBar.setAttribute('data-current-province-slug', slug || '');
-        console.log('[HorizontalSearchBar] Updated data attributes - nId:', nId, 'slug:', slug);
       }
 
       // Update dropdown header
@@ -626,7 +616,6 @@ const currentMaxPrice = currentFilters.maxPrice
         fetch(url)
           .then(response => response.text())
           .then(html => {
-            console.log('[HorizontalSearchBar] Districts loaded');
             districtLoading?.classList.add('hidden');
             districtListContainer.innerHTML = html;
             districtsLoaded = true;
@@ -776,8 +765,6 @@ const currentMaxPrice = currentFilters.maxPrice
     }
 
     // Toggle advanced filters row
-    console.log('[HorizontalSearchBar] advancedFilterToggle:', advancedFilterToggle);
-    console.log('[HorizontalSearchBar] advancedFiltersRow:', advancedFiltersRow);
 
     let isAdvancedFiltersVisible = false;
     advancedFilterToggle?.addEventListener('click', (e) => {
@@ -789,15 +776,12 @@ const currentMaxPrice = currentFilters.maxPrice
       }
 
       isAdvancedFiltersVisible = !isAdvancedFiltersVisible;
-      console.log('[HorizontalSearchBar] Toggle clicked, isVisible:', isAdvancedFiltersVisible);
 
       if (advancedFiltersRow) {
         if (isAdvancedFiltersVisible) {
           advancedFiltersRow.classList.remove('hidden');
-          console.log('[HorizontalSearchBar] Removed hidden class');
         } else {
           advancedFiltersRow.classList.add('hidden');
-          console.log('[HorizontalSearchBar] Added hidden class');
         }
       }
     });
@@ -1072,10 +1056,8 @@ const currentMaxPrice = currentFilters.maxPrice
 
     // Load districts when input is focused or clicked
     function loadDistrictsOnDemand() {
-      console.log('[HorizontalSearchBar] loadDistrictsOnDemand triggered, currentProvinceNId:', currentProvinceNId, 'districtsLoaded:', districtsLoaded);
 
       if (!currentProvinceNId) {
-        console.log('[HorizontalSearchBar] No province selected, skipping district load');
         return; // No province selected, nothing to show
       }
 
@@ -1086,20 +1068,17 @@ const currentMaxPrice = currentFilters.maxPrice
 
       // If districts already loaded, just show dropdown
       if (districtsLoaded) {
-        console.log('[HorizontalSearchBar] Districts already loaded, showing dropdown');
         districtDropdown?.classList.remove('hidden');
         return;
       }
 
       // First focus with province but districts not loaded yet - load them
-      console.log('[HorizontalSearchBar] Loading districts for province:', currentProvinceNId);
       districtLoading?.classList.remove('hidden');
       districtEmpty?.classList.add('hidden');
       districtListContainer.innerHTML = '';
       districtDropdown?.classList.remove('hidden');
 
       const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}`;
-      console.log('[HorizontalSearchBar] Fetching districts from:', url);
       fetch(url)
         .then(response => response.text())
         .then(html => {
@@ -1218,14 +1197,11 @@ const currentMaxPrice = currentFilters.maxPrice
       const provinceNId = searchBar?.getAttribute('data-current-province-nid') || '';
       const provinceSlug = searchBar?.getAttribute('data-current-province-slug') || '';
 
-      console.log('[LocationSearch] Province context:', { provinceNId, provinceSlug });
 
       let searchUrl = `/api/location/search?q=${encodeURIComponent(query)}&base=${baseUrl}`;
       if (provinceNId && provinceSlug) {
         searchUrl += `&city_id=${encodeURIComponent(provinceNId)}&city_slug=${encodeURIComponent(provinceSlug)}`;
-        console.log('[LocationSearch] Search URL with province filter:', searchUrl);
       } else {
-        console.log('[LocationSearch] No province selected, searching all locations');
       }
 
       fetch(searchUrl)

@@ -138,7 +138,6 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
    * Province Dropdown Panel Logic
    */
   function initProvinceDropdown() {
-    console.log('[province-modal] Initializing province dropdown');
     const panel = document.querySelector('[data-province-dropdown-panel]') as HTMLDivElement;
     if (!panel) {
       console.error('[province-modal] Panel not found!');
@@ -147,7 +146,6 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
 
     const clearBtn = panel.querySelector('[data-clear-selection]') as HTMLButtonElement;
     const provinceButtons = panel.querySelectorAll('[data-province-slug]') as NodeListOf<HTMLButtonElement>;
-    console.log('[province-modal] Found', provinceButtons.length, 'province buttons');
 
     // Unique ID for this dropdown
     const dropdownId = 'province-selector-modal';
@@ -203,12 +201,9 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
     // Province selection - save state and close modal
     provinceButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
-        console.log('[province-modal] Province button clicked');
         const provinceSlug = btn.dataset.provinceSlug || '';
         const provinceName = btn.dataset.provinceName || '';
         const provinceNId = btn.dataset.provinceNid || '';
-
-        console.log('[province-modal] Province data - slug:', provinceSlug, 'name:', provinceName, 'nId:', provinceNId);
 
         if (provinceSlug && provinceNId) {
           // Save to sessionStorage for current tab
@@ -218,7 +213,6 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
             nId: provinceNId
           }));
 
-          console.log('[province-modal] Dispatching province-selected event');
           // Dispatch event to notify location-selector
           const event = new CustomEvent('province-selected', {
             detail: { slug: provinceSlug, name: provinceName, nId: provinceNId }
@@ -229,11 +223,9 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
           const provinceDisplay = document.querySelector('[data-province-display]');
           if (provinceDisplay) {
             provinceDisplay.textContent = provinceName;
-            console.log('[province-modal] Updated province display');
           }
 
           // Close modal
-          console.log('[province-modal] Closing modal');
           closeDropdown();
         } else {
           console.error('[province-modal] Missing province data - slug:', provinceSlug, 'nId:', provinceNId);
@@ -252,7 +244,6 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
     const newAddressToggle = panel.querySelector('[data-new-address-toggle]') as HTMLInputElement;
     newAddressToggle?.addEventListener('change', (e) => {
       const checked = (e.target as HTMLInputElement).checked;
-      console.log('[ProvinceDropdown] New address toggle:', checked);
       // TODO: Implement new address filtering
     });
   }

@@ -1,22 +1,31 @@
 ---
 /**
  * Listing Grid
- * Displays property cards in responsive grid
+ * Displays property cards in responsive grid with animations (matching home page style)
  */
 import type { PropertyDocument } from '@/services/elasticsearch/types';
-import ListingPropertyCard from './listing-property-card.astro';
+import PropertyCard from '@/components/cards/property-card.astro';
+import { mapPropertyDocumentsToProperties } from '@/utils/property-mapper';
 
 interface Props {
   properties: PropertyDocument[];
 }
 
-const { properties } = Astro.props;
+const { properties: propertyDocs } = Astro.props;
+
+// Convert PropertyDocuments to Property type for PropertyCard
+const properties = mapPropertyDocumentsToProperties(propertyDocs);
 ---
 
 {properties.length > 0 ? (
-  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-    {properties.map((property) => (
-      <ListingPropertyCard property={property} />
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-6">
+    {properties.map((property, index) => (
+      <div
+        class="opacity-0 animate-fade-in-up"
+        style={`animation-delay: ${index * 100}ms; animation-fill-mode: forwards;`}
+      >
+        <PropertyCard property={property} />
+      </div>
     ))}
   </div>
 ) : (

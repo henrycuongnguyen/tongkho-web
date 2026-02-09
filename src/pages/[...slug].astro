@@ -88,16 +88,10 @@ const provinces = await getAllProvincesWithCount(undefined, true);
 let currentProvinceSlug = '';
 let currentDistrictSlug = '';
 
-console.log('[slug].astro filters._locationSlugs:', (filters as any)._locationSlugs);
-console.log('[slug].astro locationSlugs:', locationSlugs);
-console.log('[slug].astro resolvedLocations:', resolvedLocations);
-console.log('[slug].astro selectedLocation:', selectedLocation);
-
 if (selectedLocation) {
   if (selectedLocation.type === 'province') {
     // User selected province directly
     currentProvinceSlug = selectedLocation.slug;
-    console.log('[slug].astro Set currentProvinceSlug from province:', currentProvinceSlug);
   } else if (selectedLocation.type === 'district') {
     // User selected district - get parent province slug
     currentDistrictSlug = selectedLocation.slug;
@@ -105,14 +99,9 @@ if (selectedLocation) {
       // Find province by nId to get slug
       const parentProvince = provinces.find(p => p.nId === selectedLocation.provinceId);
       currentProvinceSlug = parentProvince?.slug || '';
-      console.log('[slug].astro Set currentProvinceSlug from district parent:', currentProvinceSlug, 'provinceId:', selectedLocation.provinceId);
     }
   }
-} else {
-  console.log('[slug].astro No selectedLocation - currentProvinceSlug will be empty');
 }
-
-console.log('[slug].astro Final currentProvinceSlug:', currentProvinceSlug);
 
 // Resolve property type name for breadcrumb (prioritize slug-based detection)
 const propertyTypeName = propertyTypeFromSlug?.title || (

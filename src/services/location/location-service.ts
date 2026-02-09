@@ -47,8 +47,6 @@ export async function getAllProvincesWithCount(limit?: number, useNewAddresses =
     // Apply limit if specified
     const rows = limit ? await query.limit(limit) : await query;
 
-    console.log(`[LocationService] Found ${rows.length} provinces from locations_with_count_property (useNewAddresses=${useNewAddresses})`);
-
     // Transform to Province type
     const provinces: Province[] = rows.map(row => ({
       id: row.id,
@@ -320,7 +318,6 @@ export async function resolveLocationSlugs(
   type: 'province' | 'district';
   provinceId?: string; // For districts only
 }>> {
-  console.log('[LocationService] resolveLocationSlugs called with:', slugs);
   if (slugs.length === 0) return [];
 
   try {
@@ -340,8 +337,6 @@ export async function resolveLocationSlugs(
           eq(locations.aactive, true)
         )
       );
-
-    console.log('[LocationService] resolveLocationSlugs query returned rows:', rows.length, rows);
 
     return rows.map(row => ({
       nId: row.nId || '',
