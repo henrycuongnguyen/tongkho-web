@@ -95,6 +95,7 @@ export interface ESQuery {
 // ES response types
 export interface ESHit<T> {
   _id: string;
+  _index?: string;  // Index name (e.g., 'locations', 'project')
   _source: T;
   _score?: number;
 }
@@ -111,11 +112,11 @@ export interface ESSearchResponse<T> {
 // Location search result (for autocomplete)
 export interface LocationSearchResult {
   id: string;
-  type: 'province' | 'district' | 'ward' | 'project';
+  type: 'province' | 'district' | 'ward' | 'street' | 'project';
   name: string;           // "Hà Nội" or "Vinhomes Central Park"
-  fullName: string;       // "Phường Tân Kiểng, Quận 7, TP. HCM"
+  fullName: string;       // "Đường Nguyễn Huệ, Phường Bến Nghé, Quận 1, TP. HCM"
   slug: string;
-  level?: number;         // 0=Province, 1=District, 2=Ward
+  level?: number;         // 0=Province, 1=District, 2=Ward, 3=Street
   provinceId?: string;
   districtId?: string;
 }
