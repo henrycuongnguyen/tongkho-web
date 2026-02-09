@@ -18,6 +18,7 @@ export const GET: APIRoute = async ({ request }) => {
   const url = new URL(request.url);
   const provinceNId = url.searchParams.get('province') || '';
   const baseUrl = url.searchParams.get('base') || '/mua-ban';
+  const currentDistrict = url.searchParams.get('current') || '';
 
   if (!provinceNId) {
     return new Response('', {
@@ -39,10 +40,20 @@ export const GET: APIRoute = async ({ request }) => {
 
   const html = districts.map(d => {
     const href = `${baseUrl}/${escapeHtml(d.slug)}`;
+    const isActive = d.slug === currentDistrict;
+    const classes = isActive
+      ? 'flex items-center gap-1.5 py-2 text-sm text-primary-600 font-medium hover:text-primary-700 transition-colors group'
+      : 'flex items-center gap-1.5 py-2 text-sm text-secondary-700 hover:text-primary-600 transition-colors group';
+    const iconClasses = isActive
+      ? 'w-3.5 h-3.5 shrink-0 text-primary-500'
+      : 'w-3.5 h-3.5 shrink-0 text-secondary-400 group-hover:text-primary-500';
     return `
-      <a href="${href}"
-         class="block px-3 py-2 text-sm text-secondary-700 hover:bg-primary-50 hover:text-primary-600 rounded transition-colors">
-        ${escapeHtml(d.name)}
+      <a href="${href}" class="${classes}">
+        <svg class="${iconClasses}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <span class="truncate">${escapeHtml(d.name)}</span>
       </a>`;
   }).join('');
 
