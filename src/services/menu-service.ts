@@ -275,11 +275,19 @@ export async function buildMenuStructure(
 
 /**
  * Transform property type to NavItem
+ *
+ * Note: In v1, submenu URLs do NOT include the parent transaction path.
+ * The slug itself contains the transaction type context (e.g., "ban-can-ho-chung-cu").
+ *
+ * Examples:
+ * - Parent: "Mua bán" → /mua-ban
+ * - Submenu: "Bán căn hộ chung cư" → /ban-can-ho-chung-cu (NOT /mua-ban/ban-can-ho-chung-cu)
  */
 function propertyTypeToNavItem(pt: MenuPropertyType, basePath: string): NavItem {
   // Generate href from slug, fallback to slugified title
   const slug = pt.slug || pt.title.toLowerCase().replace(/\s+/g, "-");
-  const href = `${basePath}/${slug}`;
+  // v1 behavior: Don't include parent path, slug already contains transaction type context
+  const href = `/${slug}`;
 
   return {
     label: pt.vietnamese || pt.title,

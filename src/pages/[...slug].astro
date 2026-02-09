@@ -24,23 +24,58 @@ const { slug } = Astro.params;
 const url = new URL(Astro.request.url);
 const slugParts = slug?.split('/').filter(Boolean) || [];
 
-// Validate first segment is a valid transaction type
-if (slugParts.length === 0 || !VALID_TRANSACTIONS.includes(slugParts[0])) {
+// Exit early if no slug parts
+if (slugParts.length === 0) {
   return Astro.redirect('/404');
 }
 
-// Parse URL to filters
+// Check if first segment is a valid transaction type OR a property type slug (v1 format)
+let isPropertyTypeUrl = false;
+let propertyTypeFromFirstSegment: any = null;
+
+if (!VALID_TRANSACTIONS.includes(slugParts[0])) {
+  // First segment is NOT a transaction type, check if it's a property type slug
+  // We need to check all property types from all transactions
+  const allPropertyTypes = await Promise.all([
+    fetchPropertyTypesByTransaction(1), // mua-ban
+    fetchPropertyTypesByTransaction(2), // cho-thue
+    fetchPropertyTypesByTransaction(3), // du-an
+  ]);
+
+  // Flatten and search
+  const flatPropertyTypes = allPropertyTypes.flat();
+  propertyTypeFromFirstSegment = flatPropertyTypes.find(pt => pt.slug === slugParts[0]);
+
+  if (propertyTypeFromFirstSegment) {
+    // This is a v1-style property type URL (e.g., /ban-can-ho-chung-cu)
+    isPropertyTypeUrl = true;
+    // Inject transaction type at the beginning for parser
+    slugParts.unshift(
+      propertyTypeFromFirstSegment.transactionType === 1 ? 'mua-ban' :
+      propertyTypeFromFirstSegment.transactionType === 2 ? 'cho-thue' : 'du-an'
+    );
+  } else {
+    // Not a valid transaction type OR property type slug
+    return Astro.redirect('/404');
+  }
+}
+
+// Parse URL to filters (slugParts now guaranteed to have valid transaction type at index 0)
 const filters: PropertySearchFilters = parseListingUrl(slugParts, url.searchParams);
 
-// Get property types for resolving slug (v1 logic: segment 1 might be property type)
+// Get property types for resolving slug
 const propertyTypes = await fetchPropertyTypesByTransaction(filters.transactionType);
 
-// Check if segment 1 is a property type slug instead of location
+// Check if segment 1 is a property type slug instead of location (for /mua-ban/ban-can-ho URLs)
 const segment1 = slugParts.length > 1 ? slugParts[1] : null;
 let propertyTypeFromSlug: typeof propertyTypes[0] | undefined;
 
-if (segment1) {
-  // Try to find property type by slug
+if (isPropertyTypeUrl && propertyTypeFromFirstSegment) {
+  // Already identified property type from first segment
+  propertyTypeFromSlug = propertyTypeFromFirstSegment;
+  filters.propertyTypes = [propertyTypeFromFirstSegment.id];
+} else if (segment1) {
+  // Try to find property type by slug in segment 1
   propertyTypeFromSlug = propertyTypes.find(pt => pt.slug === segment1);
 
   if (propertyTypeFromSlug) {
