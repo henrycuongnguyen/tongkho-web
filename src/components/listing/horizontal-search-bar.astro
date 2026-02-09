@@ -91,9 +91,9 @@ const currentMaxPrice = currentFilters.maxPrice
   : undefined;
 ---
 
-<div class="horizontal-search-bar bg-white border-b border-secondary-200 py-4 sticky top-0 z-50 shadow-sm">
-  <div class="container-custom">
-    <div class="flex items-center gap-3 flex-wrap lg:flex-nowrap" data-search-bar data-base-url={baseUrl} data-current-province-nid={selectedProvince?.nId || ''} data-current-province-slug={selectedProvince?.slug || ''}>
+<div class="horizontal-search-bar relative py-4 top-0 z-[60]">
+  <div class="">
+    <div class="flex items-center gap-3 flex-wrap lg:flex-nowrap relative z-10" data-search-bar data-base-url={baseUrl} data-current-province-nid={selectedProvince?.nId || ''} data-current-province-slug={selectedProvince?.slug || ''}>
       <!-- Location Dropdown -->
       <div class="relative flex-1 min-w-[200px]">
         <button
@@ -142,7 +142,7 @@ const currentMaxPrice = currentFilters.maxPrice
 
           <!-- District/Search Results Dropdown -->
           <div
-            class="absolute top-full left-0 w-[900px] mt-2 bg-white rounded-lg shadow-xl border border-secondary-100 z-[9999] hidden max-h-[420px] overflow-y-auto"
+            class="absolute top-full left-0 w-[900px] mt-2 bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden max-h-[420px] overflow-y-auto"
             data-district-dropdown
           >
             <!-- Header with Province Name -->
@@ -203,7 +203,7 @@ const currentMaxPrice = currentFilters.maxPrice
 
         <!-- Property Type Dropdown Panel -->
         <div
-          class="absolute top-full left-0 mt-2 w-full min-w-[320px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[9999] hidden overflow-hidden"
+          class="absolute top-full left-0 mt-2 w-full min-w-[320px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden overflow-hidden"
           data-property-type-panel
         >
           <!-- Header -->
@@ -301,58 +301,222 @@ const currentMaxPrice = currentFilters.maxPrice
           />
         </div>
 
-        <!-- Radius Filter -->
-        <div class="flex-1 min-w-[150px]">
-          <select
-            class="w-full px-4 py-2.5 text-sm border border-secondary-300 rounded-lg bg-white hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-700"
-            data-radius-select
+        <!-- Radius Filter with Dropdown Panel -->
+        <div class="flex-1 min-w-[150px] relative" data-filter-group="radius">
+          <button
+            type="button"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+            data-radius-trigger
           >
-            <option value="">Bán kính</option>
-            <option value="5">5 km</option>
-            <option value="10">10 km</option>
-            <option value="50">50 km</option>
-            <option value="100">100 km</option>
-          </select>
+            <span class="text-secondary-700 font-medium" data-radius-display>Bán kính</span>
+            <svg class="w-4 h-4 text-secondary-400 shrink-0 transition-transform" data-radius-arrow fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Radius Dropdown Panel -->
+          <div
+            class="absolute top-full left-0 mt-2 w-full min-w-[180px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden overflow-hidden"
+            data-radius-panel
+          >
+            <!-- Options -->
+            <div class="py-2">
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-radius-option
+                data-value="5"
+              >
+                5km
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-radius-option
+                data-value="10"
+              >
+                10km
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-radius-option
+                data-value="50"
+              >
+                50km
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-radius-option
+                data-value="100"
+              >
+                100km
+              </button>
+            </div>
+
+            <!-- Reset Button -->
+            <div class="px-3 py-3 border-t border-secondary-100">
+              <button
+                type="button"
+                class="w-full px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
+                data-reset-radius
+              >
+                Đặt lại
+              </button>
+            </div>
+          </div>
         </div>
 
-        <!-- Bathrooms Filter -->
-        <div class="flex-1 min-w-[150px]">
-          <select
-            class="w-full px-4 py-2.5 text-sm border border-secondary-300 rounded-lg bg-white hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-700"
-            data-bathrooms-select
+        <!-- Bathrooms Filter with Dropdown Panel -->
+        <div class="flex-1 min-w-[150px] relative" data-filter-group="bathrooms">
+          <button
+            type="button"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+            data-bathrooms-trigger
           >
-            <option value="">Phòng tắm</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5+</option>
-          </select>
+            <span class="text-secondary-700 font-medium" data-bathrooms-display>Phòng tắm</span>
+            <svg class="w-4 h-4 text-secondary-400 shrink-0 transition-transform" data-bathrooms-arrow fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Bathrooms Dropdown Panel -->
+          <div
+            class="absolute top-full left-0 mt-2 w-full min-w-[180px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden overflow-hidden"
+            data-bathrooms-panel
+          >
+            <!-- Options -->
+            <div class="py-2">
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="1"
+              >
+                1 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="2"
+              >
+                2 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="3"
+              >
+                3 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="4"
+              >
+                4 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="5"
+              >
+                5+ phòng
+              </button>
+            </div>
+
+            <!-- Reset Button -->
+            <div class="px-3 py-3 border-t border-secondary-100">
+              <button
+                type="button"
+                class="w-full px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
+                data-reset-bathrooms
+              >
+                Đặt lại
+              </button>
+            </div>
+          </div>
         </div>
 
-        <!-- Bedrooms Filter -->
-        <div class="flex-1 min-w-[150px]">
-          <select
-            class="w-full px-4 py-2.5 text-sm border border-secondary-300 rounded-lg bg-white hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-700"
-            data-bedrooms-select
+        <!-- Bedrooms Filter with Dropdown Panel -->
+        <div class="flex-1 min-w-[150px] relative" data-filter-group="bedrooms">
+          <button
+            type="button"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+            data-bedrooms-trigger
           >
-            <option value="">Phòng ngủ</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5">5+</option>
-          </select>
-        </div>
+            <span class="text-secondary-700 font-medium" data-bedrooms-display>Phòng ngủ</span>
+            <svg class="w-4 h-4 text-secondary-400 shrink-0 transition-transform" data-bedrooms-arrow fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
 
-        <!-- Reset Button -->
-        <button
-          type="button"
-          class="px-4 py-2.5 text-sm text-secondary-600 hover:text-secondary-800 border border-secondary-300 rounded-lg hover:bg-secondary-50 transition-colors shrink-0"
-          data-reset-advanced-filters
-        >
-          Đặt lại
-        </button>
+          <!-- Bedrooms Dropdown Panel -->
+          <div
+            class="absolute top-full left-0 mt-2 w-full min-w-[180px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden overflow-hidden"
+            data-bedrooms-panel
+          >
+            <!-- Options -->
+            <div class="py-2">
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="1"
+              >
+                1 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="2"
+              >
+                2 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="3"
+              >
+                3 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="4"
+              >
+                4 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="5"
+              >
+                5+ phòng
+              </button>
+            </div>
+
+            <!-- Reset Button -->
+            <div class="px-3 py-3 border-t border-secondary-100">
+              <button
+                type="button"
+                class="w-full px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
+                data-reset-bedrooms
+              >
+                Đặt lại
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -588,10 +752,6 @@ const currentMaxPrice = currentFilters.maxPrice
     // advancedFiltersRow is a sibling of searchBar, not a child, so query from parent or document
     const container = searchBar?.parentElement;
     const advancedFiltersRow = container?.querySelector('[data-advanced-filters-row]') as HTMLDivElement;
-    const radiusSelect = advancedFiltersRow?.querySelector('[data-radius-select]') as HTMLSelectElement;
-    const bathroomsSelect = advancedFiltersRow?.querySelector('[data-bathrooms-select]') as HTMLSelectElement;
-    const bedroomsSelect = advancedFiltersRow?.querySelector('[data-bedrooms-select]') as HTMLSelectElement;
-    const resetAdvancedBtn = advancedFiltersRow?.querySelector('[data-reset-advanced-filters]') as HTMLButtonElement;
 
     // Track advanced filter values (area values come from RangeSliderDropdown hidden input)
     let selectedRadius = '';
@@ -604,17 +764,14 @@ const currentMaxPrice = currentFilters.maxPrice
     const bedroomsParam = urlParams.get('bedrooms');
     const radiusParam = urlParams.get('radius');
 
-    // Set initial values for selects
-    if (radiusParam && radiusSelect) {
-      radiusSelect.value = radiusParam;
+    // Set initial values
+    if (radiusParam) {
       selectedRadius = radiusParam;
     }
-    if (bathroomsParam && bathroomsSelect) {
-      bathroomsSelect.value = bathroomsParam;
+    if (bathroomsParam) {
       selectedBathrooms = bathroomsParam;
     }
-    if (bedroomsParam && bedroomsSelect) {
-      bedroomsSelect.value = bedroomsParam;
+    if (bedroomsParam) {
       selectedBedrooms = bedroomsParam;
     }
 
@@ -645,36 +802,220 @@ const currentMaxPrice = currentFilters.maxPrice
       }
     });
 
-    // Update selected values on select change
-    radiusSelect?.addEventListener('change', () => {
-      selectedRadius = radiusSelect.value;
-    });
-    bathroomsSelect?.addEventListener('change', () => {
-      selectedBathrooms = bathroomsSelect.value;
-    });
-    bedroomsSelect?.addEventListener('change', () => {
-      selectedBedrooms = bedroomsSelect.value;
+    // Radius dropdown
+    const radiusTrigger = advancedFiltersRow?.querySelector('[data-radius-trigger]') as HTMLButtonElement;
+    const radiusPanel = advancedFiltersRow?.querySelector('[data-radius-panel]') as HTMLDivElement;
+    const radiusDisplay = advancedFiltersRow?.querySelector('[data-radius-display]') as HTMLSpanElement;
+    const radiusArrow = advancedFiltersRow?.querySelector('[data-radius-arrow]') as SVGElement;
+    const radiusOptions = advancedFiltersRow?.querySelectorAll('[data-radius-option]') as NodeListOf<HTMLButtonElement>;
+    const resetRadiusBtn = advancedFiltersRow?.querySelector('[data-reset-radius]') as HTMLButtonElement;
+
+    // Bathrooms dropdown
+    const bathroomsTrigger = advancedFiltersRow?.querySelector('[data-bathrooms-trigger]') as HTMLButtonElement;
+    const bathroomsPanel = advancedFiltersRow?.querySelector('[data-bathrooms-panel]') as HTMLDivElement;
+    const bathroomsDisplay = advancedFiltersRow?.querySelector('[data-bathrooms-display]') as HTMLSpanElement;
+    const bathroomsArrow = advancedFiltersRow?.querySelector('[data-bathrooms-arrow]') as SVGElement;
+    const bathroomsOptions = advancedFiltersRow?.querySelectorAll('[data-bathrooms-option]') as NodeListOf<HTMLButtonElement>;
+    const resetBathroomsBtn = advancedFiltersRow?.querySelector('[data-reset-bathrooms]') as HTMLButtonElement;
+
+    // Bedrooms dropdown
+    const bedroomsTrigger = advancedFiltersRow?.querySelector('[data-bedrooms-trigger]') as HTMLButtonElement;
+    const bedroomsPanel = advancedFiltersRow?.querySelector('[data-bedrooms-panel]') as HTMLDivElement;
+    const bedroomsDisplay = advancedFiltersRow?.querySelector('[data-bedrooms-display]') as HTMLSpanElement;
+    const bedroomsArrow = advancedFiltersRow?.querySelector('[data-bedrooms-arrow]') as SVGElement;
+    const bedroomsOptions = advancedFiltersRow?.querySelectorAll('[data-bedrooms-option]') as NodeListOf<HTMLButtonElement>;
+    const resetBedroomsBtn = advancedFiltersRow?.querySelector('[data-reset-bedrooms]') as HTMLButtonElement;
+
+    // Dropdown states
+    let isRadiusOpen = false;
+    let isBathroomsOpen = false;
+    let isBedroomsOpen = false;
+
+    // Register dropdowns with dropdown manager
+    const radiusDropdownId = `radius-${Math.random().toString(36).substr(2, 9)}`;
+    const bathroomsDropdownId = `bathrooms-${Math.random().toString(36).substr(2, 9)}`;
+    const bedroomsDropdownId = `bedrooms-${Math.random().toString(36).substr(2, 9)}`;
+
+    if (typeof (window as any).dropdownManager !== 'undefined') {
+      (window as any).dropdownManager.register(radiusDropdownId, () => {
+        isRadiusOpen = false;
+        radiusPanel?.classList.add('hidden');
+        radiusArrow?.classList.remove('rotate-180');
+      });
+      (window as any).dropdownManager.register(bathroomsDropdownId, () => {
+        isBathroomsOpen = false;
+        bathroomsPanel?.classList.add('hidden');
+        bathroomsArrow?.classList.remove('rotate-180');
+      });
+      (window as any).dropdownManager.register(bedroomsDropdownId, () => {
+        isBedroomsOpen = false;
+        bedroomsPanel?.classList.add('hidden');
+        bedroomsArrow?.classList.remove('rotate-180');
+      });
+    }
+
+    // Helper to update display text
+    function updateRadiusDisplay() {
+      if (radiusDisplay) {
+        radiusDisplay.textContent = selectedRadius ? `${selectedRadius} km` : 'Bán kính';
+      }
+    }
+    function updateBathroomsDisplay() {
+      if (bathroomsDisplay) {
+        bathroomsDisplay.textContent = selectedBathrooms ? `${selectedBathrooms} phòng` : 'Phòng tắm';
+      }
+    }
+    function updateBedroomsDisplay() {
+      if (bedroomsDisplay) {
+        bedroomsDisplay.textContent = selectedBedrooms ? `${selectedBedrooms} phòng` : 'Phòng ngủ';
+      }
+    }
+
+    // Initialize display from URL params
+    updateRadiusDisplay();
+    updateBathroomsDisplay();
+    updateBedroomsDisplay();
+
+    // Radius dropdown toggle
+    radiusTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isRadiusOpen = !isRadiusOpen;
+
+      if (isRadiusOpen) {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.open(radiusDropdownId);
+        }
+      } else {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(radiusDropdownId);
+        }
+      }
+
+      radiusPanel?.classList.toggle('hidden', !isRadiusOpen);
+      radiusArrow?.classList.toggle('rotate-180', isRadiusOpen);
     });
 
-    // Reset advanced filters
-    resetAdvancedBtn?.addEventListener('click', () => {
-      // Reset area slider by triggering its reset button in the RangeSliderDropdown
-      const areaDropdown = advancedFiltersRow?.querySelector('[data-range-dropdown][data-type="area"]') as HTMLDivElement;
-      const areaResetBtn = areaDropdown?.querySelector('[data-reset]') as HTMLButtonElement;
-      areaResetBtn?.click();
+    // Radius option selection
+    radiusOptions?.forEach(option => {
+      option.addEventListener('click', () => {
+        selectedRadius = option.getAttribute('data-value') || '';
+        updateRadiusDisplay();
+        isRadiusOpen = false;
+        radiusPanel?.classList.add('hidden');
+        radiusArrow?.classList.remove('rotate-180');
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(radiusDropdownId);
+        }
+      });
+    });
 
-      // Reset other selects
-      if (radiusSelect) radiusSelect.value = '';
-      if (bathroomsSelect) bathroomsSelect.value = '';
-      if (bedroomsSelect) bedroomsSelect.value = '';
+    // Radius reset
+    resetRadiusBtn?.addEventListener('click', () => {
       selectedRadius = '';
+      updateRadiusDisplay();
+      isRadiusOpen = false;
+      radiusPanel?.classList.add('hidden');
+      radiusArrow?.classList.remove('rotate-180');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(radiusDropdownId);
+      }
+    });
+
+    // Bathrooms dropdown toggle
+    bathroomsTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isBathroomsOpen = !isBathroomsOpen;
+
+      if (isBathroomsOpen) {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.open(bathroomsDropdownId);
+        }
+      } else {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(bathroomsDropdownId);
+        }
+      }
+
+      bathroomsPanel?.classList.toggle('hidden', !isBathroomsOpen);
+      bathroomsArrow?.classList.toggle('rotate-180', isBathroomsOpen);
+    });
+
+    // Bathrooms option selection
+    bathroomsOptions?.forEach(option => {
+      option.addEventListener('click', () => {
+        selectedBathrooms = option.getAttribute('data-value') || '';
+        updateBathroomsDisplay();
+        isBathroomsOpen = false;
+        bathroomsPanel?.classList.add('hidden');
+        bathroomsArrow?.classList.remove('rotate-180');
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(bathroomsDropdownId);
+        }
+      });
+    });
+
+    // Bathrooms reset
+    resetBathroomsBtn?.addEventListener('click', () => {
       selectedBathrooms = '';
+      updateBathroomsDisplay();
+      isBathroomsOpen = false;
+      bathroomsPanel?.classList.add('hidden');
+      bathroomsArrow?.classList.remove('rotate-180');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(bathroomsDropdownId);
+      }
+    });
+
+    // Bedrooms dropdown toggle
+    bedroomsTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isBedroomsOpen = !isBedroomsOpen;
+
+      if (isBedroomsOpen) {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.open(bedroomsDropdownId);
+        }
+      } else {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(bedroomsDropdownId);
+        }
+      }
+
+      bedroomsPanel?.classList.toggle('hidden', !isBedroomsOpen);
+      bedroomsArrow?.classList.toggle('rotate-180', isBedroomsOpen);
+    });
+
+    // Bedrooms option selection
+    bedroomsOptions?.forEach(option => {
+      option.addEventListener('click', () => {
+        selectedBedrooms = option.getAttribute('data-value') || '';
+        updateBedroomsDisplay();
+        isBedroomsOpen = false;
+        bedroomsPanel?.classList.add('hidden');
+        bedroomsArrow?.classList.remove('rotate-180');
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(bedroomsDropdownId);
+        }
+      });
+    });
+
+    // Bedrooms reset
+    resetBedroomsBtn?.addEventListener('click', () => {
       selectedBedrooms = '';
+      updateBedroomsDisplay();
+      isBedroomsOpen = false;
+      bedroomsPanel?.classList.add('hidden');
+      bedroomsArrow?.classList.remove('rotate-180');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(bedroomsDropdownId);
+      }
     });
 
     // Close dropdowns on outside click
     document.addEventListener('click', (e) => {
       const target = e.target as HTMLElement;
+
+      // Close main search bar dropdowns if clicking outside
       if (!searchBar.contains(target)) {
         if (isPropertyTypeOpen) {
           propertyTypePanel?.classList.add('hidden');
@@ -690,6 +1031,40 @@ const currentMaxPrice = currentFilters.maxPrice
           districtDropdown?.classList.add('hidden');
           if (typeof (window as any).dropdownManager !== 'undefined') {
             (window as any).dropdownManager.close(districtDropdownId);
+          }
+        }
+      }
+
+      // Close advanced filter dropdowns if clicking outside the advanced filters row
+      const advancedFiltersContainer = advancedFiltersRow;
+      if (advancedFiltersContainer && !advancedFiltersContainer.contains(target)) {
+        // Close radius dropdown
+        if (isRadiusOpen) {
+          isRadiusOpen = false;
+          radiusPanel?.classList.add('hidden');
+          radiusArrow?.classList.remove('rotate-180');
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(radiusDropdownId);
+          }
+        }
+
+        // Close bathrooms dropdown
+        if (isBathroomsOpen) {
+          isBathroomsOpen = false;
+          bathroomsPanel?.classList.add('hidden');
+          bathroomsArrow?.classList.remove('rotate-180');
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(bathroomsDropdownId);
+          }
+        }
+
+        // Close bedrooms dropdown
+        if (isBedroomsOpen) {
+          isBedroomsOpen = false;
+          bedroomsPanel?.classList.add('hidden');
+          bedroomsArrow?.classList.remove('rotate-180');
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(bedroomsDropdownId);
           }
         }
       }
@@ -977,6 +1352,19 @@ const currentMaxPrice = currentFilters.maxPrice
 <style>
   .horizontal-search-bar {
     backdrop-filter: blur(10px);
+    /* Ensure dropdowns can escape container */
+    isolation: auto;
+  }
+
+  /* Ensure dropdown panels are above all content */
+  .horizontal-search-bar [data-district-dropdown],
+  .horizontal-search-bar [data-property-type-panel],
+  .horizontal-search-bar [data-radius-panel],
+  .horizontal-search-bar [data-bathrooms-panel],
+  .horizontal-search-bar [data-bedrooms-panel],
+  .province-dropdown-panel {
+    position: absolute;
+    z-index: 99999 !important;
   }
 
   [data-advanced-filter-panel]:not(.hidden) {
