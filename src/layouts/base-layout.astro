@@ -69,6 +69,60 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
     <!-- HTMX for SSR interactions (minimal JS) -->
     <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
 
+    <!-- Global Dropdown Manager (must load before other scripts) -->
+    <script is:inline>
+      /**
+       * Global Dropdown Manager
+       * Ensures only one dropdown is open at a time
+       */
+      class DropdownManager {
+        constructor() {
+          this.dropdowns = new Map();
+          this.currentOpenId = null;
+        }
+
+        register(id, closeCallback) {
+          this.dropdowns.set(id, {
+            id,
+            close: closeCallback,
+          });
+        }
+
+        unregister(id) {
+          this.dropdowns.delete(id);
+        }
+
+        open(id) {
+          // Close currently open dropdown if it's different
+          if (this.currentOpenId && this.currentOpenId !== id) {
+            const current = this.dropdowns.get(this.currentOpenId);
+            if (current) {
+              current.close();
+            }
+          }
+          this.currentOpenId = id;
+        }
+
+        close(id) {
+          if (this.currentOpenId === id) {
+            this.currentOpenId = null;
+          }
+        }
+
+        closeAll() {
+          this.dropdowns.forEach((dropdown) => {
+            dropdown.close();
+          });
+          this.currentOpenId = null;
+        }
+      }
+
+      // Create singleton instance and export to global scope
+      if (typeof window !== 'undefined') {
+        window.dropdownManager = new DropdownManager();
+      }
+    </script>
+
     <!-- JSON-LD Structured Data for SEO -->
     <JsonLdSchema pageType={pageType} breadcrumbs={breadcrumbs} />
 
