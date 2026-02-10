@@ -1,15 +1,21 @@
 ---
 /**
  * Listing Pagination
- * Server-side pagination with page links
+ * Server-side pagination with page links and results counter
  */
 interface Props {
   currentPage: number;
   totalPages: number;
   baseUrl: string;
+  totalResults?: number;
+  pageSize?: number;
 }
 
-const { currentPage, totalPages, baseUrl } = Astro.props;
+const { currentPage, totalPages, baseUrl, totalResults = 0, pageSize = 24 } = Astro.props;
+
+// Calculate range display
+const startItem = (currentPage - 1) * pageSize + 1;
+const endItem = Math.min(currentPage * pageSize, totalResults);
 
 // Generate page numbers to display
 function getPageNumbers(current: number, total: number): (number | 'ellipsis')[] {
@@ -52,7 +58,14 @@ function getPageUrl(page: number): string {
 }
 ---
 
-<nav class="flex items-center justify-center gap-1" aria-label="Pagination">
+<div class="flex flex-col sm:flex-row items-center justify-between gap-4">
+  <!-- Results Counter -->
+  <p class="text-sm text-secondary-600">
+    Hiển thị <span class="font-medium">{startItem}-{endItem}</span> trên tổng <span class="font-medium">{totalResults.toLocaleString('vi-VN')}</span> kết quả.
+  </p>
+
+  <!-- Pagination Controls -->
+  <nav class="flex items-center justify-center gap-1" aria-label="Pagination">
   <!-- Previous -->
   {currentPage > 1 ? (
     <a
@@ -112,4 +125,5 @@ function getPageUrl(page: number): string {
       </svg>
     </span>
   )}
-</nav>
+  </nav>
+</div>

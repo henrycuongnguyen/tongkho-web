@@ -155,7 +155,7 @@ const description = getPageDescription(filters, total);
 
 // Pagination info
 const currentPage = filters.page || 1;
-const pageSize = filters.pageSize || 20;
+const pageSize = filters.pageSize || 24;
 const totalPages = Math.ceil(total / pageSize);
 
 // Helper: Build sort URL preserving current filters
@@ -243,6 +243,8 @@ function buildSortUrl(sortOption: string): string {
       currentPage={currentPage}
       totalPages={totalPages}
       baseUrl={url.pathname}
+      totalResults={total}
+      pageSize={pageSize}
     />
   )}
 

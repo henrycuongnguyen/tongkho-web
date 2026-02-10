@@ -37,7 +37,7 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     keyword,
     sort = 'newest',
     page = 1,
-    pageSize = 20
+    pageSize = 24
   } = filters;
 
   // Must conditions (required)

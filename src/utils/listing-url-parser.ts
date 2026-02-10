@@ -29,7 +29,7 @@ export function parseListingUrl(
   const filters: PropertySearchFilters = {
     transactionType: 1,  // Default: mua-ban
     page: Number(searchParams.get('page')) || 1,
-    pageSize: 20,
+    pageSize: 24,
     sort: (searchParams.get('sort') as SortOption) || 'newest'
   };
 
