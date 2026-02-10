@@ -71,7 +71,7 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
   <!-- Trigger Button -->
   <button
     type="button"
-    class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white hover:border-primary-400 focus:outline-none focus:ring-2 focus:ring-primary-500 text-secondary-700 text-sm text-left flex items-center justify-between transition-all"
+    class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white hover:border-primary-400 focus:outline-none focus:border-primary-400 text-secondary-700 text-sm text-left flex items-center justify-between transition-all"
     data-price-slider-trigger
   >
     <span class="font-medium" data-price-display>{displayLabel}</span>
@@ -92,40 +92,38 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
 
   <!-- Dropdown Panel -->
   <div
-    class="absolute top-full left-0 mt-2 bg-white rounded-lg shadow-xl border border-secondary-100 w-full min-w-[360px] max-w-[360px] overflow-hidden hidden z-[99999]"
+    class="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-secondary-100 w-full min-w-[360px] max-w-[360px] p-4 hidden z-[99999]"
     data-price-slider-panel
     data-config={JSON.stringify(config)}
   >
-    <!-- Header -->
-    <div class="px-4 py-3 border-b border-secondary-100">
-      <h5 class="text-sm font-semibold text-secondary-800">Khoảng giá</h5>
-    </div>
+    <h4 class="text-lg font-bold text-secondary-800 text-center mb-3">Khoảng giá</h4>
 
     <!-- Content -->
-    <div class="px-4 py-4">
+    <div>
       <!-- Range Display -->
-      <div class="flex items-center justify-between mb-4 text-xs text-secondary-500">
-        <span>từ <span data-min-display>{formatPrice(parsedMin)}</span></span>
-        <span>đến <span data-max-display>{formatPrice(parsedMax)}</span></span>
+      <div class="flex justify-between mb-3 text-sm">
+        <span class="text-secondary-600">
+          từ <span class="text-primary-500 font-semibold" data-min-display>{formatPrice(parsedMin)}</span>
+        </span>
+        <span class="text-secondary-600">
+          đến <span class="text-primary-500 font-semibold" data-max-display>{formatPrice(parsedMax)}</span>
+        </span>
       </div>
 
       <!-- Input Fields -->
-      <div class="flex items-center gap-2 mb-4">
+      <div class="grid grid-cols-2 gap-2 mb-3">
         <input
           type="number"
-          class="flex-1 px-3 py-2 border border-secondary-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          placeholder="Từ"
+          class="w-full px-2 py-1.5 border border-secondary-200 rounded-lg text-center text-sm text-secondary-700 focus:outline-none focus:border-primary-400"
           data-min-input
           value={parsedMin}
           min={config.min}
           max={config.max}
           step={config.step}
         />
-        <span class="text-secondary-400">~</span>
         <input
           type="number"
-          class="flex-1 px-3 py-2 border border-secondary-300 rounded text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
-          placeholder="Đến"
+          class="w-full px-2 py-1.5 border border-secondary-200 rounded-lg text-center text-sm text-secondary-700 focus:outline-none focus:border-primary-400"
           data-max-input
           value={parsedMax}
           min={config.min}
@@ -135,59 +133,49 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
       </div>
 
       <!-- Dual Range Slider -->
-      <div class="relative mb-6 pt-1 pb-1">
-        <div class="relative h-2 bg-secondary-200 rounded-full">
-          <div class="absolute h-2 bg-orange-600 rounded-full" data-range-fill></div>
-          <input
-            type="range"
-            class="range-slider range-slider-min"
-            data-slider-min
-            min={config.min}
-            max={config.max}
-            value={parsedMin}
-            step={config.step}
-          />
-          <input
-            type="range"
-            class="range-slider range-slider-max"
-            data-slider-max
-            min={config.min}
-            max={config.max}
-            value={parsedMax}
-            step={config.step}
-          />
-        </div>
+      <div class="relative h-6 mb-4 flex items-center" data-slider-container>
+        <div class="absolute left-0 right-0 h-2 bg-secondary-200 rounded-full"></div>
+        <div class="absolute h-2 bg-primary-500 rounded-full" data-range-fill></div>
+        <div
+          class="absolute w-5 h-5 bg-primary-500 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing z-20"
+          data-thumb-min
+        ></div>
+        <div
+          class="absolute w-5 h-5 bg-primary-500 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing z-20"
+          data-thumb-max
+        ></div>
       </div>
 
       <!-- Preset Options -->
-      <div class="space-y-2 mb-4 max-h-[280px] overflow-y-auto">
+      <div class="max-h-40 overflow-y-auto space-y-0.5 mb-3">
         {config.presets.map((preset) => {
-          const isActive = parsedMin === preset.min && parsedMax === preset.max;
           return (
-            <label class="flex items-center gap-2 cursor-pointer group">
-              <input
-                type="radio"
-                name="price-preset"
-                class="w-4 h-4 text-primary-600 focus:ring-primary-500"
-                data-preset-radio
-                data-preset-min={preset.min}
-                data-preset-max={preset.max}
-                checked={isActive}
-              />
-              <span class="text-sm text-secondary-700 group-hover:text-secondary-900">
-                {preset.label}
-              </span>
-            </label>
+            <button
+              type="button"
+              class="quick-pick w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-secondary-50 transition-colors text-secondary-700 text-sm"
+              data-preset-button
+              data-preset-min={preset.min}
+              data-preset-max={preset.max}
+            >
+              <span>{preset.label}</span>
+              <div class="w-4 h-4 rounded-full border-2 border-secondary-300 flex items-center justify-center">
+                <svg class="w-2.5 h-2.5 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+            </button>
           );
         })}
       </div>
-    </div>
 
-    <!-- Footer -->
-    <div class="px-4 py-3 border-t border-secondary-100 bg-secondary-50">
+      <!-- Reset Button -->
       <button
         type="button"
-        class="w-full px-4 py-2 bg-red-500 hover:bg-red-600 text-white text-sm font-medium rounded-lg transition-colors"
+        class="px-4 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors font-medium"
         data-reset-price
       >
         Đặt lại
@@ -213,18 +201,21 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
 
       const minInput = container.querySelector('[data-min-input]') as HTMLInputElement;
       const maxInput = container.querySelector('[data-max-input]') as HTMLInputElement;
-      const sliderMin = container.querySelector('[data-slider-min]') as HTMLInputElement;
-      const sliderMax = container.querySelector('[data-slider-max]') as HTMLInputElement;
+      const sliderContainer = container.querySelector('[data-slider-container]') as HTMLElement;
       const rangeFill = container.querySelector('[data-range-fill]') as HTMLElement;
+      const thumbMin = container.querySelector('[data-thumb-min]') as HTMLElement;
+      const thumbMax = container.querySelector('[data-thumb-max]') as HTMLElement;
       const minDisplay = container.querySelector('[data-min-display]') as HTMLElement;
       const maxDisplay = container.querySelector('[data-max-display]') as HTMLElement;
-      const presetRadios = container.querySelectorAll('[data-preset-radio]') as NodeListOf<HTMLInputElement>;
+      const presetButtons = container.querySelectorAll('[data-preset-button]') as NodeListOf<HTMLButtonElement>;
       const resetBtn = container.querySelector('[data-reset-price]') as HTMLButtonElement;
       const hiddenMinInput = container.querySelector('[data-price-min]') as HTMLInputElement;
       const hiddenMaxInput = container.querySelector('[data-price-max]') as HTMLInputElement;
 
       const config = JSON.parse(panel.dataset.config || '{}');
       let isOpen = false;
+      let minVal = Number(minInput.value) || config.min;
+      let maxVal = Number(maxInput.value) || config.max;
 
       // Generate unique ID for this dropdown
       const dropdownId = `price-slider-${Math.random().toString(36).substr(2, 9)}`;
@@ -250,32 +241,53 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
       }
 
       // Update all displays
-      function updateDisplays(min: number, max: number) {
-        // Update range fill
-        const minPercent = ((min - config.min) / (config.max - config.min)) * 100;
-        const maxPercent = ((max - config.min) / (config.max - config.min)) * 100;
+      function updateDisplays() {
+        // Update range fill and thumbs
+        const minPercent = ((minVal - config.min) / (config.max - config.min)) * 100;
+        const maxPercent = ((maxVal - config.min) / (config.max - config.min)) * 100;
         rangeFill.style.left = `${minPercent}%`;
-        rangeFill.style.width = `${maxPercent - minPercent}%`;
+        rangeFill.style.right = `${100 - maxPercent}%`;
+        thumbMin.style.left = `calc(${minPercent}% - 10px)`;
+        thumbMax.style.left = `calc(${maxPercent}% - 10px)`;
+
+        // Update input values
+        if (minInput.value !== minVal.toString()) minInput.value = minVal.toString();
+        if (maxInput.value !== maxVal.toString()) maxInput.value = maxVal.toString();
 
         // Update text displays
-        minDisplay.textContent = formatPrice(min);
-        maxDisplay.textContent = formatPrice(max);
+        minDisplay.textContent = formatPrice(minVal);
+        maxDisplay.textContent = formatPrice(maxVal);
 
         // Update trigger button
-        const label = min > config.min || max < config.max
-          ? `${formatPrice(min)} - ${formatPrice(max)}`
+        const label = minVal > config.min || maxVal < config.max
+          ? `${formatPrice(minVal)} - ${formatPrice(maxVal)}`
           : 'Khoảng giá';
         displayText.textContent = label;
 
         // Update hidden inputs
-        hiddenMinInput.value = min.toString();
-        hiddenMaxInput.value = max.toString();
+        hiddenMinInput.value = minVal.toString();
+        hiddenMaxInput.value = maxVal.toString();
 
-        // Update preset radios
-        presetRadios.forEach(radio => {
-          const presetMin = Number(radio.dataset.presetMin);
-          const presetMax = Number(radio.dataset.presetMax);
-          radio.checked = min === presetMin && max === presetMax;
+        // Update preset buttons
+        presetButtons.forEach(btn => {
+          const presetMin = Number(btn.dataset.presetMin);
+          const presetMax = Number(btn.dataset.presetMax);
+          const isActive = minVal === presetMin && maxVal === presetMax;
+          const circle = btn.querySelector('div');
+          const check = btn.querySelector('svg');
+          if (isActive) {
+            btn.classList.add('bg-primary-50', 'text-primary-600');
+            btn.classList.remove('text-secondary-700');
+            circle?.classList.add('border-primary-500', 'bg-primary-500');
+            circle?.classList.remove('border-secondary-300');
+            check?.classList.remove('hidden');
+          } else {
+            btn.classList.remove('bg-primary-50', 'text-primary-600');
+            btn.classList.add('text-secondary-700');
+            circle?.classList.remove('border-primary-500', 'bg-primary-500');
+            circle?.classList.add('border-secondary-300');
+            check?.classList.add('hidden');
+          }
         });
       }
 
@@ -313,80 +325,84 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
         }
       });
 
-      // Handle slider changes
-      function handleSliderChange() {
-        let minVal = Number(sliderMin.value);
-        let maxVal = Number(sliderMax.value);
+      // Drag functionality for thumbs
+      function setupDrag(thumb: HTMLElement, isMin: boolean) {
+        let isDragging = false;
 
-        // Ensure min doesn't exceed max
-        if (minVal > maxVal - config.step) {
-          minVal = maxVal - config.step;
-          sliderMin.value = minVal.toString();
-        }
+        const onMove = (clientX: number) => {
+          if (!isDragging) return;
+          const rect = sliderContainer.getBoundingClientRect();
+          const percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+          const value = config.min + Math.round(((percent / 100) * (config.max - config.min)) / config.step) * config.step;
 
-        // Update inputs
-        minInput.value = minVal.toString();
-        maxInput.value = maxVal.toString();
+          if (isMin) {
+            minVal = Math.min(value, maxVal - config.step);
+          } else {
+            maxVal = Math.max(value, minVal + config.step);
+          }
+          updateDisplays();
+        };
 
-        updateDisplays(minVal, maxVal);
+        thumb.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          e.preventDefault();
+        });
+
+        thumb.addEventListener('touchstart', (e) => {
+          isDragging = true;
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => onMove(e.clientX));
+        document.addEventListener('touchmove', (e) => onMove(e.touches[0].clientX));
+
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+        document.addEventListener('touchend', () => {
+          isDragging = false;
+        });
       }
 
-      sliderMin.addEventListener('input', handleSliderChange);
-      sliderMax.addEventListener('input', handleSliderChange);
+      setupDrag(thumbMin, true);
+      setupDrag(thumbMax, false);
 
       // Handle input changes
-      function handleInputChange() {
-        let minVal = Number(minInput.value) || config.min;
-        let maxVal = Number(maxInput.value) || config.max;
+      const handleMinInput = () => {
+        const val = Number(minInput.value) || 0;
+        minVal = Math.max(config.min, Math.min(val, maxVal - config.step));
+        updateDisplays();
+      };
 
-        // Clamp values
-        minVal = Math.max(config.min, Math.min(config.max, minVal));
-        maxVal = Math.max(config.min, Math.min(config.max, maxVal));
+      const handleMaxInput = () => {
+        const val = Number(maxInput.value) || config.max;
+        maxVal = Math.min(config.max, Math.max(val, minVal + config.step));
+        updateDisplays();
+      };
 
-        // Ensure min doesn't exceed max
-        if (minVal > maxVal) {
-          minVal = maxVal;
-        }
+      minInput.addEventListener('input', handleMinInput);
+      minInput.addEventListener('change', handleMinInput);
+      maxInput.addEventListener('input', handleMaxInput);
+      maxInput.addEventListener('change', handleMaxInput);
 
-        // Update sliders
-        sliderMin.value = minVal.toString();
-        sliderMax.value = maxVal.toString();
-
-        updateDisplays(minVal, maxVal);
-      }
-
-      minInput.addEventListener('change', handleInputChange);
-      maxInput.addEventListener('change', handleInputChange);
-
-      // Handle preset radio selection
-      presetRadios.forEach(radio => {
-        radio.addEventListener('change', () => {
-          if (radio.checked) {
-            const min = Number(radio.dataset.presetMin);
-            const max = Number(radio.dataset.presetMax);
-
-            minInput.value = min.toString();
-            maxInput.value = max.toString();
-            sliderMin.value = min.toString();
-            sliderMax.value = max.toString();
-
-            updateDisplays(min, max);
-          }
+      // Handle preset button clicks
+      presetButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          minVal = Number(btn.dataset.presetMin);
+          maxVal = Number(btn.dataset.presetMax);
+          updateDisplays();
         });
       });
 
       // Handle reset button
       resetBtn?.addEventListener('click', () => {
-        minInput.value = config.min.toString();
-        maxInput.value = config.max.toString();
-        sliderMin.value = config.min.toString();
-        sliderMax.value = config.max.toString();
-
-        updateDisplays(config.min, config.max);
+        minVal = config.min;
+        maxVal = config.max;
+        updateDisplays();
       });
 
       // Initialize displays
-      updateDisplays(Number(minInput.value), Number(maxInput.value));
+      updateDisplays();
     });
   }
 
@@ -402,148 +418,6 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
 </script>
 
 <style>
-  /* Range slider container */
-  .range-slider {
-    position: absolute;
-    width: 100%;
-    height: 8px;
-    top: 0;
-    left: 0;
-    pointer-events: none;
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-    background: transparent !important;
-    outline: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  /* Hide default track completely - Webkit/Chrome/Safari */
-  .range-slider::-webkit-slider-runnable-track {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 100%;
-    height: 8px;
-    background: transparent !important;
-    border: none;
-    outline: none;
-  }
-
-  /* Hide default track - Firefox */
-  .range-slider::-moz-range-track {
-    width: 100%;
-    height: 8px;
-    background: transparent !important;
-    border: none;
-    outline: none;
-  }
-
-  /* Hide default track - IE/Edge */
-  .range-slider::-ms-track {
-    width: 100%;
-    height: 8px;
-    background: transparent !important;
-    border: none;
-    outline: none;
-    color: transparent;
-  }
-
-  .range-slider::-ms-fill-lower {
-    background: transparent !important;
-  }
-
-  .range-slider::-ms-fill-upper {
-    background: transparent !important;
-  }
-
-  /* Style thumbs - ORANGE - Webkit/Chrome/Safari */
-  .range-slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    pointer-events: all;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #ea580c;
-    border: 3px solid white;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-    cursor: grab;
-    margin-top: -6px;
-    position: relative;
-  }
-
-  /* Style thumbs - ORANGE - Firefox */
-  .range-slider::-moz-range-thumb {
-    -moz-appearance: none;
-    appearance: none;
-    pointer-events: all;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #ea580c;
-    border: 3px solid white;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-    cursor: grab;
-    position: relative;
-  }
-
-  /* Style thumbs - ORANGE - IE/Edge */
-  .range-slider::-ms-thumb {
-    appearance: none;
-    pointer-events: all;
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    background: #ea580c;
-    border: 3px solid white;
-    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
-    cursor: grab;
-    margin-top: 0;
-  }
-
-  /* Hover states */
-  .range-slider::-webkit-slider-thumb:hover {
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
-    transform: scale(1.1);
-  }
-
-  .range-slider::-moz-range-thumb:hover {
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
-    transform: scale(1.1);
-  }
-
-  .range-slider::-ms-thumb:hover {
-    box-shadow: 0 3px 10px rgba(0, 0, 0, 0.35);
-  }
-
-  /* Active/dragging states */
-  .range-slider::-webkit-slider-thumb:active {
-    cursor: grabbing;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    transform: scale(1.05);
-  }
-
-  .range-slider::-moz-range-thumb:active {
-    cursor: grabbing;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-    transform: scale(1.05);
-  }
-
-  .range-slider::-ms-thumb:active {
-    cursor: grabbing;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  }
-
-  /* Z-index management - min slider should be on top when overlapping */
-  .range-slider-min {
-    z-index: 5 !important;
-  }
-
-  .range-slider-max {
-    z-index: 4 !important;
-  }
-
   /* Smooth scrollbar */
   [data-price-slider-panel] {
     scrollbar-width: thin;
