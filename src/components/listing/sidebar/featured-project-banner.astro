@@ -1,8 +1,9 @@
 ---
 /**
  * Featured Project Banner
- * Display highlighted projects in sidebar from news table
+ * Display highlighted projects in sidebar slideshow from news table
  * Matches v1 logic: queries news by folder "banner-du-an-noi-bat"
+ * Uses Swiper.js for slideshow functionality (installed via npm)
  */
 import { getFeaturedProjects } from '@/services/featured-project-service';
 
@@ -16,52 +17,88 @@ const { limit = 5, excludeProjectId } = Astro.props;
 const projects = await getFeaturedProjects(limit, excludeProjectId);
 
 const FALLBACK_IMAGE = '/images/placeholder-project.jpg';
+
+// Generate unique ID for this swiper instance
+const swiperId = `featured-projects-${Math.random().toString(36).substring(2, 11)}`;
 ---
 
 {projects.length > 0 && (
-  <div class="bg-white rounded-lg shadow-sm p-4">
-    <h3 class="font-semibold text-slate-800 mb-4">Dự án nổi bật</h3>
+  <div class="featured-projects-wrapper">
+    <div id={swiperId} class="swiper rounded-lg overflow-hidden shadow-sm">
+      <div class="swiper-wrapper">
+        {projects.map((project) => (
+          <div class="swiper-slide">
+            <div class="sidebar-featured-property relative h-96 overflow-hidden rounded-lg">
+              {/* Background Image */}
+              <div class="absolute inset-0">
+                <img
+                  src={project.mainImage || FALLBACK_IMAGE}
+                  alt={project.title}
+                  class="w-full h-full object-cover"
+                  loading="lazy"
+                  onerror="if(!this.dataset.errorHandled){this.dataset.errorHandled='true';this.src='/images/placeholder-project.jpg';this.onerror=null}"
+                />
+              </div>
 
-    <div class="space-y-4">
-      {projects.map((project) => (
-        <a
-          href={`/du-an/${project.slug}`}
-          class="block group"
-        >
-          <div class="flex gap-3">
-            {/* Project Image */}
-            <div class="w-20 h-16 rounded-lg overflow-hidden shrink-0 bg-slate-100">
-              <img
-                src={project.mainImage || FALLBACK_IMAGE}
-                alt={project.title}
-                class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                loading="lazy"
-                onerror="if(!this.dataset.errorHandled){this.dataset.errorHandled='true';this.src='/images/placeholder-project.jpg';this.onerror=null}"
-              />
-            </div>
+              {/* Gradient Overlay */}
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
 
-            {/* Project Info */}
-            <div class="flex-1 min-w-0">
-              <h4 class="font-medium text-sm text-slate-800 line-clamp-2 group-hover:text-orange-500 transition-colors">
-                {project.title}
-              </h4>
-              {project.description && (
-                <p class="text-xs text-slate-500 mt-1 line-clamp-2">
-                  {project.description}
-                </p>
-              )}
+              {/* Project Info Overlay */}
+              <div class="absolute bottom-0 left-0 right-0 p-5 text-white">
+                <div class="content mb-4">
+                  <h4 class="title text-xl font-bold mb-3 line-clamp-2">
+                    {project.title}
+                  </h4>
+                  {project.description && (
+                    <div class="text-address">
+                      <p class="text-sm leading-relaxed line-clamp-4 text-white/90">
+                        {project.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <a
+                  href={`/du-an/${project.slug}`}
+                  class="block w-full bg-primary-500 hover:bg-primary-600 text-white text-center font-semibold py-3 px-6 rounded-full transition-all duration-300 hover:shadow-lg"
+                >
+                  Xem chi tiết
+                </a>
+              </div>
             </div>
           </div>
-        </a>
-      ))}
+        ))}
+      </div>
     </div>
-
-    {/* View All Link */}
-    <a
-      href="/du-an"
-      class="block mt-4 pt-3 border-t border-slate-100 text-center text-sm text-orange-500 hover:text-orange-600 transition-colors"
-    >
-      Xem tất cả dự án →
-    </a>
   </div>
 )}
+
+<style>
+  /* Import Swiper styles */
+  @import 'swiper/css';
+</style>
+
+<script>
+  // Import Swiper and Autoplay module
+  import Swiper from 'swiper';
+  import { Autoplay } from 'swiper/modules';
+
+  // Initialize all featured project swipers on the page
+  document.addEventListener('DOMContentLoaded', () => {
+    const swiperElements = document.querySelectorAll('[id^="featured-projects-"]');
+
+    swiperElements.forEach((element) => {
+      if (element instanceof HTMLElement && !element.classList.contains('swiper-initialized')) {
+        new Swiper(`#${element.id}`, {
+          modules: [Autoplay],
+          slidesPerView: 1,
+          spaceBetween: 15,
+          loop: true,
+          autoplay: {
+            delay: 5000,
+            disableOnInteraction: false,
+          },
+        });
+      }
+    });
+  });
+</script>
