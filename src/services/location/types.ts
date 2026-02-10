@@ -40,4 +40,7 @@ export interface SelectedLocation {
   name: string;
   slug: string;
   parentId?: string;    // For districts - parent province nId
+  provinceId?: string;  // Province nId (for districts)
+  lat?: number;         // Latitude (for radius search)
+  lon?: number;         // Longitude (for radius search)
 }

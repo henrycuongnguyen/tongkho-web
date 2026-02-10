@@ -25,8 +25,8 @@ interface Props {
   provinces?: Province[];
   /** Current province slug from URL */
   currentProvince?: string;
-  /** Current district slug from URL */
-  currentDistrict?: string;
+  /** Current district slugs from URL (multi-select support) */
+  currentDistricts?: string[];
   /** Current filter values from URL */
   currentFilters: {
     propertyTypes?: number[];
@@ -48,7 +48,7 @@ const {
   propertyTypes,
   provinces = [],
   currentProvince,
-  currentDistrict,
+  currentDistricts = [],
   currentFilters,
   currentPath,
 } = Astro.props;
@@ -569,6 +569,34 @@ const currentMaxPrice = currentFilters.maxPrice
     // Track current province selection - initialize from data attributes (for page with province in URL)
     const initialProvinceNId = searchBar?.getAttribute('data-current-province-nid');
     let currentProvinceNId: string | null = (initialProvinceNId && initialProvinceNId.trim()) ? initialProvinceNId : null;
+
+    // Multi-select districts state
+    const selectedDistricts: Array<{ slug: string; name: string }> = [];
+
+    // Attach checkbox handlers for multi-select
+    function attachDistrictCheckboxHandlers(container: HTMLElement) {
+      const checkboxes = container.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+          const slug = checkbox.value;
+          const name = checkbox.dataset.name || slug;
+          const isChecked = checkbox.checked;
+
+          if (isChecked) {
+            if (!selectedDistricts.some(d => d.slug === slug)) {
+              selectedDistricts.push({ slug, name });
+            }
+          } else {
+            const index = selectedDistricts.findIndex(d => d.slug === slug);
+            if (index > -1) {
+              selectedDistricts.splice(index, 1);
+            }
+          }
+
+          console.log('[HorizontalSearchBar] Selected districts:', selectedDistricts);
+        });
+      });
+    }
     let currentProvinceName: string | null = null;
     let districtsLoaded = false;
 
@@ -614,7 +642,7 @@ const currentMaxPrice = currentFilters.maxPrice
         districtListContainer.innerHTML = '';
 
         // Fetch districts
-        const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}`;
+        const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes`;
         fetch(url)
           .then(response => response.text())
           .then(html => {
@@ -622,13 +650,20 @@ const currentMaxPrice = currentFilters.maxPrice
             districtListContainer.innerHTML = html;
             districtsLoaded = true;
 
+            // Use flex layout for checkboxes
+            districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6', 'gap-y-2');
+            districtListContainer.classList.add('flex', 'flex-col', 'gap-y-1');
+
+            // Attach checkbox handlers
+            attachDistrictCheckboxHandlers(districtListContainer);
+
             // Show dropdown and focus input
             districtDropdown?.classList.remove('hidden');
             districtSearchInput?.focus();
 
             // Check if any districts were loaded
-            const districtLinks = districtListContainer?.querySelectorAll('a');
-            if (!districtLinks || districtLinks.length === 0) {
+            const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
+            if (!districtCheckboxes || districtCheckboxes.length === 0) {
               districtEmpty?.classList.remove('hidden');
             }
           })
@@ -1080,7 +1115,7 @@ const currentMaxPrice = currentFilters.maxPrice
       districtListContainer.innerHTML = '';
       districtDropdown?.classList.remove('hidden');
 
-      const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}`;
+      const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes`;
       fetch(url)
         .then(response => response.text())
         .then(html => {
@@ -1088,12 +1123,16 @@ const currentMaxPrice = currentFilters.maxPrice
           districtListContainer.innerHTML = html;
           districtsLoaded = true;
 
-          // Use grid layout for districts
-          districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-x-6', 'gap-y-2');
+          // Use flex layout for checkboxes
+          districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6');
+          districtListContainer.classList.add('flex', 'flex-col', 'gap-y-1');
+
+          // Attach checkbox handlers
+          attachDistrictCheckboxHandlers(districtListContainer);
 
           // Check if any districts were loaded
-          const districtLinks = districtListContainer?.querySelectorAll('a');
-          if (!districtLinks || districtLinks.length === 0) {
+          const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
+          if (!districtCheckboxes || districtCheckboxes.length === 0) {
             districtEmpty?.classList.remove('hidden');
           }
         })
@@ -1140,7 +1179,7 @@ const currentMaxPrice = currentFilters.maxPrice
           districtLoading?.classList.remove('hidden');
           districtListContainer.innerHTML = '';
 
-          const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}`;
+          const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes`;
           fetch(url)
             .then(response => response.text())
             .then(html => {
@@ -1148,15 +1187,18 @@ const currentMaxPrice = currentFilters.maxPrice
               districtListContainer.innerHTML = html;
               districtsLoaded = true;
 
-              // Use grid layout for districts
-              districtListContainer.classList.remove('flex', 'flex-col');
-              districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-x-6', 'gap-y-2');
+              // Use flex layout for checkboxes
+              districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6');
+              districtListContainer.classList.add('flex', 'flex-col', 'gap-y-1');
+
+              // Attach checkbox handlers
+              attachDistrictCheckboxHandlers(districtListContainer);
 
               districtDropdown?.classList.remove('hidden');
 
               // Check if any districts were loaded
-              const districtLinks = districtListContainer?.querySelectorAll('a');
-              if (!districtLinks || districtLinks.length === 0) {
+              const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
+              if (!districtCheckboxes || districtCheckboxes.length === 0) {
                 districtEmpty?.classList.remove('hidden');
               }
             })
@@ -1270,24 +1312,18 @@ const currentMaxPrice = currentFilters.maxPrice
     const searchSubmit = searchBar.querySelector('[data-search-submit]') as HTMLButtonElement;
 
     searchSubmit?.addEventListener('click', () => {
-      // Build search URL with filters
+      // Read property types directly from checkboxes (don't rely on "Áp dụng" button)
+      selectedPropertyTypeIds = Array.from(propertyTypeCheckboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+      console.log('[HorizontalSearchBar] Search clicked, property types:', selectedPropertyTypeIds);
+
+      // Build search URL with filters (v1 compatible format)
       const params = new URLSearchParams();
 
       const keyword = districtSearchInput?.value.trim();
       if (keyword) params.set('keyword', keyword);
-
-      if (selectedPropertyTypeIds.length > 0) params.set('property_types', selectedPropertyTypeIds.join(','));
-
-      // Get price values from price dropdown (in millions, need to convert to VND)
-      const prices = getPriceValues();
-      if (prices.min) {
-        const minVnd = Number(prices.min) * 1_000_000;
-        params.set('gtn', minVnd.toString());
-      }
-      if (prices.max) {
-        const maxVnd = Number(prices.max) * 1_000_000;
-        params.set('gcn', maxVnd.toString());
-      }
 
       // Get area values from RangeSliderDropdown hidden input
       const areaInput = container?.querySelector('[name="area"]') as HTMLInputElement;
@@ -1302,11 +1338,95 @@ const currentMaxPrice = currentFilters.maxPrice
       if (selectedBathrooms) params.set('bathrooms', selectedBathrooms);
       if (selectedBedrooms) params.set('bedrooms', selectedBedrooms);
 
-      const queryString = params.toString();
-      const targetUrl = queryString ? `${baseUrl}?${queryString}` : baseUrl;
+      // Build URL: /[transaction]/[province]/[price-slug]?[other-params]
+      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
+
+      // Get price values first
+      const prices = getPriceValues();
+
+      // Add province slug if selected
+      const provinceSlug = searchBar?.getAttribute('data-current-province-slug');
+      if (provinceSlug && provinceSlug.trim()) {
+        urlParts.push(provinceSlug);
+      } else if (prices.min || prices.max) {
+        // If no province but has price, add "toan-quoc"
+        urlParts.push('toan-quoc');
+      }
+
+      // Convert price to slug (v1 compatible)
+      if (prices.min || prices.max) {
+        const minTrieu = prices.min ? Number(prices.min) : 0;
+        const maxTrieu = prices.max ? Number(prices.max) : 0;
+        const priceSlug = buildPriceSlug(minTrieu, maxTrieu);
+        if (priceSlug) {
+          urlParts.push(priceSlug);
+        }
+      }
+
+      let targetUrl = '/' + urlParts.join('/');
+
+      // Build query string manually to avoid encoding commas (v1 compatible)
+      const queryParts: string[] = [];
+
+      // Add property_types WITHOUT encoding (v1 uses plain commas)
+      if (selectedPropertyTypeIds.length > 0) {
+        queryParts.push(`property_types=${selectedPropertyTypeIds.join(',')}`);
+      }
+
+      // Add addresses param WITHOUT encoding (v1 uses plain commas)
+      if (selectedDistricts.length > 0) {
+        const districtSlugs = selectedDistricts.map(d => d.slug).join(',');
+        queryParts.push(`addresses=${districtSlugs}`);
+      } else {
+        // Preserve current addresses param if no districts selected in UI
+        const currentParams = new URLSearchParams(window.location.search);
+        const currentAddresses = currentParams.get('addresses');
+        if (currentAddresses) {
+          queryParts.push(`addresses=${currentAddresses}`);
+        }
+      }
+
+      // Add URLSearchParams parts (other params can be encoded normally)
+      const standardParams = params.toString();
+      if (standardParams) {
+        queryParts.push(standardParams);
+      }
+
+      if (queryParts.length > 0) {
+        targetUrl = `${targetUrl}?${queryParts.join('&')}`;
+      }
 
       window.location.href = targetUrl;
     });
+
+    // Helper: Build price slug from min/max in millions
+    function buildPriceSlug(minTrieu: number, maxTrieu: number): string {
+      if (minTrieu === 0 && maxTrieu === 0) return '';
+
+      if (!minTrieu && maxTrieu) {
+        return `gia-duoi-${convertTrieuToPriceSlug(maxTrieu)}`;
+      }
+
+      if (minTrieu && (!maxTrieu || maxTrieu >= 60000)) {
+        return `gia-tren-${convertTrieuToPriceSlug(minTrieu)}`;
+      }
+
+      if (minTrieu && maxTrieu && minTrieu < maxTrieu) {
+        return `gia-tu-${convertTrieuToPriceSlug(minTrieu)}-den-${convertTrieuToPriceSlug(maxTrieu)}`;
+      }
+
+      return '';
+    }
+
+    // Helper: Convert millions to price slug part
+    function convertTrieuToPriceSlug(trieu: number): string {
+      if (trieu >= 1000) {
+        const ty = trieu / 1000;
+        const formatted = ty % 1 === 0 ? ty.toString() : ty.toFixed(1);
+        return `${formatted}-ty`;
+      }
+      return `${trieu.toFixed(0)}-trieu`;
+    }
 
     // Enter key to search
     districtSearchInput?.addEventListener('keypress', (e) => {
@@ -1314,6 +1434,34 @@ const currentMaxPrice = currentFilters.maxPrice
         searchSubmit?.click();
       }
     });
+
+    // Auto-search when preset buttons clicked (price/area)
+    // Wait for dropdowns to initialize, then attach listeners
+    setTimeout(() => {
+      // Price preset buttons
+      const pricePresetButtons = container?.querySelectorAll('[data-preset-button]') as NodeListOf<HTMLButtonElement>;
+      pricePresetButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          console.log('[HorizontalSearchBar] Price preset clicked, auto-triggering search');
+          // Small delay to let slider update first
+          setTimeout(() => {
+            searchSubmit?.click();
+          }, 100);
+        });
+      });
+
+      // Area preset buttons (quick picks in area dropdown)
+      const areaDropdown = container?.querySelector('[data-type="area"]');
+      const areaPresetButtons = areaDropdown?.querySelectorAll('.quick-pick') as NodeListOf<HTMLButtonElement>;
+      areaPresetButtons?.forEach(btn => {
+        btn.addEventListener('click', () => {
+          console.log('[HorizontalSearchBar] Area preset clicked, auto-triggering search');
+          setTimeout(() => {
+            searchSubmit?.click();
+          }, 100);
+        });
+      });
+    }, 500);
   }
 
   // Initialize on page load

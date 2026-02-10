@@ -16,13 +16,13 @@ interface Props {
   baseUrl: string;
   /** Current selected province slug (optional) */
   currentProvince?: string;
-  /** Current selected district slug (optional) */
-  currentDistrict?: string;
-  /** Selected location (single location only, max 1 item) */
+  /** Current selected district slugs (optional, supports multi-select) */
+  currentDistricts?: string[];
+  /** Selected locations (supports multi-location) */
   selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
 }
 
-const { provinces, baseUrl, currentProvince, currentDistrict, selectedLocations = [] } = Astro.props;
+const { provinces, baseUrl, currentProvince, currentDistricts = [], selectedLocations = [] } = Astro.props;
 
 // Find current province nId for fetching districts
 const selectedProvince = currentProvince
@@ -65,6 +65,23 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
     />
   </div>
 
+  <!-- Selected Districts (Tags) -->
+  <div class="mb-3 hidden" data-selected-districts-container>
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-sm font-medium text-secondary-700">Địa điểm đã chọn</span>
+      <button
+        type="button"
+        class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+        data-clear-all-districts
+      >
+        Xóa lựa chọn
+      </button>
+    </div>
+    <div class="flex flex-wrap gap-2" data-selected-districts-tags>
+      <!-- Tags will be inserted here by JavaScript -->
+    </div>
+  </div>
+
   <!-- Search Input with District Dropdown -->
   <div class="relative">
     <input
@@ -99,7 +116,7 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
             class="text-xs text-primary-600 hover:text-primary-700 font-medium"
             data-search-all-province
           >
-            Tìm toàn tỉnh
+            <span data-search-button-text>Tìm toàn tỉnh</span>
           </button>
         </div>
       </div>
@@ -108,7 +125,7 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       <div
         class="p-2"
         data-district-list-container
-        hx-get={selectedProvince ? `/api/location/districts?province=${selectedProvince.nId}&base=${baseUrl}` : undefined}
+        hx-get={selectedProvince ? `/api/location/districts?province=${selectedProvince.nId}&base=${baseUrl}&mode=checkboxes&selected=${currentDistricts.join(',')}` : undefined}
         hx-trigger="load once, loadDistricts"
         hx-swap="innerHTML"
       >
@@ -148,6 +165,9 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
     let currentProvinceNId = container.getAttribute('data-current-province-nid') || '';
     let currentProvinceName = container.getAttribute('data-current-province-name') || '';
 
+    // Multi-select state: { slug: string, name: string }[]
+    const selectedDistricts: Array<{ slug: string; name: string }> = [];
+
     const provinceModalTrigger = container.querySelector('[data-province-modal-trigger]') as HTMLButtonElement;
     const districtSearchInput = container.querySelector('[data-district-search-input]') as HTMLInputElement;
     const districtDropdown = container.querySelector('[data-district-dropdown]') as HTMLDivElement;
@@ -155,6 +175,10 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
     const provinceDisplay = container.querySelector('[data-province-display]') as HTMLSpanElement;
     const provinceNameDisplay = container.querySelector('[data-province-name-display]') as HTMLSpanElement;
     const searchAllProvinceBtn = container.querySelector('[data-search-all-province]') as HTMLButtonElement;
+    const selectedDistrictsContainer = container.querySelector('[data-selected-districts-container]') as HTMLDivElement;
+    const selectedDistrictsTags = container.querySelector('[data-selected-districts-tags]') as HTMLDivElement;
+    const clearAllDistrictsBtn = container.querySelector('[data-clear-all-districts]') as HTMLButtonElement;
+    const searchButtonText = container.querySelector('[data-search-button-text]') as HTMLSpanElement;
 
     // Early return if required elements missing
     if (!provinceModalTrigger) {
@@ -162,11 +186,101 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       return;
     }
 
-    // Log initialization
+    // Update search button text based on selection
+    function updateSearchButtonText() {
+      if (!searchButtonText) return;
 
-    // If province already selected on page load, listen for initial HTMX load
+      if (selectedDistricts.length > 0) {
+        searchButtonText.textContent = 'Tìm kiếm';
+      } else {
+        searchButtonText.textContent = 'Tìm toàn tỉnh';
+      }
+    }
+
+    // Render selected districts tags
+    function renderSelectedDistrictsTags() {
+      if (!selectedDistrictsTags || !selectedDistrictsContainer) return;
+
+      if (selectedDistricts.length === 0) {
+        selectedDistrictsContainer.classList.add('hidden');
+        updateSearchButtonText();
+        return;
+      }
+
+      selectedDistrictsContainer.classList.remove('hidden');
+      updateSearchButtonText();
+      selectedDistrictsTags.innerHTML = selectedDistricts.map(d => `
+        <div class="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-sm border border-primary-200">
+          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span class="font-medium">${d.name}</span>
+          <button
+            type="button"
+            class="ml-1 hover:bg-primary-100 rounded p-0.5 transition-colors"
+            data-remove-district="${d.slug}"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `).join('');
+
+      // Attach remove handlers
+      selectedDistrictsTags.querySelectorAll('[data-remove-district]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const slug = (btn as HTMLElement).dataset.removeDistrict || '';
+          const index = selectedDistricts.findIndex(d => d.slug === slug);
+          if (index > -1) {
+            selectedDistricts.splice(index, 1);
+            renderSelectedDistrictsTags();
+            updateCheckboxesState();
+          }
+        });
+      });
+    }
+
+    // Update checkboxes state to match selectedDistricts
+    function updateCheckboxesState() {
+      const checkboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+      checkboxes.forEach(checkbox => {
+        const isSelected = selectedDistricts.some(d => d.slug === checkbox.value);
+        checkbox.checked = isSelected;
+      });
+    }
+
+    // Attach checkbox handlers after initial HTMX load
+    function attachCheckboxHandlers() {
+      const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+      checkboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', () => {
+          const slug = checkbox.value;
+          const name = checkbox.dataset.name || slug;
+          const isChecked = checkbox.checked;
+
+          if (isChecked) {
+            if (!selectedDistricts.some(d => d.slug === slug)) {
+              selectedDistricts.push({ slug, name });
+            }
+          } else {
+            const index = selectedDistricts.findIndex(d => d.slug === slug);
+            if (index > -1) {
+              selectedDistricts.splice(index, 1);
+            }
+          }
+
+          renderSelectedDistrictsTags();
+        });
+      });
+    }
+
+    // If province already selected on page load, attach handlers after HTMX loads districts
     if (currentProvinceNId && districtListContainer) {
       districtListContainer.addEventListener('htmx:afterSwap', () => {
+        attachCheckboxHandlers();
       }, { once: true });
     }
 
@@ -205,27 +319,81 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       }
     });
 
-    // Search districts on input
+    // Search districts on input (now works with checkbox labels)
     districtSearchInput?.addEventListener('input', (e) => {
       const query = (e.target as HTMLInputElement).value.toLowerCase();
-      const districtLinks = districtListContainer?.querySelectorAll('a');
+      const districtLabels = districtListContainer?.querySelectorAll('label');
 
-      districtLinks?.forEach(link => {
-        const text = link.textContent?.toLowerCase() || '';
+      districtLabels?.forEach(label => {
+        const text = label.textContent?.toLowerCase() || '';
         if (text.includes(query)) {
-          link.classList.remove('hidden');
+          label.classList.remove('hidden');
         } else {
-          link.classList.add('hidden');
+          label.classList.add('hidden');
         }
       });
     });
 
-    // "Tìm toàn tỉnh" button
+    // "Tìm toàn tỉnh" button - includes all selected districts (v1 compatible)
     searchAllProvinceBtn?.addEventListener('click', () => {
       const provinceSlug = container.getAttribute('data-current-province') || '';
-      if (provinceSlug) {
-        window.location.href = `${baseUrl}/${provinceSlug}`;
+      if (!provinceSlug) return;
+
+      // Get current URL params to preserve other filters
+      const currentParams = new URLSearchParams(window.location.search);
+
+      // Extract price slug from current URL path (arg3)
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      let priceSlug = '';
+      // Price slug is arg3 (index 2): /[transaction]/[location]/[price-slug]
+      if (pathParts.length >= 3 && pathParts[2].startsWith('gia-')) {
+        priceSlug = pathParts[2];
       }
+
+      // Build URL path: /[transaction]/[province]/[price-slug?]
+      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
+      urlParts.push(provinceSlug);
+      if (priceSlug) {
+        urlParts.push(priceSlug);
+      }
+
+      let targetUrl = '/' + urlParts.join('/');
+
+      // Build query string manually to avoid encoding commas (v1 compatible)
+      const queryParts: string[] = [];
+
+      // Add addresses param if districts selected (v1 uses plain commas)
+      if (selectedDistricts.length > 0) {
+        const districtSlugs = selectedDistricts.map(d => d.slug).join(',');
+        queryParts.push(`addresses=${districtSlugs}`);
+      }
+
+      // Add property_types WITHOUT encoding (v1 uses plain commas)
+      const propertyTypesParam = currentParams.get('property_types');
+      if (propertyTypesParam) {
+        queryParts.push(`property_types=${propertyTypesParam}`);
+      }
+
+      // Preserve other current params (bedrooms, bathrooms, dtnn, dtcn, etc.)
+      // Skip 'addresses' and 'property_types' as we're handling them above
+      currentParams.forEach((value, key) => {
+        if (key !== 'addresses' && key !== 'property_types') {
+          queryParts.push(`${key}=${value}`);
+        }
+      });
+
+      if (queryParts.length > 0) {
+        targetUrl = `${targetUrl}?${queryParts.join('&')}`;
+      }
+
+      window.location.href = targetUrl;
+    });
+
+    // Clear all districts button
+    clearAllDistrictsBtn?.addEventListener('click', () => {
+      selectedDistricts.length = 0; // Clear array
+      renderSelectedDistrictsTags();
+      updateCheckboxesState();
     });
 
     // Close dropdown on click outside
@@ -263,14 +431,16 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
         provinceNameDisplay.textContent = name;
       }
 
-      // Load districts
+      // Load districts (with checkbox mode)
       if (districtListContainer && nId) {
-        const url = `/api/location/districts?province=${encodeURIComponent(nId)}&base=${encodeURIComponent(baseUrl)}`;
+        const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+        const url = `/api/location/districts?province=${encodeURIComponent(nId)}&base=${encodeURIComponent(baseUrl)}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
         districtListContainer.setAttribute('hx-get', url);
-
 
         // Listen for HTMX swap completion (one-time listener)
         const handleSwap = () => {
+          attachCheckboxHandlers();
+
           // Show dropdown after districts are loaded
           districtDropdown?.classList.remove('hidden');
 

@@ -44,14 +44,24 @@ export function parseListingUrl(
     // Otherwise it might be a property type slug - handled later
   }
 
-  // Parse location (arg2) - SINGLE location only (v1 format)
-  // Note: Multi-location selection via 'addresses' param is NOT supported
+  // Parse location (arg2) - primary location from URL path
   const locationSlug = slugParts.length > 1 ? slugParts[1] : null;
 
-  // Store single location for resolution in page component
+  // Store primary location for resolution in page component
   if (locationSlug && locationSlug !== 'toan-quoc') {
     // @ts-expect-error - temporary storage for batch resolution
-    filters._locationSlugs = [locationSlug]; // Single location only
+    filters._locationSlugs = [locationSlug];
+  }
+
+  // Parse addresses query param for multi-location support (v1 compatible)
+  // Example: ?addresses=quan-hoan-kiem-thanh-pho-ha-noi,quan-ba-dinh-thanh-pho-ha-noi
+  const addressesParam = searchParams.get('addresses');
+  if (addressesParam) {
+    const additionalSlugs = addressesParam.split(',').filter(Boolean);
+    console.log('[URL Parser] addresses param:', addressesParam);
+    console.log('[URL Parser] parsed additional slugs:', additionalSlugs);
+    // @ts-expect-error - temporary storage for batch resolution
+    filters._additionalLocationSlugs = additionalSlugs;
   }
 
   // Parse price slug (arg3)
@@ -118,6 +128,13 @@ export function parseListingUrl(
   const districtIds = searchParams.get('district_ids');
   if (districtIds) {
     filters.districtIds = districtIds.split(',').filter(id => id.trim().length > 0);
+  }
+
+  // District slugs (for multi-select UI)
+  const districtSlugs = searchParams.get('districts');
+  if (districtSlugs) {
+    // @ts-expect-error - temporary storage for batch resolution in page component
+    filters._districtSlugs = districtSlugs.split(',').filter(slug => slug.trim().length > 0);
   }
 
   // Keyword search

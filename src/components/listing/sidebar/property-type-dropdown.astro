@@ -207,9 +207,23 @@ function getTypeIcon(slug: string): string {
         }
       }
 
-      // Update count on checkbox change
+      // Update count on checkbox change AND notify parent
       checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', updateSelectedCount);
+        checkbox.addEventListener('change', () => {
+          updateSelectedCount();
+
+          // Dispatch event to notify parent of current selection (even without clicking "Áp dụng")
+          const currentSelectedIds = Array.from(checkboxes)
+            .filter(cb => cb.checked)
+            .map(cb => parseInt(cb.value));
+
+          console.log('[property-type-dropdown] Checkbox changed, current selection:', currentSelectedIds);
+
+          container.dispatchEvent(new CustomEvent('property-types-changed', {
+            detail: { selectedIds: currentSelectedIds },
+            bubbles: true,
+          }));
+        });
       });
 
       // Reset button
@@ -224,11 +238,16 @@ function getTypeIcon(slug: string): string {
           .filter(cb => cb.checked)
           .map(cb => parseInt(cb.value));
 
+        console.log('[property-type-dropdown] Apply button clicked, selectedIds:', selectedIds);
+        console.log('[property-type-dropdown] Dispatching event from container:', container);
+
         // Dispatch custom event
         container.dispatchEvent(new CustomEvent('apply-property-types', {
           detail: { selectedIds },
           bubbles: true,
         }));
+
+        console.log('[property-type-dropdown] Event dispatched');
 
         // Close dropdown
         isOpen = false;

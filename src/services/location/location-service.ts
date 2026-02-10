@@ -369,6 +369,8 @@ export async function resolveLocationSlugs(
   slug: string;
   type: 'province' | 'district';
   provinceId?: string; // For districts only
+  lat?: number;        // For radius search
+  lon?: number;        // For radius search
 }>> {
   if (slugs.length === 0) return [];
 
@@ -385,6 +387,7 @@ export async function resolveLocationSlugs(
         provinceId: locations.nParentid,
         aactive: locations.aactive,
         nStatus: locations.nStatus,
+        nLatlng: locations.nLatlng,
       })
       .from(locations)
       .where(
@@ -404,7 +407,8 @@ export async function resolveLocationSlugs(
         slugV1: rows[0].slugV1,
         level: rows[0].level,
         aactive: rows[0].aactive,
-        nStatus: rows[0].nStatus
+        nStatus: rows[0].nStatus,
+        nLatlng: rows[0].nLatlng
       });
     }
 
@@ -412,12 +416,29 @@ export async function resolveLocationSlugs(
       // Determine which slug matched (prefer V1 slug for backward compatibility)
       const matchedSlug = slugs.find(s => s === row.slugV1 || s === row.slug) || row.slug || '';
 
+      // Parse lat/lon from nLatlng string (format: "lat,lng")
+      let lat: number | undefined;
+      let lon: number | undefined;
+      if (row.nLatlng) {
+        const parts = row.nLatlng.split(',');
+        if (parts.length === 2) {
+          const parsedLat = parseFloat(parts[0].trim());
+          const parsedLon = parseFloat(parts[1].trim());
+          if (!isNaN(parsedLat) && !isNaN(parsedLon)) {
+            lat = parsedLat;
+            lon = parsedLon;
+          }
+        }
+      }
+
       return {
         nId: row.nId || '',
         name: row.name || '',
         slug: matchedSlug,
         type: row.level === 'TinhThanh' ? 'province' : 'district',
-        ...(row.level === 'QuanHuyen' && { provinceId: row.provinceId || '' })
+        ...(row.level === 'QuanHuyen' && { provinceId: row.provinceId || '' }),
+        ...(lat !== undefined && { lat }),
+        ...(lon !== undefined && { lon })
       };
     });
 

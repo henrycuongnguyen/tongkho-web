@@ -93,37 +93,80 @@ if (isPropertyTypeUrl && propertyTypeFromFirstSegment) {
   }
 }
 
-// Resolve location slug to nId (SINGLE location only - v1 format)
+// Resolve location slugs - primary from path + additional from addresses query param (v1 compatible)
 // @ts-expect-error - temp storage from parser
 const locationSlugs = filters._locationSlugs || [];
-const resolvedLocations = locationSlugs.length > 0
-  ? await resolveLocationSlugs(locationSlugs)
+// @ts-expect-error - temp storage from parser
+const additionalLocationSlugs = filters._additionalLocationSlugs || [];
+
+// Merge all location slugs for batch resolution
+const allLocationSlugs = [...locationSlugs, ...additionalLocationSlugs];
+console.log('[Page] All location slugs to resolve:', allLocationSlugs);
+
+const resolvedLocations = allLocationSlugs.length > 0
+  ? await resolveLocationSlugs(allLocationSlugs)
   : [];
 
-// Take ONLY the first location (single-select enforcement)
+console.log('[Page] Resolved locations:', resolvedLocations.map(l => ({ slug: l.slug, type: l.type, nId: l.nId })));
+
+// Primary location is the first one (from URL path)
 const selectedLocation = resolvedLocations[0] || null;
 
+// Resolve district slugs from query param (multi-select support)
+// @ts-expect-error - temp storage from parser
+const districtSlugs = filters._districtSlugs || [];
+const resolvedDistricts = districtSlugs.length > 0
+  ? await resolveLocationSlugs(districtSlugs)
+  : [];
+
 // Set district filter (always use district_id for ES compatibility)
-// When province selected, get all districts and query by district_id
-// (ES docs have district_id but not province_id field)
-if (selectedLocation) {
-  if (selectedLocation.type === 'province') {
-    // Get all districts for this province
-    const districts = await getDistrictsByProvinceNId(selectedLocation.nId);
-    const districtNIds = districts.map(d => d.nId).filter(Boolean) as string[];
-    filters.districtIds = districtNIds;
-    console.log('[Page] Province selected, querying by district IDs:', districtNIds.length, 'districts');
-  } else if (selectedLocation.type === 'district') {
-    filters.districtIds = [selectedLocation.nId];
-    console.log('[Page] District selected:', selectedLocation.nId);
+// Priority: explicit district slugs > resolved locations (multi-location support)
+if (resolvedDistricts.length > 0) {
+  // Explicit district selection via query param (multi-select)
+  filters.districtIds = resolvedDistricts.map(d => d.nId).filter(Boolean) as string[];
+  console.log('[Page] Multi-district selection:', filters.districtIds.length, 'districts');
+} else if (resolvedLocations.length > 0) {
+  // Collect districts from resolved locations (v1 compatible multi-location logic)
+  const districtNIds = new Set<string>();
+  const hasDistrictsInLocations = resolvedLocations.some(l => l.type === 'district');
+
+  for (const location of resolvedLocations) {
+    if (location.type === 'district') {
+      // Add district directly
+      districtNIds.add(location.nId);
+    } else if (location.type === 'province' && !hasDistrictsInLocations) {
+      // ONLY expand province to all districts if NO specific districts are provided
+      // (i.e., only province in path, no addresses param with districts)
+      const districts = await getDistrictsByProvinceNId(location.nId);
+      districts.forEach(d => {
+        if (d.nId) districtNIds.add(d.nId);
+      });
+    }
   }
+
+  filters.districtIds = Array.from(districtNIds);
+  console.log('[Page] Merged districts from', resolvedLocations.length, 'locations:', filters.districtIds.length, 'total districts', hasDistrictsInLocations ? '(specific districts only)' : '(all districts from province)');
+}
+
+// Extract center coordinates for radius search (from primary location)
+if (filters.radius && selectedLocation?.lat && selectedLocation?.lon) {
+  filters.centerLat = selectedLocation.lat;
+  filters.centerLon = selectedLocation.lon;
+  console.log('[Page] Radius search enabled:', filters.radius, 'km from', selectedLocation.lat, selectedLocation.lon);
 }
 
 // Store selected location for UI display (single location only)
 const selectedLocations = selectedLocation ? [selectedLocation] : [];
 
+// Store selected districts for UI display (multi-select support)
+const selectedDistrictsList = resolvedDistricts.length > 0 ? resolvedDistricts : [];
+
 // @ts-expect-error - cleanup temp storage
 delete filters._locationSlugs;
+// @ts-expect-error - cleanup temp storage
+delete filters._additionalLocationSlugs;
+// @ts-expect-error - cleanup temp storage
+delete filters._districtSlugs;
 
 // Get provinces with property counts and images (V1-compatible)
 // Default to old addresses (useNew=false) to match v1 behavior
@@ -131,15 +174,23 @@ const provinces = await getAllProvincesWithCount(undefined, false);
 
 // Extract province and district slugs from selected locations
 let currentProvinceSlug = '';
-let currentDistrictSlug = '';
+let currentDistrictSlugs: string[] = [];
 
-if (selectedLocation) {
+if (resolvedDistricts.length > 0) {
+  // Multi-district selection from query param
+  currentDistrictSlugs = resolvedDistricts.map(d => d.slug);
+  // Get province from first district
+  if (resolvedDistricts[0].provinceId) {
+    const parentProvince = provinces.find(p => p.nId === resolvedDistricts[0].provinceId);
+    currentProvinceSlug = parentProvince?.slug || '';
+  }
+} else if (selectedLocation) {
   if (selectedLocation.type === 'province') {
     // User selected province directly
     currentProvinceSlug = selectedLocation.slug;
   } else if (selectedLocation.type === 'district') {
-    // User selected district - get parent province slug
-    currentDistrictSlug = selectedLocation.slug;
+    // User selected single district from URL path
+    currentDistrictSlugs = [selectedLocation.slug];
     if (selectedLocation.provinceId) {
       // Find province by nId to get slug
       const parentProvince = provinces.find(p => p.nId === selectedLocation.provinceId);
@@ -224,7 +275,7 @@ function buildSortUrl(sortOption: string): string {
     }))}
     provinces={provinces}
     currentProvince={currentProvinceSlug}
-    currentDistrict={currentDistrictSlug}
+    currentDistricts={currentDistrictSlugs}
     currentFilters={{
       propertyTypes: filters.propertyTypes,
       minPrice: filters.minPrice?.toString(),
