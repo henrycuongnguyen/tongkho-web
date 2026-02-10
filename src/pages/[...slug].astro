@@ -14,6 +14,7 @@ import { searchProperties } from '@/services/elasticsearch/property-search-servi
 import { resolveLocationSlugs, getAllProvincesWithCount } from '@/services/location/location-service';
 import { fetchPropertyTypesByTransaction } from '@/services/menu-service';
 import { getFeaturedProjects } from '@/services/featured-project-service';
+import { getSideBlock } from '@/services/get-side-block-service';
 import { parseListingUrl, getPageTitle, getPageDescription } from '@/utils/listing-url-parser';
 import type { PropertySearchFilters } from '@/services/elasticsearch/types';
 
@@ -147,10 +148,31 @@ const propertyTypeName = propertyTypeFromSlug?.title || (
     : ''
 );
 
-// Parallel queries - fetch properties and featured projects simultaneously (SSG optimization)
-const [searchResult, featuredProjects] = await Promise.all([
+// Build pattern for sidebar location filter (same logic as LocationFilterCard)
+let sideBlockPattern: string | null = null;
+const isTransactionUrl = VALID_TRANSACTIONS.includes(slug?.split('/')[0] || '');
+const shouldHideForTransactionOnly = isTransactionUrl && !selectedLocation;
+
+if (!shouldHideForTransactionOnly) {
+  // Build pattern from property type and location
+  const propertyTypeSlug = propertyTypeFromSlug?.slug || slugParts[0];
+  const locationSlug = selectedLocation?.slug;
+
+  if (locationSlug) {
+    sideBlockPattern = `${propertyTypeSlug}/${locationSlug}`;
+  } else {
+    sideBlockPattern = propertyTypeSlug || 'mua-ban';
+  }
+}
+
+// Parallel queries - fetch properties, featured projects, and sidebar data simultaneously (SSG optimization)
+const [searchResult, featuredProjects, sideBlocks] = await Promise.all([
   searchProperties(filters),
   getFeaturedProjects(5),
+  sideBlockPattern ? getSideBlock({ pattern: sideBlockPattern }).catch(err => {
+    console.error('[Page] Failed to load side blocks:', err);
+    return [];
+  }) : Promise.resolve([]),
 ]);
 const { hits: properties, total, took } = searchResult;
 
@@ -255,6 +277,6 @@ function buildSortUrl(sortOption: string): string {
 
   <!-- Sidebar -->
   <Fragment slot="sidebar">
-    <SidebarWrapper filters={filters} featuredProjects={featuredProjects} />
+    <SidebarWrapper filters={filters} featuredProjects={featuredProjects} sideBlocks={sideBlocks} />
   </Fragment>
 </ListingWithSidebarLayout>

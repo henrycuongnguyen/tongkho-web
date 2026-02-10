@@ -1,89 +1,25 @@
 ---
 /**
  * Location Filter Card (V1-Compatible SSR Component)
- * Uses Elasticsearch aggregations for accurate property counts
+ * Uses pre-fetched Elasticsearch aggregations for accurate property counts
  * Hierarchical location filters: Provinces → Districts → Wards
  */
-import { getSideBlock } from '@/services/get-side-block-service';
 import type { SideBlock } from '@/services/get-side-block-service';
+
+interface Props {
+  sideBlocks?: SideBlock[];
+}
+
+const { sideBlocks = [] } = Astro.props;
 
 // Parse URL context
 const url = Astro.url;
-const pathSegments = url.pathname.split('/').filter(Boolean);
-
-// Detect property_type and location from URL
-// Patterns:
-// - /mua-ban → transaction only
-// - /mua-ban/ha-noi → transaction + location
-// - /can-ho-chung-cu → property_type only
-// - /can-ho-chung-cu/ha-noi → property_type + location
-let propertyTypeSlug: string | null = null;
-let locationSlug: string | null = null;
-
-// Check if first segment is transaction type
-const VALID_TRANSACTIONS = ['mua-ban', 'cho-thue', 'du-an'];
-const isTransactionUrl = VALID_TRANSACTIONS.includes(pathSegments[0]);
-
-if (isTransactionUrl) {
-  // Transaction-based URL
-  propertyTypeSlug = pathSegments[0];
-  if (pathSegments.length > 1 && !pathSegments[1].startsWith('gia-') && pathSegments[1] !== 'toan-quoc') {
-    locationSlug = pathSegments[1];
-  }
-} else if (pathSegments.length > 0) {
-  // Property type-based URL (v1 format)
-  propertyTypeSlug = pathSegments[0];
-  if (pathSegments.length > 1 && !pathSegments[1].startsWith('gia-') && pathSegments[1] !== 'toan-quoc') {
-    locationSlug = pathSegments[1];
-  }
-}
-
-// V1 doesn't support transaction-only URLs (e.g., /mua-ban without property type)
-// Hide card in this case
-const shouldHideForTransactionOnly = isTransactionUrl && !locationSlug;
-
-// Build pattern for getSideBlock
-let pattern: string;
-if (locationSlug) {
-  pattern = `${propertyTypeSlug}/${locationSlug}`;
-} else {
-  pattern = propertyTypeSlug || 'mua-ban';
-}
-
-console.log('[LocationFilterCard] Pattern:', pattern);
-
-// Get side block data (with Elasticsearch aggregations)
-let sideBlocks: SideBlock[] = [];
-let hasError = false;
-
-// Skip API call if transaction-only URL (not supported by v1)
-if (!shouldHideForTransactionOnly) {
-  try {
-    sideBlocks = await getSideBlock({ pattern });
-    console.log('[LocationFilterCard] Side blocks loaded:', {
-      blocksCount: sideBlocks.length,
-      firstBlock: sideBlocks[0] ? {
-        title: sideBlocks[0].title,
-        filtersCount: sideBlocks[0].filters.length
-      } : null
-    });
-  } catch (error: any) {
-    console.error('[LocationFilterCard] Failed to load side block:', error);
-
-    // Only show error for unexpected failures (not "pattern missing detail")
-    if (!error.message?.includes('Pattern missing') && !error.message?.includes('Property type not found')) {
-      hasError = true;
-    }
-  }
-}
 
 // Extract first block (we only show one block in this card)
 const block = sideBlocks.length > 0 ? sideBlocks[0] : null;
 
-// Hide card if:
-// - Transaction-only URL (not supported by v1)
-// - No block and no error
-const shouldHideCard = shouldHideForTransactionOnly || (!hasError && !block);
+// Hide card if no block
+const shouldHideCard = !block;
 
 // Helper: Check if item is active
 function isActive(itemUrl: string): boolean {
@@ -112,15 +48,8 @@ const hasMoreItems = block ? block.filters.length > maxItems : false;
     </h3>
   )}
 
-  {/* Error state */}
-  {hasError && (
-    <div class="text-sm text-secondary-500 text-center py-4">
-      Không thể tải danh sách khu vực
-    </div>
-  )}
-
   {/* Location list */}
-  {!hasError && block && block.filters.length > 0 && (
+  {block && block.filters.length > 0 && (
     <div class="space-y-1">
       {block.filters.map((filter, idx) => (
       <div

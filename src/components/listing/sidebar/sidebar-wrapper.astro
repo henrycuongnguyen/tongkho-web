@@ -6,6 +6,7 @@
 import type { PropertySearchFilters } from '@/services/elasticsearch/types';
 import type { SidebarFilterBlock } from '@/services/sidebar-filter-service';
 import type { FeaturedProject } from '@/services/featured-project-service';
+import type { SideBlock } from '@/services/get-side-block-service';
 import QuickContactBanner from './quick-contact-banner.astro';
 import LocationFilterCard from './location-filter-card.astro';
 import PriceRangeFilterCard from './price-range-filter-card.astro';
@@ -17,9 +18,10 @@ interface Props {
   filters: PropertySearchFilters;
   dynamicFilterBlocks?: SidebarFilterBlock[];
   featuredProjects?: FeaturedProject[];
+  sideBlocks?: SideBlock[];
 }
 
-const { filters, dynamicFilterBlocks = [], featuredProjects = [] } = Astro.props;
+const { filters, dynamicFilterBlocks = [], featuredProjects = [], sideBlocks = [] } = Astro.props;
 ---
 
 <div class="space-y-4">
@@ -38,7 +40,7 @@ const { filters, dynamicFilterBlocks = [], featuredProjects = [] } = Astro.props
   )}
 
   <!-- Location Filter (SSR) -->
-  <LocationFilterCard />
+  <LocationFilterCard sideBlocks={sideBlocks} />
 
   <!-- Featured Projects -->
   <FeaturedProjectBanner projects={featuredProjects} />
