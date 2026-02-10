@@ -338,3 +338,10 @@ export function getPageDescription(filters: PropertySearchFilters, total: number
   const type = typeNames[filters.transactionType] || 'bất động sản';
   return `Tìm thấy ${total.toLocaleString('vi-VN')} kết quả ${type}. Cập nhật mới nhất trên Tongkho BĐS.`;
 }
+
+/**
+ * Export v1-compatible URL builder functions
+ * Direct port from reference/resaland_v1/static/js/module/search-url-builder.js
+ */
+export { buildSearchUrl, buildPropertyTypeSlugMap } from '@/services/url/search-url-builder';
+export { convertPriceToSlug, buildSlugFromPrice, isAPriceOption } from '@/services/url/price-slug-converter';

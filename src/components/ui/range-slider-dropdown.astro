@@ -445,6 +445,13 @@ const finalName = name ?? type;
         minVal = Number(btn.dataset.min);
         maxVal = Number(btn.dataset.max);
         updateUI();
+
+        // Dispatch event to trigger search
+        const event = new CustomEvent('area-filter-changed', {
+          detail: { min: minVal, max: maxVal },
+          bubbles: true
+        });
+        dropdown.dispatchEvent(event);
       });
     });
 

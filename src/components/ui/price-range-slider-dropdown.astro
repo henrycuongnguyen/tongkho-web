@@ -371,6 +371,13 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
             sliderMax.value = max.toString();
 
             updateDisplays(min, max);
+
+            // Dispatch event to trigger search
+            const event = new CustomEvent('price-filter-changed', {
+              detail: { min, max },
+              bubbles: true
+            });
+            container.dispatchEvent(event);
           }
         });
       });
