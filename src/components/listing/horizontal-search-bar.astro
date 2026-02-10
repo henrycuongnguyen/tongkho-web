@@ -88,104 +88,106 @@ const currentMaxPrice = currentFilters.maxPrice
   : undefined;
 ---
 
-<div class="horizontal-search-bar relative py-4 top-0 z-[60]">
+<div class="horizontal-search-bar relative py-2 top-0 z-[60]">
   <div class="">
-    <div class="flex items-center gap-3 flex-wrap lg:flex-nowrap relative z-10" data-search-bar data-base-url={baseUrl} data-current-province-nid={selectedProvince?.nId || ''} data-current-province-slug={selectedProvince?.slug || ''}>
-      <!-- Location Dropdown -->
-      <div class="relative flex-1 min-w-[200px]">
-        <button
-          type="button"
-          class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
-          data-location-trigger
-        >
-          <div class="flex items-center gap-2">
-            <svg class="w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-            <span class="truncate text-secondary-700 font-medium" data-location-display>
-              {selectedProvince ? selectedProvince.name : 'Hà Nội'}
-            </span>
-          </div>
-          <svg class="w-4 h-4 text-secondary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-          </svg>
-        </button>
-
-        <!-- Province Dropdown Panel -->
-        <ProvinceModal
-          provinces={provinces}
-          featuredProvinces={featuredProvinces}
-          baseUrl={baseUrl}
-          currentProvince={currentProvince}
-        />
-      </div>
-
-      <!-- Keyword Search with District Dropdown -->
-      <div class="flex-[2] min-w-[250px]">
+    <div class="flex items-center gap-0 flex-wrap lg:flex-nowrap relative z-10" data-search-bar data-base-url={baseUrl} data-current-province-nid={selectedProvince?.nId || ''} data-current-province-slug={selectedProvince?.slug || ''}>
+      <!-- Unified Search Container: Province Selector + Search Input -->
+      <div class="flex items-stretch flex-[4] min-w-[450px] border border-secondary-300 rounded-lg bg-white hover:border-primary-400 transition-all focus-within:border-primary-400">
+        <!-- Location Dropdown -->
         <div class="relative">
+          <button
+            type="button"
+            class="h-full px-4 py-2.5 bg-white text-sm text-left flex items-center justify-between gap-2 transition-colors focus:outline-none border-r border-secondary-200 rounded-l-lg hover:bg-secondary-50"
+            data-location-trigger
+          >
+            <div class="flex items-center gap-2 whitespace-nowrap">
+              <svg class="w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span class="text-secondary-700 font-medium" data-location-display>
+                {selectedProvince ? selectedProvince.name : 'Hà Nội'}
+              </span>
+            </div>
+            <svg class="w-4 h-4 text-secondary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Province Dropdown Panel -->
+          <ProvinceModal
+            provinces={provinces}
+            featuredProvinces={featuredProvinces}
+            baseUrl={baseUrl}
+            currentProvince={currentProvince}
+          />
+        </div>
+
+        <!-- Keyword Search with District Dropdown -->
+        <div class="flex-1 relative">
           <input
             type="text"
             placeholder="Tìm kiếm theo quận/huyện hoặc từ khóa"
-            class="w-full px-4 py-2.5 pl-10 border border-secondary-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-400"
+            class="w-full h-full px-4 py-2.5 pl-10 bg-transparent text-sm focus:outline-none rounded-r-lg"
             data-keyword-input
             data-district-search-input
             value={currentFilters.keyword || ''}
             autocomplete="off"
           />
-          <svg class="w-5 h-5 text-secondary-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <svg class="w-5 h-5 text-secondary-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
 
-          <!-- District/Search Results Dropdown -->
-          <div
-            class="absolute top-full left-0 w-[900px] mt-2 bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden max-h-[420px] overflow-y-auto"
-            data-district-dropdown
+        </div>
+      </div>
+
+      <!-- District/Search Results Dropdown (outside unified container) -->
+      <div
+        class="absolute top-full left-0 w-[900px] mt-2 bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden max-h-[420px] overflow-y-auto"
+        data-district-dropdown
+      >
+        <!-- Header with Province Name -->
+        <div class="px-5 py-3 border-b border-secondary-100 flex items-center justify-between sticky top-0 bg-white z-10">
+          <h5 class="text-sm font-semibold text-secondary-800">
+            Quận/Huyện tại <span data-province-name-display></span>
+          </h5>
+          <button
+            type="button"
+            class="text-xs text-secondary-400 hover:text-secondary-600 transition-colors"
+            data-close-district-dropdown
           >
-            <!-- Header with Province Name -->
-            <div class="px-5 py-3 border-b border-secondary-100 flex items-center justify-between sticky top-0 bg-white z-10">
-              <h5 class="text-sm font-semibold text-secondary-800">
-                Quận/Huyện tại <span data-province-name-display></span>
-              </h5>
-              <button
-                type="button"
-                class="text-xs text-secondary-400 hover:text-secondary-600 transition-colors"
-                data-close-district-dropdown
-              >
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
-            <!-- District List Container (populated via HTMX) - Layout switches between grid/list -->
-            <div
-              data-district-list-container
-              hx-swap="innerHTML"
-              class="px-5 py-4"
-            >
-              <!-- Districts (grid) or search results (list) will be loaded here -->
-            </div>
+        <!-- District List Container (populated via HTMX) - Layout switches between grid/list -->
+        <div
+          data-district-list-container
+          hx-swap="innerHTML"
+          class="px-5 py-4"
+        >
+          <!-- Districts (grid) or search results (list) will be loaded here -->
+        </div>
 
-            <!-- Loading State -->
-            <div class="px-5 py-6 text-sm text-secondary-500 text-center hidden" data-district-loading>
-              <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary-500"></div>
-              <span class="ml-2">Đang tải quận/huyện...</span>
-            </div>
+        <!-- Loading State -->
+        <div class="px-5 py-6 text-sm text-secondary-500 text-center hidden" data-district-loading>
+          <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary-500"></div>
+          <span class="ml-2">Đang tải quận/huyện...</span>
+        </div>
 
-            <!-- Empty State -->
-            <div class="px-5 py-6 text-sm text-secondary-500 text-center hidden" data-district-empty>
-              Không tìm thấy quận/huyện
-            </div>
-          </div>
+        <!-- Empty State -->
+        <div class="px-5 py-6 text-sm text-secondary-500 text-center hidden" data-district-empty>
+          Không tìm thấy quận/huyện
         </div>
       </div>
 
       <!-- Property Type Dropdown -->
-      <div class="relative flex-1 min-w-[180px]">
+      <div class="relative w-[200px] ml-3">
         <button
           type="button"
-          class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+          class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:border-primary-400"
           data-property-type-trigger
         >
           <span class="truncate text-secondary-700 font-medium" data-property-type-display>
@@ -252,7 +254,7 @@ const currentMaxPrice = currentFilters.maxPrice
       </div>
 
       <!-- Price Range Dropdown with Slider -->
-      <div class="flex-1 min-w-[180px]">
+      <div class="w-[200px] ml-3">
         <PriceRangeSliderDropdown
           transactionType={transactionType}
           currentMin={currentMinPrice}
@@ -263,7 +265,7 @@ const currentMaxPrice = currentFilters.maxPrice
       <!-- Advanced Filters Toggle Button -->
       <button
         type="button"
-        class="px-3 py-2.5 border border-secondary-300 rounded-lg bg-white hover:bg-secondary-50 transition-colors shrink-0"
+        class="px-3 py-2.5 border border-secondary-300 rounded-lg bg-white hover:bg-secondary-50 transition-colors shrink-0 ml-3"
         title="Bộ lọc nâng cao"
         data-advanced-filter-toggle
       >
@@ -275,7 +277,7 @@ const currentMaxPrice = currentFilters.maxPrice
       <!-- Search Button -->
       <button
         type="button"
-        class="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shrink-0"
+        class="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shrink-0 ml-3"
         data-search-submit
       >
         <span>Tìm kiếm</span>
@@ -289,7 +291,7 @@ const currentMaxPrice = currentFilters.maxPrice
     <div class="hidden pt-3 border-t border-secondary-100 mt-3" data-advanced-filters-row>
       <div class="flex items-center gap-3 flex-wrap">
         <!-- Area Filter with Slider -->
-        <div class="flex-1 min-w-[180px]">
+        <div class="w-[200px]">
           <RangeSliderDropdown
             type="area"
             name="area"
@@ -302,7 +304,7 @@ const currentMaxPrice = currentFilters.maxPrice
         <div class="flex-1 min-w-[150px] relative" data-filter-group="radius">
           <button
             type="button"
-            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:border-primary-400"
             data-radius-trigger
           >
             <span class="text-secondary-700 font-medium" data-radius-display>Bán kính</span>
@@ -369,7 +371,7 @@ const currentMaxPrice = currentFilters.maxPrice
         <div class="flex-1 min-w-[150px] relative" data-filter-group="bathrooms">
           <button
             type="button"
-            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:border-primary-400"
             data-bathrooms-trigger
           >
             <span class="text-secondary-700 font-medium" data-bathrooms-display>Phòng tắm</span>
@@ -444,7 +446,7 @@ const currentMaxPrice = currentFilters.maxPrice
         <div class="flex-1 min-w-[150px] relative" data-filter-group="bedrooms">
           <button
             type="button"
-            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:ring-2 focus:ring-primary-500"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:border-primary-400"
             data-bedrooms-trigger
           >
             <span class="text-secondary-700 font-medium" data-bedrooms-display>Phòng ngủ</span>
