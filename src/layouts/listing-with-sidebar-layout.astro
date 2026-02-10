@@ -38,3 +38,15 @@ const { title, description, image, canonicalUrl } = Astro.props;
   </main>
   <Footer />
 </BaseLayout>
+
+<!-- Load Swiper globally for this layout (used by featured projects banner) -->
+<script>
+  import Swiper from 'swiper';
+  import { Autoplay } from 'swiper/modules';
+
+  // Export to global scope for API-loaded content to use
+  if (typeof window !== 'undefined') {
+    (window as any).Swiper = Swiper;
+    (window as any).SwiperModules = { Autoplay };
+  }
+</script>

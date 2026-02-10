@@ -13,6 +13,7 @@ import SidebarWrapper from '@/components/listing/sidebar/sidebar-wrapper.astro';
 import { searchProperties } from '@/services/elasticsearch/property-search-service';
 import { resolveLocationSlugs, getAllProvincesWithCount } from '@/services/location/location-service';
 import { fetchPropertyTypesByTransaction } from '@/services/menu-service';
+import { getFeaturedProjects } from '@/services/featured-project-service';
 import { parseListingUrl, getPageTitle, getPageDescription } from '@/utils/listing-url-parser';
 import type { PropertySearchFilters } from '@/services/elasticsearch/types';
 
@@ -145,8 +146,11 @@ const propertyTypeName = propertyTypeFromSlug?.title || (
     : ''
 );
 
-// Query ElasticSearch
-const searchResult = await searchProperties(filters);
+// Parallel queries - fetch properties and featured projects simultaneously (SSG optimization)
+const [searchResult, featuredProjects] = await Promise.all([
+  searchProperties(filters),
+  getFeaturedProjects(5),
+]);
 const { hits: properties, total, took } = searchResult;
 
 // Build metadata
@@ -250,6 +254,6 @@ function buildSortUrl(sortOption: string): string {
 
   <!-- Sidebar -->
   <Fragment slot="sidebar">
-    <SidebarWrapper filters={filters} />
+    <SidebarWrapper filters={filters} featuredProjects={featuredProjects} />
   </Fragment>
 </ListingWithSidebarLayout>
