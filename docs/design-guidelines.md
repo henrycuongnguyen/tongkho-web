@@ -1,6 +1,6 @@
 # Design Guidelines
 
-**Last Updated:** 2026-02-09
+**Last Updated:** 2026-02-10
 **Project:** tongkho-web (Tongkho BDS)
 
 ## Z-Index Layering System
@@ -83,7 +83,55 @@ Consistent z-index hierarchy prevents visual conflicts and ensures proper stacki
 
 ## Components
 
-*To be documented*
+### Sidebar Filter Cards
+
+Consistent pattern for filter components in listing sidebar.
+
+**Structure:**
+```html
+<div class="bg-white rounded-lg shadow-sm border border-secondary-100 p-4">
+  <h3 class="font-semibold text-secondary-900 mb-4 text-base">Filter Title</h3>
+
+  <div class="space-y-1.5">
+    <a href="..." class="block px-3 py-2 text-sm rounded-lg transition-all
+                         text-secondary-800 hover:bg-secondary-50 hover:text-primary-600">
+      Filter Option
+    </a>
+  </div>
+</div>
+```
+
+**Styling Standards:**
+
+| Element | Classes | Purpose |
+|---------|---------|---------|
+| Container | `bg-white rounded-lg shadow-sm border border-secondary-100 p-4` | Card wrapper |
+| Title | `font-semibold text-secondary-900 mb-4 text-base` | Section header |
+| Items Container | `space-y-1.5` | Vertical spacing between options |
+| Filter Item (inactive) | `block px-3 py-2 text-sm text-secondary-800 hover:bg-secondary-50 hover:text-primary-600` | Default state |
+| Filter Item (active) | `bg-primary-50 text-primary-600 font-medium border-l-2 border-primary-500` | Selected state |
+
+**Color Specifications:**
+- Title: `#0f172a` (secondary-900) - 17.78:1 contrast ratio
+- Items: `#1e293b` (secondary-800) - 13.87:1 contrast ratio
+- Active: `#ea580c` (primary-600) on `#fff7ed` (primary-50)
+- Hover: Primary-600 text with secondary-50 background
+
+**Spacing:**
+- Card padding: `1rem` (16px)
+- Title bottom margin: `1rem` (16px)
+- Items vertical gap: `0.375rem` (6px)
+- Item padding: `0.75rem 0.5rem` (12px horizontal, 8px vertical)
+
+**Examples:**
+- Price Range Filter: `src/components/listing/sidebar/price-range-filter-card.astro`
+- Area Range Filter: `src/components/listing/sidebar/area-range-filter-card.astro`
+
+**Accessibility:**
+- All contrast ratios meet WCAG 2.1 AA standards
+- Touch targets minimum 44x44px
+- Interactive states clearly defined
+- Focus states inherit from Tailwind defaults
 
 ## Responsive Design
 
