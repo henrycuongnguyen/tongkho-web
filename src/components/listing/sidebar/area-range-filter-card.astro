@@ -61,17 +61,17 @@ function getClearAreaUrl(): string {
 ---
 
 <div class="bg-white rounded-lg shadow-sm border border-secondary-100 p-4">
-  <h3 class="font-semibold text-secondary-800 mb-3 text-base">Lọc theo diện tích</h3>
+  <h3 class="font-semibold text-secondary-900 mb-4 text-base">Lọc theo diện tích</h3>
 
-  <div class="space-y-1">
+  <div class="space-y-1.5">
     {AREA_RANGES.map((range) => (
       <a
         href={getRangeUrl(range)}
         class:list={[
-          'block px-3 py-2.5 text-sm rounded-lg transition-all',
+          'block px-3 py-2 text-sm rounded-lg transition-all',
           isActive(range)
             ? 'bg-primary-50 text-primary-600 font-medium border-l-2 border-primary-500'
-            : 'text-secondary-700 hover:bg-secondary-50 hover:text-primary-600'
+            : 'text-secondary-800 hover:bg-secondary-50 hover:text-primary-600'
         ]}
       >
         {range.label}
