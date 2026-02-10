@@ -187,6 +187,56 @@ export async function getDistrictsByProvinces(
 }
 
 /**
+ * Get districts by province nId with property counts (V1-compatible)
+ * Queries from locations table and gets counts from aggregate table
+ */
+export async function getDistrictsByProvinceNId(
+  provinceNId: string,
+  limit?: number
+): Promise<District[]> {
+  try {
+    // Get districts with searchCount from locations table (V1-compatible)
+    let query = db
+      .select({
+        id: locations.id,
+        nId: locations.nId,
+        name: locations.nName,
+        slug: locations.nSlug,
+        slugV1: locations.nSlugV1,
+        provinceId: locations.nParentid,
+        searchCount: locations.searchCount, // Use searchCount as property count
+      })
+      .from(locations)
+      .where(
+        and(
+          eq(locations.nParentid, provinceNId),
+          eq(locations.nLevel, 'QuanHuyen'),
+          ne(locations.nStatus, '6'),
+          eq(locations.aactive, true)
+        )
+      )
+      .orderBy(locations.displayOrder, locations.nName);
+
+    // Apply limit if specified
+    const rows = limit ? await query.limit(limit) : await query;
+
+    // Map to District type with searchCount as propertyCount
+    return rows.map(row => ({
+      id: row.id,
+      nId: row.nId || '',
+      name: row.name || '',
+      slug: row.slug || row.slugV1 || '', // Prefer modern slug, fallback to V1
+      provinceId: provinceNId,
+      propertyCount: Number(row.searchCount) || 0 // Use searchCount field
+    }));
+
+  } catch (error) {
+    console.error('[LocationService] Failed to load districts by province nId:', error);
+    return [];
+  }
+}
+
+/**
  * Build complete location hierarchy (for build-time generation)
  * Uses V1-compatible table for better performance
  */
@@ -220,11 +270,12 @@ export async function getProvinceBySlug(slug: string): Promise<Province | null> 
         nId: locations.nId,
         name: locations.nName,
         slug: locations.nSlug,
+        slugV1: locations.nSlugV1,
       })
       .from(locations)
       .where(
         and(
-          eq(locations.nSlug, slug),
+          sql`(${locations.nSlug} = ${slug} OR ${locations.nSlugV1} = ${slug})`,
           eq(locations.nLevel, 'TinhThanh'),
           ne(locations.nStatus, '6'),
           eq(locations.aactive, true)
@@ -275,12 +326,13 @@ export async function getDistrictBySlug(
         nId: locations.nId,
         name: locations.nName,
         slug: locations.nSlug,
+        slugV1: locations.nSlugV1,
         provinceId: locations.nParentid,
       })
       .from(locations)
       .where(
         and(
-          eq(locations.nSlug, districtSlug),
+          sql`(${locations.nSlug} = ${districtSlug} OR ${locations.nSlugV1} = ${districtSlug})`,
           eq(locations.nParentid, provinceNId),
           eq(locations.nLevel, 'QuanHuyen'),
           ne(locations.nStatus, '6'),
@@ -326,28 +378,213 @@ export async function resolveLocationSlugs(
         nId: locations.nId,
         name: locations.nName,
         slug: locations.nSlug,
+        slugV1: locations.nSlugV1,
         level: locations.nLevel,
         provinceId: locations.nParentid,
       })
       .from(locations)
       .where(
         and(
-          sql`${locations.nSlug} IN (${sql.join(slugs.map(s => sql`${s}`), sql`, `)})`,
+          sql`(${locations.nSlug} IN (${sql.join(slugs.map(s => sql`${s}`), sql`, `)}) OR ${locations.nSlugV1} IN (${sql.join(slugs.map(s => sql`${s}`), sql`, `)}))`,
           ne(locations.nStatus, '6'),
           eq(locations.aactive, true)
         )
       );
 
-    return rows.map(row => ({
-      nId: row.nId || '',
-      name: row.name || '',
-      slug: row.slug || '',
-      type: row.level === 'TinhThanh' ? 'province' : 'district',
-      ...(row.level === 'QuanHuyen' && { provinceId: row.provinceId || '' })
-    }));
+    return rows.map(row => {
+      // Determine which slug matched (prefer V1 slug for backward compatibility)
+      const matchedSlug = slugs.find(s => s === row.slugV1 || s === row.slug) || row.slug || '';
+
+      return {
+        nId: row.nId || '',
+        name: row.name || '',
+        slug: matchedSlug,
+        type: row.level === 'TinhThanh' ? 'province' : 'district',
+        ...(row.level === 'QuanHuyen' && { provinceId: row.provinceId || '' })
+      };
+    });
 
   } catch (error) {
     console.error('[LocationService] Failed to resolve location slugs:', error);
+    return [];
+  }
+}
+
+/**
+ * Get districts by province slug with property counts
+ * Queries locations_with_count_property for performance
+ * @param provinceSlug - Province slug to get districts for
+ * @param limit - Number of districts to return (default: all)
+ * @param useNewAddresses - true for modern addresses (default), false for legacy
+ */
+export async function getDistrictsByProvinceSlugWithCount(
+  provinceSlug: string,
+  limit?: number,
+  useNewAddresses = true
+): Promise<District[]> {
+  try {
+    // First, get the province to find its cityId
+    const province = await getProvinceBySlug(provinceSlug);
+    if (!province) {
+      console.warn(`[LocationService] Province not found: ${provinceSlug}`);
+      return [];
+    }
+
+    console.log('[LocationService] Province found:', {
+      slug: provinceSlug,
+      nId: province.nId,
+      name: province.name
+    });
+
+    // Query districts from locations_with_count_property
+    // Build all filter conditions
+    const conditions = [
+      eq(locationsWithCountProperty.cityId, province.nId),
+      ne(locationsWithCountProperty.districtId, ''), // Has district
+      isNull(locationsWithCountProperty.wardId), // No ward (district level)
+    ];
+
+    // Add mergedintoid filter if needed
+    if (useNewAddresses) {
+      conditions.push(isNull(locationsWithCountProperty.mergedintoid));
+    }
+
+    console.log('[LocationService] Query conditions:', {
+      cityId: province.nId,
+      useNewAddresses,
+      conditionsCount: conditions.length
+    });
+
+    // Build query with all conditions combined
+    const query = db
+      .select({
+        id: locationsWithCountProperty.id,
+        districtId: locationsWithCountProperty.districtId,
+        title: locationsWithCountProperty.title,
+        slug: locationsWithCountProperty.slug,
+        propertyCount: locationsWithCountProperty.propertyCount,
+        displayOrder: locationsWithCountProperty.displayOrder,
+        mergedintoid: locationsWithCountProperty.mergedintoid,
+      })
+      .from(locationsWithCountProperty)
+      .where(and(...conditions))
+      .orderBy(locationsWithCountProperty.displayOrder);
+
+    // Apply limit if specified
+    const rows = limit ? await query.limit(limit) : await query;
+
+    console.log('[LocationService] Districts query result:', {
+      rowCount: rows.length,
+      firstThree: rows.slice(0, 3).map(r => ({
+        title: r.title,
+        slug: r.slug,
+        mergedintoid: r.mergedintoid
+      }))
+    });
+
+    // Transform to District type
+    const districts: District[] = (rows as any[]).map((row: any) => ({
+      id: row.id,
+      nId: row.districtId || '',
+      name: row.title || '',
+      slug: row.slug || '',
+      provinceId: province.nId,
+      propertyCount: row.propertyCount || 0,
+    }));
+
+    return districts;
+
+  } catch (error) {
+    console.error('[LocationService] Failed to load districts with count:', error);
+    return [];
+  }
+}
+
+/**
+ * Get wards by district slug with property counts
+ * Queries locations_with_count_property for performance
+ * @param districtSlug - District slug to get wards for
+ * @param limit - Number of wards to return (default: all)
+ * @param useNewAddresses - true for modern addresses (default), false for legacy
+ */
+export async function getWardsByDistrictSlugWithCount(
+  districtSlug: string,
+  limit?: number,
+  useNewAddresses = true
+): Promise<Array<{
+  id: number;
+  nId: string;
+  name: string;
+  slug: string;
+  districtId: string;
+  propertyCount?: number;
+}>> {
+  try {
+    // First, resolve the district to get its districtId
+    const resolved = await resolveLocationSlugs([districtSlug]);
+    const district = resolved.find(r => r.type === 'district');
+
+    if (!district) {
+      console.warn(`[LocationService] District not found: ${districtSlug}`);
+      return [];
+    }
+
+    // Query wards from locations_with_count_property
+    console.log('[LocationService] Querying wards for district:', { districtSlug, districtNId: district.nId });
+
+    // Build all filter conditions
+    const conditions = [
+      eq(locationsWithCountProperty.districtId, district.nId),
+      ne(locationsWithCountProperty.wardId, ''), // Has ward
+    ];
+
+    // Add mergedintoid filter if needed
+    if (useNewAddresses) {
+      conditions.push(isNull(locationsWithCountProperty.mergedintoid));
+    }
+
+    // Build query with all conditions combined
+    const query = db
+      .select({
+        id: locationsWithCountProperty.id,
+        wardId: locationsWithCountProperty.wardId,
+        title: locationsWithCountProperty.title,
+        slug: locationsWithCountProperty.slug,
+        districtId: locationsWithCountProperty.districtId,
+        propertyCount: locationsWithCountProperty.propertyCount,
+        displayOrder: locationsWithCountProperty.displayOrder,
+        mergedintoid: locationsWithCountProperty.mergedintoid,
+      })
+      .from(locationsWithCountProperty)
+      .where(and(...conditions))
+      .orderBy(locationsWithCountProperty.displayOrder);
+
+    // Apply limit if specified
+    const rows = limit ? await query.limit(limit) : await query;
+
+    console.log('[LocationService] Raw query results (first 3):',
+      rows.slice(0, 3).map((r: any) => ({
+        title: r.title,
+        slug: r.slug,
+        wardId: r.wardId,
+        districtId: r.districtId
+      }))
+    );
+
+    // Transform to Ward type
+    const wards = (rows as any[]).map((row: any) => ({
+      id: row.id,
+      nId: row.wardId || '',
+      name: row.title || '',
+      slug: row.slug || '',
+      districtId: row.districtId || '',
+      propertyCount: row.propertyCount || 0,
+    }));
+
+    return wards;
+
+  } catch (error) {
+    console.error('[LocationService] Failed to load wards with count:', error);
     return [];
   }
 }

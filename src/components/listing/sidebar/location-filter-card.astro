@@ -1,89 +1,116 @@
 ---
 /**
- * Location Filter Card (SSR Component)
- * Fetches province data server-side and renders filter UI with property counts
+ * Location Filter Card (V1-Compatible SSR Component)
+ * Uses Elasticsearch aggregations for accurate property counts
+ * Hierarchical location filters: Provinces → Districts → Wards
  */
-import { getAllProvincesWithCount } from '@/services/location/location-service';
-import type { Province } from '@/services/location/types';
+import { getSideBlock } from '@/services/get-side-block-service';
+import type { SideBlock } from '@/services/get-side-block-service';
 
 // Parse URL context
 const url = Astro.url;
 const pathSegments = url.pathname.split('/').filter(Boolean);
 
-// Determine transaction type from URL
-const transactionSlug = pathSegments[0] || 'mua-ban';
-const transactionMap: Record<string, number> = {
-  'mua-ban': 1,
-  'cho-thue': 2,
-  'du-an': 3
-};
+// Detect property_type and location from URL
+// Patterns:
+// - /mua-ban → transaction only
+// - /mua-ban/ha-noi → transaction + location
+// - /can-ho-chung-cu → property_type only
+// - /can-ho-chung-cu/ha-noi → property_type + location
+let propertyTypeSlug: string | null = null;
+let locationSlug: string | null = null;
 
-// Validate transaction slug
-if (!['mua-ban', 'cho-thue', 'du-an'].includes(transactionSlug)) {
-  console.warn(`[LocationFilterCard] Invalid transaction slug: ${transactionSlug}, falling back to 'mua-ban'`);
+// Check if first segment is transaction type
+const VALID_TRANSACTIONS = ['mua-ban', 'cho-thue', 'du-an'];
+const isTransactionUrl = VALID_TRANSACTIONS.includes(pathSegments[0]);
+
+if (isTransactionUrl) {
+  // Transaction-based URL
+  propertyTypeSlug = pathSegments[0];
+  if (pathSegments.length > 1 && !pathSegments[1].startsWith('gia-') && pathSegments[1] !== 'toan-quoc') {
+    locationSlug = pathSegments[1];
+  }
+} else if (pathSegments.length > 0) {
+  // Property type-based URL (v1 format)
+  propertyTypeSlug = pathSegments[0];
+  if (pathSegments.length > 1 && !pathSegments[1].startsWith('gia-') && pathSegments[1] !== 'toan-quoc') {
+    locationSlug = pathSegments[1];
+  }
 }
 
-const transactionType = transactionMap[transactionSlug] || 1;
+// V1 doesn't support transaction-only URLs (e.g., /mua-ban without property type)
+// Hide card in this case
+const shouldHideForTransactionOnly = isTransactionUrl && !locationSlug;
 
-// Get current province from URL (if any)
-// Check if second segment is a province (not a price slug)
-let currentProvince: string | null = null;
-if (pathSegments.length > 1 && !pathSegments[1].startsWith('gia-') && pathSegments[1] !== 'toan-quoc') {
-  currentProvince = pathSegments[1];
+// Build pattern for getSideBlock
+let pattern: string;
+if (locationSlug) {
+  pattern = `${propertyTypeSlug}/${locationSlug}`;
+} else {
+  pattern = propertyTypeSlug || 'mua-ban';
 }
 
-// Fetch provinces with counts (server-side)
-const maxItems = 10;
-let provinces: Province[] = [];
+console.log('[LocationFilterCard] Pattern:', pattern);
+
+// Get side block data (with Elasticsearch aggregations)
+let sideBlocks: SideBlock[] = [];
 let hasError = false;
 
-try {
-  provinces = await getAllProvincesWithCount(20, true); // Get top 20 by display order
-} catch (error) {
-  console.error('[LocationFilterCard] Failed to load provinces:', error);
-  hasError = true;
-}
+// Skip API call if transaction-only URL (not supported by v1)
+if (!shouldHideForTransactionOnly) {
+  try {
+    sideBlocks = await getSideBlock({ pattern });
+    console.log('[LocationFilterCard] Side blocks loaded:', {
+      blocksCount: sideBlocks.length,
+      firstBlock: sideBlocks[0] ? {
+        title: sideBlocks[0].title,
+        filtersCount: sideBlocks[0].filters.length
+      } : null
+    });
+  } catch (error: any) {
+    console.error('[LocationFilterCard] Failed to load side block:', error);
 
-// Helper: Build province URL
-function buildProvinceUrl(provinceSlug: string): string {
-  // Encode slug for URL safety
-  const encodedSlug = encodeURIComponent(provinceSlug);
-  // Preserve query params if any
-  const searchParams = url.searchParams.toString();
-  const queryString = searchParams ? `?${searchParams}` : '';
-  return `/${transactionSlug}/${encodedSlug}${queryString}`;
-}
-
-// Helper: Check if province is active
-function isActive(provinceSlug: string): boolean {
-  return currentProvince === provinceSlug;
-}
-
-// Helper: Format count
-function formatCount(count: number): string {
-  if (count >= 1000) {
-    return `${(count / 1000).toFixed(1)}K`;
+    // Only show error for unexpected failures (not "pattern missing detail")
+    if (!error.message?.includes('Pattern missing') && !error.message?.includes('Property type not found')) {
+      hasError = true;
+    }
   }
-  return count.toString();
 }
 
-// Helper: Get clear filter URL
-function getClearUrl(): string {
+// Extract first block (we only show one block in this card)
+const block = sideBlocks.length > 0 ? sideBlocks[0] : null;
+
+// Hide card if:
+// - Transaction-only URL (not supported by v1)
+// - No block and no error
+const shouldHideCard = shouldHideForTransactionOnly || (!hasError && !block);
+
+// Helper: Check if item is active
+function isActive(itemUrl: string): boolean {
+  return url.pathname === itemUrl || url.pathname === itemUrl + '/';
+}
+
+// Helper: Preserve query params when building URL
+function buildItemUrl(baseUrl: string): string {
   const searchParams = url.searchParams.toString();
-  const queryString = searchParams ? `?${searchParams}` : '';
-  return `/${transactionSlug}${queryString}`;
+  return searchParams ? `${baseUrl}?${searchParams}` : baseUrl;
 }
 
-const hasMoreItems = provinces.length > maxItems;
+const maxItems = 10;
+const hasMoreItems = block ? block.filters.length > maxItems : false;
 ---
 
+{!shouldHideCard && (
 <div
   class="bg-white rounded-lg shadow-sm border border-secondary-100 p-4"
   data-location-filter-card
 >
-  <h3 class="font-semibold text-secondary-900 mb-4 text-base">
-    Khu vực nổi bật
-  </h3>
+  {/* Block Title */}
+  {block && (
+    <h3 class="font-semibold text-secondary-900 mb-4 text-base text-center">
+      {block.title}
+    </h3>
+  )}
 
   {/* Error state */}
   {hasError && (
@@ -92,17 +119,10 @@ const hasMoreItems = provinces.length > maxItems;
     </div>
   )}
 
-  {/* Empty state */}
-  {!hasError && provinces.length === 0 && (
-    <div class="text-sm text-secondary-500 text-center py-4">
-      Chưa có dữ liệu
-    </div>
-  )}
-
-  {/* Province list */}
-  {!hasError && provinces.length > 0 && (
+  {/* Location list */}
+  {!hasError && block && block.filters.length > 0 && (
     <div class="space-y-1">
-      {provinces.map((province, idx) => (
+      {block.filters.map((filter, idx) => (
       <div
         class:list={[
           'location-item',
@@ -110,20 +130,15 @@ const hasMoreItems = provinces.length > maxItems;
         ]}
       >
         <a
-          href={buildProvinceUrl(province.slug)}
+          href={buildItemUrl(filter.url)}
           class:list={[
             'flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all',
-            isActive(province.slug)
+            isActive(filter.url)
               ? 'bg-primary-50 text-primary-600 font-medium border-l-2 border-primary-500'
               : 'text-secondary-800 hover:bg-secondary-50 hover:text-primary-600'
           ]}
         >
-          <span class="truncate">{province.name}</span>
-          {province.propertyCount && province.propertyCount > 0 && (
-            <span class="text-secondary-400 text-xs ml-2 shrink-0">
-              ({formatCount(province.propertyCount)})
-            </span>
-          )}
+          <span class="truncate">{filter.title}</span>
         </a>
       </div>
       ))}
@@ -131,21 +146,21 @@ const hasMoreItems = provinces.length > maxItems;
   )}
 
   {/* Show More / Show Less */}
-  {hasMoreItems && (
+  {hasMoreItems && block && (
     <div class="mt-3 pt-3 border-t border-secondary-100">
       <button
         type="button"
-        class="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium w-full"
+        class="text-sm text-primary-600 hover:text-primary-700 flex items-center justify-center gap-1 font-medium w-full"
         data-location-show-more
       >
-        <span>Xem thêm ({provinces.length - maxItems})</span>
+        <span>Xem thêm ({block.filters.length - maxItems})</span>
         <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
       <button
         type="button"
-        class="hidden text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium w-full"
+        class="hidden text-sm text-primary-600 hover:text-primary-700 flex items-center justify-center gap-1 font-medium w-full"
         data-location-show-less
       >
         <span>Thu gọn</span>
@@ -156,18 +171,8 @@ const hasMoreItems = provinces.length > maxItems;
     </div>
   )}
 
-  {/* Clear filter (when on province page) */}
-  {currentProvince && (
-    <div class="mt-3 pt-3 border-t border-secondary-100">
-      <a
-        href={getClearUrl()}
-        class="block text-center text-sm text-primary-600 hover:text-primary-700 font-medium"
-      >
-        Xóa bộ lọc khu vực
-      </a>
-    </div>
-  )}
 </div>
+)}
 
 <script>
   // Expand/collapse logic (client-side)

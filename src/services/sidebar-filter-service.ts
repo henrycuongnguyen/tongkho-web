@@ -124,6 +124,7 @@ async function generatePropertyTypeBlock(
       .select({
         id: propertyType.id,
         title: propertyType.title,
+        vietnamese: propertyType.vietnamese,
         slug: propertyType.slug,
       })
       .from(propertyType)
@@ -143,9 +144,23 @@ async function generatePropertyTypeBlock(
 
     if (availableTypes.length === 0) return null;
 
+    // Build block title (V1-compatible)
+    let blockTitle = 'Loại hình khác';
+
+    // If a property type is selected, use V1-style title
+    if (currentIds.length === 1) {
+      const selectedType = types.find(t => t.id === currentIds[0]);
+      if (selectedType) {
+        blockTitle = buildPropertyTypeTitle(
+          params.transactionType,
+          selectedType.vietnamese || selectedType.title
+        );
+      }
+    }
+
     return {
       id: 'property-types',
-      title: 'Loại hình khác',
+      title: blockTitle,
       filters: availableTypes.map(t => ({
         title: t.title || '',
         url: `${params.baseUrl}?property_types=${t.id}`
@@ -168,4 +183,32 @@ function getTransactionSlug(type: number): string {
     3: 'du-an'
   };
   return slugs[type] || 'mua-ban';
+}
+
+/**
+ * Build block title from transaction type and property type (V1-compatible)
+ * Examples:
+ * - "Mua bán căn hộ chung cư"
+ * - "Cho thuê nhà riêng"
+ */
+export function buildPropertyTypeTitle(
+  transactionType: number,
+  propertyTypeVietnamese?: string | null
+): string {
+  // Transaction prefix
+  const transactionPrefix = transactionType === 2 ? 'Cho thuê' : 'Mua bán';
+
+  // Base name from property type
+  let baseName = propertyTypeVietnamese || 'bất động sản';
+
+  // Strip common prefixes to avoid duplication
+  const prefixes = ['Bán ', 'Cho thuê '];
+  for (const prefix of prefixes) {
+    if (baseName.startsWith(prefix)) {
+      baseName = baseName.substring(prefix.length);
+      break;
+    }
+  }
+
+  return `${transactionPrefix} ${baseName}`;
 }

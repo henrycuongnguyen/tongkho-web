@@ -26,9 +26,6 @@ const { filters, dynamicFilterBlocks = [], featuredProjects = [] } = Astro.props
   <!-- Quick Contact -->
   <QuickContactBanner />
 
-  <!-- Location Filter (SSR) -->
-  <LocationFilterCard />
-
   <!-- Price Range Filter -->
   <PriceRangeFilterCard currentMin={filters.minPrice} currentMax={filters.maxPrice} />
 
@@ -39,6 +36,9 @@ const { filters, dynamicFilterBlocks = [], featuredProjects = [] } = Astro.props
   {dynamicFilterBlocks.length > 0 && (
     <DynamicSidebarFilters blocks={dynamicFilterBlocks} />
   )}
+
+  <!-- Location Filter (SSR) -->
+  <LocationFilterCard />
 
   <!-- Featured Projects -->
   <FeaturedProjectBanner projects={featuredProjects} />
