@@ -19,6 +19,8 @@ export const GET: APIRoute = async ({ request }) => {
   const provinceNId = url.searchParams.get('province') || '';
   const baseUrl = url.searchParams.get('base') || '/mua-ban';
   const currentDistrict = url.searchParams.get('current') || '';
+  const mode = url.searchParams.get('mode') || 'links'; // 'links' or 'checkboxes'
+  const selectedDistricts = url.searchParams.get('selected')?.split(',').filter(Boolean) || [];
 
   if (!provinceNId) {
     return new Response('', {
@@ -38,6 +40,30 @@ export const GET: APIRoute = async ({ request }) => {
     );
   }
 
+  // Multi-select mode with checkboxes
+  if (mode === 'checkboxes') {
+    const html = districts.map(d => {
+      const isSelected = selectedDistricts.includes(d.slug);
+      return `
+        <label class="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-secondary-50 cursor-pointer transition-colors group">
+          <input
+            type="checkbox"
+            class="w-4 h-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+            name="districts[]"
+            value="${escapeHtml(d.slug)}"
+            data-name="${escapeHtml(d.name)}"
+            ${isSelected ? 'checked' : ''}
+          />
+          <span class="text-sm text-secondary-700 group-hover:text-secondary-900">${escapeHtml(d.name)}</span>
+        </label>`;
+    }).join('');
+
+    return new Response(html, {
+      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+    });
+  }
+
+  // Single-select mode with links (default)
   const html = districts.map(d => {
     const href = `${baseUrl}/${escapeHtml(d.slug)}`;
     const isActive = d.slug === currentDistrict;

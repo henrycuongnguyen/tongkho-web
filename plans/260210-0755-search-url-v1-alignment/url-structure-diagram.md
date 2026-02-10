@@ -1,0 +1,289 @@
+# v1 URL Structure Diagram
+
+## URL Pattern
+
+```
+/[arg0]/[arg1]/[arg2]?[query-params]
+```
+
+## Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                     User Search Input                        │
+└─────────────────────┬───────────────────────────────────────┘
+                      │
+          ┌───────────┴───────────┐
+          │                       │
+     ┌────▼─────┐           ┌────▼─────┐
+     │Property  │           │Location  │
+     │  Types   │           │Selection │
+     └────┬─────┘           └────┬─────┘
+          │                      │
+          │                      │
+     ┌────▼─────────────────────▼──────────────┐
+     │        buildSearchUrl()                  │
+     │  (URL Builder Service)                   │
+     └────┬─────────────────────────────────────┘
+          │
+          │
+     ┌────▼─────────────────────────────────────┐
+     │          URL Path Builder                 │
+     └─┬────┬────┬───────────────────────────────┘
+       │    │    │
+   ┌───▼──┐ │    │   ┌─────────────────────────┐
+   │ ARG0 │ │    │   │ Property Type OR        │
+   │      │ │    │   │ Transaction Type        │
+   └──────┘ │    │   └─────────────────────────┘
+            │    │
+       ┌────▼──┐ │   ┌─────────────────────────┐
+       │ ARG1  │ │   │ Location Slug           │
+       │       │ │   │ (first if multiple)     │
+       └───────┘ │   └─────────────────────────┘
+                 │
+            ┌────▼──┐ ┌─────────────────────────┐
+            │ ARG2  │ │ Price Slug              │
+            │       │ │ (if predefined range)   │
+            └───────┘ └─────────────────────────┘
+                 │
+     ┌───────────▼────────────────────────────┐
+     │       Query Params Builder             │
+     └─┬──────┬──────┬──────┬──────┬──────────┘
+       │      │      │      │      │
+   ┌───▼───┐ │      │      │      │
+   │addresses│     │      │      │
+   │(multi) │      │      │      │
+   └────────┘      │      │      │
+              ┌────▼────┐ │      │
+              │property_│ │      │
+              │types    │ │      │
+              │(multi)  │ │      │
+              └─────────┘ │      │
+                     ┌────▼───┐  │
+                     │gtn/gcn │  │
+                     │(custom)│  │
+                     └────────┘  │
+                            ┌────▼────┐
+                            │dtnn/dtcn│
+                            │bathrooms│
+                            │bedrooms │
+                            │radius   │
+                            └─────────┘
+```
+
+## Decision Tree: ARG0 (Property Type vs Transaction)
+
+```
+┌─────────────────────────┐
+│ propertyTypes selected? │
+└───────┬─────────────────┘
+        │
+        ├──YES──┐
+        │       │
+        │   ┌───▼────────────────┐
+        │   │ Single type?       │
+        │   └───┬────────────────┘
+        │       │
+        │       ├──YES──┐
+        │       │       │
+        │       │   ┌───▼─────────────────────┐
+        │       │   │ Use property type slug  │
+        │       │   │ (e.g., ban-can-ho-...)  │
+        │       │   └─────────────────────────┘
+        │       │
+        │       └──NO───┐
+        │               │
+        │           ┌───▼─────────────────────────┐
+        │           │ Use transaction type slug   │
+        │           │ + property_types query param│
+        │           └─────────────────────────────┘
+        │
+        └──NO───┐
+                │
+            ┌───▼──────────────────────┐
+            │ Use transaction type     │
+            │ - 1 → mua-ban           │
+            │ - 2 → cho-thue          │
+            │ - 3 → du-an             │
+            └──────────────────────────┘
+```
+
+## Decision Tree: ARG1 (Location)
+
+```
+┌──────────────────────────┐
+│ selectedAddresses has    │
+│ values?                  │
+└───────┬──────────────────┘
+        │
+        ├──YES──┐
+        │       │
+        │   ┌───▼────────────────┐
+        │   │ Single location?   │
+        │   └───┬────────────────┘
+        │       │
+        │       ├──YES──┐
+        │       │       │
+        │       │   ┌───▼─────────────────┐
+        │       │   │ Use as ARG1         │
+        │       │   │ (URL path)          │
+        │       │   └─────────────────────┘
+        │       │
+        │       └──NO───┐
+        │               │
+        │           ┌───▼──────────────────────┐
+        │           │ First → ARG1 (URL path)  │
+        │           │ Rest → addresses param   │
+        │           └──────────────────────────┘
+        │
+        └──NO───┐
+                │
+            ┌───▼────────────────────┐
+            │ Has price slug (ARG2)? │
+            └───┬────────────────────┘
+                │
+                ├──YES──┐
+                │       │
+                │   ┌───▼─────────────┐
+                │   │ ARG1 = toan-quoc│
+                │   └─────────────────┘
+                │
+                └──NO───┐
+                        │
+                    ┌───▼─────────┐
+                    │ No ARG1     │
+                    │ (omit)      │
+                    └─────────────┘
+```
+
+## Decision Tree: ARG2 (Price Slug)
+
+```
+┌───────────────────────────┐
+│ minPrice / maxPrice set?  │
+└───────┬───────────────────┘
+        │
+        ├──YES──┐
+        │       │
+        │   ┌───▼─────────────────────┐
+        │   │ Is predefined range?    │
+        │   │ (Check PRICE_FILTERS)   │
+        │   └───┬─────────────────────┘
+        │       │
+        │       ├──YES──┐
+        │       │       │
+        │       │   ┌───▼──────────────────────┐
+        │       │   │ Build price slug:        │
+        │       │   │ - 0-0 → gia-thuong-luong │
+        │       │   │ - 0-max → gia-duoi-...   │
+        │       │   │ - min-∞ → gia-tren-...   │
+        │       │   │ - min-max → gia-tu-...-den-...│
+        │       │   └──────────────────────────┘
+        │       │
+        │       └──NO───┐
+        │               │
+        │           ┌───▼──────────────────┐
+        │           │ Use query params:    │
+        │           │ - gtn (min slug)     │
+        │           │ - gcn (max slug)     │
+        │           └──────────────────────┘
+        │
+        └──NO───┐
+                │
+            ┌───▼─────────┐
+            │ No ARG2     │
+            │ (omit)      │
+            └─────────────┘
+```
+
+## Example URLs
+
+### 1. Basic Search
+```
+Input:  transactionType = 1
+Output: /mua-ban
+```
+
+### 2. Single Property Type
+```
+Input:  propertyTypes = "12" (Căn hộ chung cư)
+        transactionType = 1
+Output: /ban-can-ho-chung-cu
+```
+
+### 3. Property Type + Location
+```
+Input:  propertyTypes = "12"
+        selectedAddresses = "ha-noi"
+Output: /ban-can-ho-chung-cu/ha-noi
+```
+
+### 4. Predefined Price Range
+```
+Input:  transactionType = 1
+        minPrice = 1000000000
+        maxPrice = 2000000000
+Output: /mua-ban/toan-quoc/gia-tu-1-ty-den-2-ty
+```
+
+### 5. Custom Price Range
+```
+Input:  transactionType = 1
+        selectedAddresses = "ha-noi"
+        minPrice = 1500000000
+        maxPrice = 3200000000
+Output: /mua-ban/ha-noi?gtn=1.5-ty&gcn=3.2-ty
+```
+
+### 6. Multi-Location
+```
+Input:  propertyTypes = "12"
+        selectedAddresses = "quan-ba-dinh,quan-tay-ho,quan-hoan-kiem"
+        minPrice = 1000000000
+        maxPrice = 2000000000
+Output: /ban-can-ho-chung-cu/quan-ba-dinh/gia-tu-1-ty-den-2-ty?addresses=quan-tay-ho,quan-hoan-kiem
+```
+
+### 7. All Filters
+```
+Input:  propertyTypes = "12"
+        selectedAddresses = "quan-ba-dinh,quan-tay-ho,quan-hoan-kiem"
+        minPrice = 1000000000
+        maxPrice = 2000000000
+        minArea = 50
+        maxArea = 80
+        radius = 10
+        bathrooms = 2
+        bedrooms = 3
+Output: /ban-can-ho-chung-cu/quan-ba-dinh/gia-tu-1-ty-den-2-ty?addresses=quan-tay-ho,quan-hoan-kiem&radius=10&bathrooms=2&bedrooms=3&dtnn=50&dtcn=80
+```
+
+## Price Conversion Examples
+
+```
+VND Value       →  Slug Format
+──────────────────────────────
+1,000,000,000   →  1-ty
+1,500,000,000   →  1.5-ty
+2,000,000,000   →  2-ty
+500,000,000     →  500-trieu
+800,000,000     →  800-trieu
+60,000,000,000  →  60-ty
+```
+
+## Predefined Price Ranges (Transaction Type 1 - Buy)
+
+```
+800M - 1B       →  gia-tu-800-trieu-den-1-ty
+1B - 2B         →  gia-tu-1-ty-den-2-ty
+2B - 3B         →  gia-tu-2-ty-den-3-ty
+3B - 5B         →  gia-tu-3-ty-den-5-ty
+5B - 7B         →  gia-tu-5-ty-den-7-ty
+7B - 10B        →  gia-tu-7-ty-den-10-ty
+10B - 20B       →  gia-tu-10-ty-den-20-ty
+20B - 30B       →  gia-tu-20-ty-den-30-ty
+30B - 40B       →  gia-tu-30-ty-den-40-ty
+40B - 60B       →  gia-tu-40-ty-den-60-ty
+> 60B           →  gia-tren-60-ty
+Negotiable (0-0)→  gia-thuong-luong
+```
