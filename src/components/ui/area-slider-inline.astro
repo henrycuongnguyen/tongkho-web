@@ -185,11 +185,12 @@ const parsedMax = currentMax ?? AREA_CONFIG.max;
    */
   function initAreaSliders() {
     document.querySelectorAll('[data-area-slider]').forEach((slider) => {
+      const htmlSlider = slider as HTMLElement;
       // Skip if already initialized
-      if (slider.dataset.initialized) return;
-      slider.dataset.initialized = 'true';
+      if (htmlSlider.dataset.initialized) return;
+      htmlSlider.dataset.initialized = 'true';
 
-      const config = JSON.parse(slider.dataset.config || '{}');
+      const config = JSON.parse(htmlSlider.dataset.config || '{}');
       const MIN = config.min || 0;
       const MAX = config.max || 1000;
       const STEP = config.step || 5;

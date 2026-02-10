@@ -1,0 +1,209 @@
+---
+/**
+ * Location Filter Card (SSR Component)
+ * Fetches province data server-side and renders filter UI with property counts
+ */
+import { getAllProvincesWithCount } from '@/services/location/location-service';
+import type { Province } from '@/services/location/types';
+
+// Parse URL context
+const url = Astro.url;
+const pathSegments = url.pathname.split('/').filter(Boolean);
+
+// Determine transaction type from URL
+const transactionSlug = pathSegments[0] || 'mua-ban';
+const transactionMap: Record<string, number> = {
+  'mua-ban': 1,
+  'cho-thue': 2,
+  'du-an': 3
+};
+
+// Validate transaction slug
+if (!['mua-ban', 'cho-thue', 'du-an'].includes(transactionSlug)) {
+  console.warn(`[LocationFilterCard] Invalid transaction slug: ${transactionSlug}, falling back to 'mua-ban'`);
+}
+
+const transactionType = transactionMap[transactionSlug] || 1;
+
+// Get current province from URL (if any)
+// Check if second segment is a province (not a price slug)
+let currentProvince: string | null = null;
+if (pathSegments.length > 1 && !pathSegments[1].startsWith('gia-') && pathSegments[1] !== 'toan-quoc') {
+  currentProvince = pathSegments[1];
+}
+
+// Fetch provinces with counts (server-side)
+const maxItems = 10;
+let provinces: Province[] = [];
+let hasError = false;
+
+try {
+  provinces = await getAllProvincesWithCount(20, true); // Get top 20 by display order
+} catch (error) {
+  console.error('[LocationFilterCard] Failed to load provinces:', error);
+  hasError = true;
+}
+
+// Helper: Build province URL
+function buildProvinceUrl(provinceSlug: string): string {
+  // Encode slug for URL safety
+  const encodedSlug = encodeURIComponent(provinceSlug);
+  // Preserve query params if any
+  const searchParams = url.searchParams.toString();
+  const queryString = searchParams ? `?${searchParams}` : '';
+  return `/${transactionSlug}/${encodedSlug}${queryString}`;
+}
+
+// Helper: Check if province is active
+function isActive(provinceSlug: string): boolean {
+  return currentProvince === provinceSlug;
+}
+
+// Helper: Format count
+function formatCount(count: number): string {
+  if (count >= 1000) {
+    return `${(count / 1000).toFixed(1)}K`;
+  }
+  return count.toString();
+}
+
+// Helper: Get clear filter URL
+function getClearUrl(): string {
+  const searchParams = url.searchParams.toString();
+  const queryString = searchParams ? `?${searchParams}` : '';
+  return `/${transactionSlug}${queryString}`;
+}
+
+const hasMoreItems = provinces.length > maxItems;
+---
+
+<div
+  class="bg-white rounded-lg shadow-sm border border-secondary-100 p-4"
+  data-location-filter-card
+>
+  <h3 class="font-semibold text-secondary-900 mb-4 text-base">
+    Khu vực nổi bật
+  </h3>
+
+  {/* Error state */}
+  {hasError && (
+    <div class="text-sm text-secondary-500 text-center py-4">
+      Không thể tải danh sách khu vực
+    </div>
+  )}
+
+  {/* Empty state */}
+  {!hasError && provinces.length === 0 && (
+    <div class="text-sm text-secondary-500 text-center py-4">
+      Chưa có dữ liệu
+    </div>
+  )}
+
+  {/* Province list */}
+  {!hasError && provinces.length > 0 && (
+    <div class="space-y-1">
+      {provinces.map((province, idx) => (
+      <div
+        class:list={[
+          'location-item',
+          idx >= maxItems && 'hidden'
+        ]}
+      >
+        <a
+          href={buildProvinceUrl(province.slug)}
+          class:list={[
+            'flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all',
+            isActive(province.slug)
+              ? 'bg-primary-50 text-primary-600 font-medium border-l-2 border-primary-500'
+              : 'text-secondary-800 hover:bg-secondary-50 hover:text-primary-600'
+          ]}
+        >
+          <span class="truncate">{province.name}</span>
+          {province.propertyCount && province.propertyCount > 0 && (
+            <span class="text-secondary-400 text-xs ml-2 shrink-0">
+              ({formatCount(province.propertyCount)})
+            </span>
+          )}
+        </a>
+      </div>
+      ))}
+    </div>
+  )}
+
+  {/* Show More / Show Less */}
+  {hasMoreItems && (
+    <div class="mt-3 pt-3 border-t border-secondary-100">
+      <button
+        type="button"
+        class="text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium w-full"
+        data-location-show-more
+      >
+        <span>Xem thêm ({provinces.length - maxItems})</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="hidden text-sm text-primary-600 hover:text-primary-700 flex items-center gap-1 font-medium w-full"
+        data-location-show-less
+      >
+        <span>Thu gọn</span>
+        <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    </div>
+  )}
+
+  {/* Clear filter (when on province page) */}
+  {currentProvince && (
+    <div class="mt-3 pt-3 border-t border-secondary-100">
+      <a
+        href={getClearUrl()}
+        class="block text-center text-sm text-primary-600 hover:text-primary-700 font-medium"
+      >
+        Xóa bộ lọc khu vực
+      </a>
+    </div>
+  )}
+</div>
+
+<script>
+  // Expand/collapse logic (client-side)
+  function initLocationFilterCard() {
+    const card = document.querySelector('[data-location-filter-card]');
+    if (!card) return;
+
+    const showMoreBtn = card.querySelector('[data-location-show-more]');
+    const showLessBtn = card.querySelector('[data-location-show-less]');
+    const items = card.querySelectorAll('.location-item');
+
+    const maxItems = 10;
+
+    if (showMoreBtn) {
+      showMoreBtn.addEventListener('click', () => {
+        items.forEach(item => item.classList.remove('hidden'));
+        showMoreBtn.classList.add('hidden');
+        showLessBtn?.classList.remove('hidden');
+      });
+    }
+
+    if (showLessBtn) {
+      showLessBtn.addEventListener('click', () => {
+        items.forEach((item, idx) => {
+          if (idx >= maxItems) item.classList.add('hidden');
+        });
+        showLessBtn.classList.add('hidden');
+        showMoreBtn?.classList.remove('hidden');
+
+        // Smooth scroll to card top
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
+  }
+
+  // Initialize on load and View Transition
+  initLocationFilterCard();
+  document.addEventListener('astro:after-swap', initLocationFilterCard);
+</script>

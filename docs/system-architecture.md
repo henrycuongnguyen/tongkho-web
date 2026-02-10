@@ -334,6 +334,86 @@ main-layout.astro
 
 ---
 
+## Server-Side Rendering (SSR) Patterns
+
+### Overview
+Certain components fetch data server-side during Astro build to populate dynamic content without client-side API calls. This pattern enables zero-JavaScript components with fresh database-driven content.
+
+### Location Filter Card (SSR + Hybrid Interactive)
+
+**File:** `components/listing/sidebar/location-filter-card.astro`
+
+**Pattern:**
+1. **Server Phase (Build Time)**
+   - Parse current URL to determine transaction context (mua-ban, cho-thue, du-an)
+   - Call `getAllProvincesWithCount(20, true)` via location-service
+   - Fetch top 20 provinces with property counts from V1 materialized table
+   - Build province URLs preserving query parameters (price, area filters, etc.)
+   - Determine active province from URL slug
+
+2. **Rendering Phase (Build → Static HTML)**
+   - Output static <a> links for each province
+   - Show property counts per province
+   - Add expand/collapse UI with data attributes
+
+3. **Client Phase (Runtime Interactivity)**
+   - Expand/collapse buttons toggle hidden class on items 10-20
+   - Event listeners attached on page load and after View Transitions
+   - Zero JavaScript for core functionality (expand is CSS/JS optional enhancement)
+
+**Data Sources:**
+```
+PostgreSQL (V1 Schema)
+  └─ locations_with_count_property (materialized view)
+     ├─ id, city_id, title, slug
+     ├─ property_count (aggregated)
+     ├─ city_image, city_image_web
+     ├─ display_order (featured ranking)
+     └─ merged_into_id (for legacy address filtering)
+```
+
+**URL Pattern:**
+```
+/{transactionType}/{provinceSlug}?{queryParams}
+
+Examples:
+  /mua-ban                           # All provinces, buying
+  /mua-ban/ha-noi                    # Filtered to Hà Nội
+  /mua-ban/ha-noi?minPrice=500      # Hà Nội + price filter
+  /cho-thue/can-tho                  # Cần Thơ, renting
+  /du-an/ho-chi-minh                # Ho Chi Minh City projects
+```
+
+**Features:**
+- Transaction-aware: Routes determine context automatically
+- Property counts: Shows aggregated counts per province
+- Query preservation: Filter params stay when navigating provinces
+- Expand/collapse: Shows 10, expandable to 20 (configurable)
+- Active state: Visual highlight on current province
+- Graceful degradation: Works without JavaScript
+
+**Why This Pattern:**
+- Zero JavaScript for core filtering (just links)
+- Fresh data at build time (property counts updated each build)
+- V1 compatibility: Uses existing materialized view
+- Performance: No runtime database queries (static HTML)
+- SEO: All URLs crawlable and indexable as pure links
+
+### Related Services
+
+**LocationService (`services/location/location-service.ts`):**
+- `getAllProvincesWithCount()` – Main function for SSR components
+- Queries V1 materialized table: `locations_with_count_property`
+- Filters by address type (new vs legacy)
+- Orders by display_order for ranking
+
+**Pattern Extension Opportunities:**
+- Price range filter card (SSR version with aggregated price counts)
+- Property type filter card (dynamic counts per type)
+- Featured cities section (use displayOrder for ranking)
+
+---
+
 ## Data Models & Type System
 
 ### Property Listing Model

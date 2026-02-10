@@ -7,6 +7,7 @@ import type { PropertySearchFilters } from '@/services/elasticsearch/types';
 import type { SidebarFilterBlock } from '@/services/sidebar-filter-service';
 import type { FeaturedProject } from '@/services/featured-project-service';
 import QuickContactBanner from './quick-contact-banner.astro';
+import LocationFilterCard from './location-filter-card.astro';
 import PriceRangeFilterCard from './price-range-filter-card.astro';
 import AreaRangeFilterCard from './area-range-filter-card.astro';
 import DynamicSidebarFilters from './dynamic-sidebar-filters.astro';
@@ -24,6 +25,9 @@ const { filters, dynamicFilterBlocks = [], featuredProjects = [] } = Astro.props
 <div class="space-y-4">
   <!-- Quick Contact -->
   <QuickContactBanner />
+
+  <!-- Location Filter (SSR) -->
+  <LocationFilterCard />
 
   <!-- Price Range Filter -->
   <PriceRangeFilterCard currentMin={filters.minPrice} currentMax={filters.maxPrice} />

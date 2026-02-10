@@ -5,7 +5,7 @@
 
 import { db } from '@/db';
 import { locations, locationsWithCountProperty } from '@/db/schema';
-import { eq, and, ne, isNotNull, sql, isNull } from 'drizzle-orm';
+import { eq, and, ne, sql, isNull } from 'drizzle-orm';
 import type { Province, District, LocationHierarchy } from './types';
 
 // In-memory cache for build-time optimization
@@ -34,7 +34,7 @@ export async function getAllProvincesWithCount(limit?: number, useNewAddresses =
         displayOrder: locationsWithCountProperty.displayOrder,
         mergedintoid: locationsWithCountProperty.mergedintoid,
       })
-      .from(locationsWithCountProperty);
+      .from(locationsWithCountProperty) as any;
 
     // V1 logic: only filter by mergedintoid if grant='2' (new addresses)
     if (useNewAddresses) {
@@ -48,7 +48,7 @@ export async function getAllProvincesWithCount(limit?: number, useNewAddresses =
     const rows = limit ? await query.limit(limit) : await query;
 
     // Transform to Province type
-    const provinces: Province[] = rows.map(row => ({
+    const provinces: Province[] = (rows as any[]).map((row: any) => ({
       id: row.id,
       nId: row.cityId || '',
       name: row.title || '',

@@ -18,6 +18,26 @@ tongkho-web/
 │   │   │   └── about-achievement-stat-card.astro
 │   │   ├── auth/
 │   │   │   └── auth-modal.astro             # Full authentication modal
+│   │   ├── listing/                         # Listing page & search components
+│   │   │   ├── horizontal-search-bar.astro  # Search form for listing pages
+│   │   │   ├── listing-breadcrumb.astro     # Breadcrumb navigation
+│   │   │   ├── listing-filter.astro         # Filter panel (desktop)
+│   │   │   ├── listing-grid.astro           # Property results grid
+│   │   │   ├── listing-pagination.astro     # Pagination controls
+│   │   │   ├── listing-property-card.astro  # Property card variant
+│   │   │   ├── location-chips.astro         # Selected location tags
+│   │   │   ├── location-autocomplete.astro  # Location search input
+│   │   │   └── sidebar/
+│   │   │       ├── sidebar-wrapper.astro    # Sidebar container
+│   │   │       ├── location-filter-card.astro # [NEW] SSR location filter with property counts
+│   │   │       ├── price-range-filter-card.astro
+│   │   │       ├── area-range-filter-card.astro
+│   │   │       ├── dynamic-sidebar-filters.astro # Context-aware filters
+│   │   │       ├── location-selector.astro
+│   │   │       ├── property-type-dropdown.astro
+│   │   │       ├── province-selector-modal.astro
+│   │   │       ├── featured-project-banner.astro
+│   │   │       └── quick-contact-banner.astro
 │   │   ├── home/
 │   │   │   ├── hero-section.astro           # Hero banner
 │   │   │   ├── hero-search.astro            # Search form (Astro)
@@ -98,8 +118,8 @@ tongkho-web/
 └── README.md                                # Project documentation
 ```
 
-**Total:** ~15,085 lines of code across 61 files
-- Components: 32 files (5197 LOC) across 9 categories (About, Auth, Cards, Footer, Header, Home, News, Property, SEO, UI)
+**Total:** ~15,500 lines of code across 63 files
+- Components: 42+ files (5500+ LOC) across 12 categories (About, Auth, Cards, Footer, Header, Home, Listing, News, Property, SEO, UI)
 - Pages: 8 route files + 27 dynamic folder pages (1425 LOC)
 - Database: 8 files (6139 LOC) - schemas, migrations, indexes
 - Services: 4 files (1026 LOC) - menu, elasticsearch, postgres services
@@ -246,6 +266,79 @@ interface SearchFilters {
 ---
 
 ## Key Modules
+
+### Location Service (location/location-service.ts) [NEW - Phase 2]
+**Purpose:** Server-side location hierarchy and property count queries for listing pages
+
+**Key Functions:**
+- `getAllProvincesWithCount(limit, useNewAddresses)` – Fetch top 20 provinces with property counts from V1 materialized table
+- `getAllProvinces(useNewAddresses)` – Legacy function to fetch provinces with district counts
+- `getDistrictsByProvinces(provinceNIds)` – Batch fetch districts grouped by province
+- `buildLocationHierarchy()` – Build complete hierarchy (cached for build-time generation)
+- `getProvinceBySlug(slug)` – Resolve single province from slug
+- `getDistrictBySlug(provinceNId, districtSlug)` – Resolve district with province context
+- `resolveLocationSlugs(slugs)` – Batch resolve multiple location slugs (province/district)
+- `clearLocationCache()` – Manual cache invalidation (testing)
+
+**Features:**
+- V1-compatible data source: `locations_with_count_property` materialized table for performance
+- Property counts aggregated per province (materialized in database)
+- In-memory hierarchy caching for SSR components
+- Support for new vs legacy addresses via `mergedintoid` filtering
+- Type-safe Province/District/LocationHierarchy interfaces
+- Graceful error handling with empty fallback arrays
+- Display order support for featured city ranking
+
+**Data Structure:**
+```typescript
+interface Province {
+  id: number;
+  nId: string;                    // V1 city_id
+  name: string;                   // "Hà Nội"
+  slug: string;                   // "ha-noi"
+  districtCount: number;
+  propertyCount?: number;         // Aggregated from locations_with_count_property
+  cityImage?: string;             // Optional city thumbnail
+  cityImageWeb?: string;          // Web version image
+  cityLatlng?: string;            // Lat/lng JSON
+  displayOrder?: number;          // For featured ranking
+}
+```
+
+**Usage:** Called by location-filter-card.astro (SSR), location dropdown, and location search components
+
+### Location Filter Card Component [NEW - Phase 2]
+**File:** `components/listing/sidebar/location-filter-card.astro`
+
+**Purpose:** Server-rendered sidebar widget showing top 20 provinces with property counts and expand/collapse functionality
+
+**Features:**
+- **Server-Side Rendering:** Fetches province data at build time via `getAllProvincesWithCount()`
+- **Property Counts:** Displays property count per province (formatted as "1K", "500", etc.)
+- **Transaction Type Awareness:** Parses URL to determine transaction context (mua-ban, cho-thue, du-an)
+- **Active State Highlighting:** Visual indicator for currently selected province
+- **Expand/Collapse:** Shows 10 items by default, expands to full list (20) on demand
+- **Query Parameter Preservation:** Maintains search filters (price, area, etc.) when navigating provinces
+- **Clear Filter Button:** Shows when on province page, returns to base transaction URL
+- **Smooth Scroll:** Scrolls to card top on collapse for UX
+
+**URL Pattern:**
+```
+/{transactionType}/{provinceSlug}?minPrice=500&maxPrice=1000&...
+/mua-ban/ha-noi?minPrice=500&maxPrice=1000
+/cho-thue/can-tho
+/mua-ban  # Base (no province selected)
+```
+
+**Error Handling:**
+- Graceful fallback if database unavailable
+- Empty state message if no provinces found
+- Client-side expand/collapse works independently of server data
+
+**Client-Side Script:**
+- `initLocationFilterCard()` - Attach expand/collapse listeners
+- Runs on page load and after View Transitions (astro:after-swap)
+- Uses data attributes for DOM queries (prevent collisions with other components)
 
 ### Menu Service (menu-service.ts) [Phase 4]
 **Purpose:** Database-driven navigation menu generation for SSG builds with hierarchical folder support
