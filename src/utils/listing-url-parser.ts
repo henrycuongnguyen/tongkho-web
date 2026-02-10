@@ -58,8 +58,6 @@ export function parseListingUrl(
   const addressesParam = searchParams.get('addresses');
   if (addressesParam) {
     const additionalSlugs = addressesParam.split(',').filter(Boolean);
-    console.log('[URL Parser] addresses param:', addressesParam);
-    console.log('[URL Parser] parsed additional slugs:', additionalSlugs);
     // @ts-expect-error - temporary storage for batch resolution
     filters._additionalLocationSlugs = additionalSlugs;
   }

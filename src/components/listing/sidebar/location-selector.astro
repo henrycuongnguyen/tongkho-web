@@ -153,12 +153,20 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
    * Now uses modal instead of dropdown for province selection
    */
   function initLocationSelectors() {
-    document.querySelectorAll('[data-location-selector]').forEach(initContainer);
+    console.log('[LocationSelector] initLocationSelectors called');
+    const containers = document.querySelectorAll('[data-location-selector]');
+    console.log('[LocationSelector] Found containers:', containers.length);
+    containers.forEach(initContainer);
   }
 
   function initContainer(container: Element) {
+    console.log('[LocationSelector] initContainer called');
+
     // Skip if already initialized (prevent duplicate listeners)
-    if (container.getAttribute('data-initialized')) return;
+    if (container.getAttribute('data-initialized')) {
+      console.log('[LocationSelector] Already initialized, skipping');
+      return;
+    }
     container.setAttribute('data-initialized', 'true');
 
     const baseUrl = container.getAttribute('data-base-url') || '/mua-ban';
@@ -166,12 +174,64 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
     let currentProvinceName = container.getAttribute('data-current-province-name') || '';
 
     // Multi-select state: { slug: string, name: string }[]
-    const selectedDistricts: Array<{ slug: string; name: string }> = [];
+    // Initialize from URL addresses param
+    const urlParams = new URLSearchParams(window.location.search);
+    const addressesParam = urlParams.get('addresses');
+    const selectedDistricts: Array<{ slug: string; name: string }> = addressesParam
+      ? addressesParam.split(',').map(slug => ({ slug: slug.trim(), name: slug.trim() }))
+      : [];
 
     const provinceModalTrigger = container.querySelector('[data-province-modal-trigger]') as HTMLButtonElement;
     const districtSearchInput = container.querySelector('[data-district-search-input]') as HTMLInputElement;
     const districtDropdown = container.querySelector('[data-district-dropdown]') as HTMLDivElement;
     const districtListContainer = container.querySelector('[data-district-list-container]') as HTMLDivElement;
+
+    console.log('[LocationSelector] Debug:', {
+      currentProvinceNId,
+      addressesParam,
+      selectedDistricts,
+      hasDistrictContainer: !!districtListContainer
+    });
+
+    // Update HTMX attribute with current URL addresses param (fix static template issue)
+    if (districtListContainer && currentProvinceNId && addressesParam) {
+      const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+      const url = `/api/location/districts?province=${encodeURIComponent(currentProvinceNId)}&base=${encodeURIComponent(baseUrl)}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+
+      console.log('[LocationSelector] Loading districts with selected:', selectedSlugs);
+
+      // Directly fetch and update (bypass HTMX "load once" limitation)
+      fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          districtListContainer.innerHTML = html;
+          console.log('[LocationSelector] Districts loaded, HTML updated');
+
+          // Attach handlers after a short delay to ensure function is defined
+          setTimeout(() => {
+            const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+
+            // Sync selectedDistricts with checked checkboxes
+            checkboxes.forEach(checkbox => {
+              if (checkbox.checked) {
+                const slug = checkbox.value;
+                const name = checkbox.dataset.name || slug;
+                if (!selectedDistricts.some(d => d.slug === slug)) {
+                  selectedDistricts.push({ slug, name });
+                } else {
+                  const existing = selectedDistricts.find(d => d.slug === slug);
+                  if (existing && existing.name === slug) {
+                    existing.name = name;
+                  }
+                }
+              }
+            });
+
+            console.log('[LocationSelector] Checkboxes synced, selectedDistricts:', selectedDistricts);
+          }, 50);
+        })
+        .catch(err => console.error('[LocationSelector] Failed to load districts:', err));
+    }
     const provinceDisplay = container.querySelector('[data-province-display]') as HTMLSpanElement;
     const provinceNameDisplay = container.querySelector('[data-province-name-display]') as HTMLSpanElement;
     const searchAllProvinceBtn = container.querySelector('[data-search-all-province]') as HTMLButtonElement;
@@ -255,6 +315,24 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
     // Attach checkbox handlers after initial HTMX load
     function attachCheckboxHandlers() {
       const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+
+      // Sync selectedDistricts with checked checkboxes (populate names from DOM)
+      checkboxes.forEach(checkbox => {
+        if (checkbox.checked) {
+          const slug = checkbox.value;
+          const name = checkbox.dataset.name || slug;
+          if (!selectedDistricts.some(d => d.slug === slug)) {
+            selectedDistricts.push({ slug, name });
+          } else {
+            // Update name if slug exists but name is missing
+            const existing = selectedDistricts.find(d => d.slug === slug);
+            if (existing && existing.name === slug) {
+              existing.name = name;
+            }
+          }
+        }
+      });
+
       checkboxes.forEach(checkbox => {
         checkbox.addEventListener('change', () => {
           const slug = checkbox.value;
@@ -422,6 +500,9 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       container.setAttribute('data-current-province-nid', nId);
       container.setAttribute('data-current-province-name', name);
 
+      // CRITICAL: Clear selected districts when province changes (don't carry over districts from old province)
+      selectedDistricts.length = 0;
+      renderSelectedDistrictsTags();
 
       // Update both province displays
       if (provinceDisplay) {

@@ -46,12 +46,6 @@ export async function searchProperties(
 
     const data: ESSearchResponse<PropertyDocument> = await response.json();
 
-    console.log('[PropertySearch] ES response summary:', {
-      totalHits: data.hits.total,
-      hitsCount: data.hits.hits.length,
-      took: data.took
-    });
-
     // Extract hits
     const hits = data.hits.hits.map((hit) => ({
       ...hit._source,

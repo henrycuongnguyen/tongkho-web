@@ -570,8 +570,14 @@ const currentMaxPrice = currentFilters.maxPrice
     const initialProvinceNId = searchBar?.getAttribute('data-current-province-nid');
     let currentProvinceNId: string | null = (initialProvinceNId && initialProvinceNId.trim()) ? initialProvinceNId : null;
 
-    // Multi-select districts state
-    const selectedDistricts: Array<{ slug: string; name: string }> = [];
+    // Multi-select districts state - initialize from URL addresses param
+    const urlParams = new URLSearchParams(window.location.search);
+    const addressesParam = urlParams.get('addresses');
+    const selectedDistricts: Array<{ slug: string; name: string }> = addressesParam
+      ? addressesParam.split(',').map(slug => ({ slug: slug.trim(), name: slug.trim() }))
+      : [];
+
+    console.log('[HorizontalSearchBar] Init selectedDistricts from URL:', selectedDistricts);
 
     // Attach checkbox handlers for multi-select
     function attachDistrictCheckboxHandlers(container: HTMLElement) {
@@ -634,6 +640,10 @@ const currentMaxPrice = currentFilters.maxPrice
         }
       }
 
+      // CRITICAL: Clear selected districts when province changes (don't carry over districts from old province)
+      selectedDistricts.length = 0;
+      console.log('[HorizontalSearchBar] Cleared selectedDistricts on province change');
+
       // Load districts via fetch
       if (districtListContainer && currentProvinceNId) {
         // Show loading state
@@ -641,8 +651,10 @@ const currentMaxPrice = currentFilters.maxPrice
         districtEmpty?.classList.add('hidden');
         districtListContainer.innerHTML = '';
 
-        // Fetch districts
-        const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes`;
+        // Fetch districts with selected districts
+        const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+        const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+        console.log('[HorizontalSearchBar] Loading districts with selected:', selectedSlugs);
         fetch(url)
           .then(response => response.text())
           .then(html => {
@@ -784,8 +796,7 @@ const currentMaxPrice = currentFilters.maxPrice
     let selectedBathrooms = '';
     let selectedBedrooms = '';
 
-    // Initialize from URL params
-    const urlParams = new URLSearchParams(window.location.search);
+    // Initialize from URL params (reuse urlParams declared above)
     const bathroomsParam = urlParams.get('bathrooms');
     const bedroomsParam = urlParams.get('bedrooms');
     const radiusParam = urlParams.get('radius');
@@ -1115,7 +1126,9 @@ const currentMaxPrice = currentFilters.maxPrice
       districtListContainer.innerHTML = '';
       districtDropdown?.classList.remove('hidden');
 
-      const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes`;
+      const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+      const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+      console.log('[HorizontalSearchBar] Loading districts on focus with selected:', selectedSlugs);
       fetch(url)
         .then(response => response.text())
         .then(html => {
@@ -1126,6 +1139,23 @@ const currentMaxPrice = currentFilters.maxPrice
           // Use flex layout for checkboxes
           districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6');
           districtListContainer.classList.add('flex', 'flex-col', 'gap-y-1');
+
+          // Sync selectedDistricts with checked checkboxes (populate names)
+          const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+          checkboxes.forEach(checkbox => {
+            if (checkbox.checked) {
+              const slug = checkbox.value;
+              const name = checkbox.dataset.name || slug;
+              if (!selectedDistricts.some(d => d.slug === slug)) {
+                selectedDistricts.push({ slug, name });
+              } else {
+                const existing = selectedDistricts.find(d => d.slug === slug);
+                if (existing && existing.name === slug) {
+                  existing.name = name;
+                }
+              }
+            }
+          });
 
           // Attach checkbox handlers
           attachDistrictCheckboxHandlers(districtListContainer);
@@ -1179,7 +1209,9 @@ const currentMaxPrice = currentFilters.maxPrice
           districtLoading?.classList.remove('hidden');
           districtListContainer.innerHTML = '';
 
-          const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes`;
+          const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+          const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+          console.log('[HorizontalSearchBar] Reloading districts after empty search with selected:', selectedSlugs);
           fetch(url)
             .then(response => response.text())
             .then(html => {
@@ -1190,6 +1222,23 @@ const currentMaxPrice = currentFilters.maxPrice
               // Use flex layout for checkboxes
               districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6');
               districtListContainer.classList.add('flex', 'flex-col', 'gap-y-1');
+
+              // Sync selectedDistricts with checked checkboxes (populate names)
+              const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+              checkboxes.forEach(checkbox => {
+                if (checkbox.checked) {
+                  const slug = checkbox.value;
+                  const name = checkbox.dataset.name || slug;
+                  if (!selectedDistricts.some(d => d.slug === slug)) {
+                    selectedDistricts.push({ slug, name });
+                  } else {
+                    const existing = selectedDistricts.find(d => d.slug === slug);
+                    if (existing && existing.name === slug) {
+                      existing.name = name;
+                    }
+                  }
+                }
+              });
 
               // Attach checkbox handlers
               attachDistrictCheckboxHandlers(districtListContainer);

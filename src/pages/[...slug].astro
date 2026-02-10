@@ -101,13 +101,11 @@ const additionalLocationSlugs = filters._additionalLocationSlugs || [];
 
 // Merge all location slugs for batch resolution
 const allLocationSlugs = [...locationSlugs, ...additionalLocationSlugs];
-console.log('[Page] All location slugs to resolve:', allLocationSlugs);
 
 const resolvedLocations = allLocationSlugs.length > 0
   ? await resolveLocationSlugs(allLocationSlugs)
   : [];
 
-console.log('[Page] Resolved locations:', resolvedLocations.map(l => ({ slug: l.slug, type: l.type, nId: l.nId })));
 
 // Primary location is the first one (from URL path)
 const selectedLocation = resolvedLocations[0] || null;
@@ -124,7 +122,6 @@ const resolvedDistricts = districtSlugs.length > 0
 if (resolvedDistricts.length > 0) {
   // Explicit district selection via query param (multi-select)
   filters.districtIds = resolvedDistricts.map(d => d.nId).filter(Boolean) as string[];
-  console.log('[Page] Multi-district selection:', filters.districtIds.length, 'districts');
 } else if (resolvedLocations.length > 0) {
   // Collect districts from resolved locations (v1 compatible multi-location logic)
   const districtNIds = new Set<string>();
@@ -145,14 +142,12 @@ if (resolvedDistricts.length > 0) {
   }
 
   filters.districtIds = Array.from(districtNIds);
-  console.log('[Page] Merged districts from', resolvedLocations.length, 'locations:', filters.districtIds.length, 'total districts', hasDistrictsInLocations ? '(specific districts only)' : '(all districts from province)');
 }
 
 // Extract center coordinates for radius search (from primary location)
 if (filters.radius && selectedLocation?.lat && selectedLocation?.lon) {
   filters.centerLat = selectedLocation.lat;
   filters.centerLon = selectedLocation.lon;
-  console.log('[Page] Radius search enabled:', filters.radius, 'km from', selectedLocation.lat, selectedLocation.lon);
 }
 
 // Store selected location for UI display (single location only)
@@ -223,13 +218,6 @@ if (!shouldHideForTransactionOnly) {
   }
 }
 
-// DEBUG: Log final filters before ES query
-console.log('[DEBUG /mua-ban/ha-noi] Final filters for ES:', JSON.stringify({
-  transactionType: filters.transactionType,
-  provinceIds: filters.provinceIds,
-  districtIds: filters.districtIds,
-  propertyTypes: filters.propertyTypes
-}, null, 2));
 
 // Parallel queries - fetch properties, featured projects, and sidebar data simultaneously (SSG optimization)
 const [searchResult, featuredProjects, sideBlocks] = await Promise.all([
@@ -242,7 +230,6 @@ const [searchResult, featuredProjects, sideBlocks] = await Promise.all([
 ]);
 const { hits: properties, total, took } = searchResult;
 
-console.log('[DEBUG /mua-ban/ha-noi] ES results - total:', total, 'hits:', properties.length);
 
 // Build metadata
 const title = getPageTitle(filters);
