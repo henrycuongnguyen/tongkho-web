@@ -40,22 +40,35 @@ export const GET: APIRoute = async ({ request }) => {
     );
   }
 
-  // Multi-select mode with checkboxes
+  // Multi-select mode with clickable items (like screenshot UI)
   if (mode === 'checkboxes') {
     const html = districts.map(d => {
       const isSelected = selectedDistricts.includes(d.slug);
+      const itemClasses = isSelected
+        ? 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group'
+        : 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+      const iconClasses = isSelected
+        ? 'w-4 h-4 shrink-0 text-primary-600'
+        : 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500';
+      const textClasses = isSelected
+        ? 'text-sm text-primary-700 font-medium'
+        : 'text-sm text-secondary-700 group-hover:text-secondary-900';
+
       return `
-        <label class="flex items-center gap-3 py-2.5 px-3 rounded-lg hover:bg-secondary-50 cursor-pointer transition-colors group">
-          <input
-            type="checkbox"
-            class="w-4 h-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
-            name="districts[]"
-            value="${escapeHtml(d.slug)}"
-            data-name="${escapeHtml(d.name)}"
-            ${isSelected ? 'checked' : ''}
-          />
-          <span class="text-sm text-secondary-700 group-hover:text-secondary-900">${escapeHtml(d.name)}</span>
-        </label>`;
+        <button
+          type="button"
+          class="${itemClasses}"
+          data-district-toggle
+          data-slug="${escapeHtml(d.slug)}"
+          data-name="${escapeHtml(d.name)}"
+          data-selected="${isSelected}"
+        >
+          <svg class="${iconClasses}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span class="${textClasses} truncate">${escapeHtml(d.name)}</span>
+        </button>`;
     }).join('');
 
     return new Response(html, {

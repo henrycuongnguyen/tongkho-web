@@ -146,20 +146,26 @@ const currentMaxPrice = currentFilters.maxPrice
         class="absolute top-full left-0 w-[900px] mt-2 bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden max-h-[420px] overflow-y-auto"
         data-district-dropdown
       >
-        <!-- Header with Province Name -->
-        <div class="px-5 py-3 border-b border-secondary-100 flex items-center justify-between sticky top-0 bg-white z-10">
-          <h5 class="text-sm font-semibold text-secondary-800">
-            Quận/Huyện tại <span data-province-name-display></span>
-          </h5>
-          <button
-            type="button"
-            class="text-xs text-secondary-400 hover:text-secondary-600 transition-colors"
-            data-close-district-dropdown
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
+        <!-- Selected Districts (Tags) -->
+        <div class="px-5 pt-3 pb-2" data-selected-districts-container style="display: none;">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs font-medium text-secondary-600">Địa điểm đã chọn</span>
+            <button
+              type="button"
+              class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              data-clear-all-districts
+            >
+              Xóa tất cả
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-2" data-selected-districts-tags>
+            <!-- Tags will be inserted here by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Section Title -->
+        <div class="px-5 py-2 border-b border-secondary-100">
+          <h6 class="text-xs font-semibold text-secondary-600 uppercase tracking-wide">Tìm kiếm phổ biến</h6>
         </div>
 
         <!-- District List Container (populated via HTMX) - Layout switches between grid/list -->
@@ -553,6 +559,9 @@ const currentMaxPrice = currentFilters.maxPrice
     const closeDistrictDropdownBtn = searchBar.querySelector('[data-close-district-dropdown]') as HTMLButtonElement;
     const districtLoading = searchBar.querySelector('[data-district-loading]') as HTMLDivElement;
     const districtEmpty = searchBar.querySelector('[data-district-empty]') as HTMLDivElement;
+    const selectedDistrictsContainer = searchBar.querySelector('[data-selected-districts-container]') as HTMLDivElement;
+    const selectedDistrictsTags = searchBar.querySelector('[data-selected-districts-tags]') as HTMLDivElement;
+    const clearAllDistrictsBtn = searchBar.querySelector('[data-clear-all-districts]') as HTMLButtonElement;
 
     // District dropdown - close function for dropdown manager
     const districtDropdownId = `district-${Math.random().toString(36).substr(2, 9)}`;
@@ -579,30 +588,137 @@ const currentMaxPrice = currentFilters.maxPrice
 
     console.log('[HorizontalSearchBar] Init selectedDistricts from URL:', selectedDistricts);
 
-    // Attach checkbox handlers for multi-select
-    function attachDistrictCheckboxHandlers(container: HTMLElement) {
-      const checkboxes = container.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-          const slug = checkbox.value;
-          const name = checkbox.dataset.name || slug;
-          const isChecked = checkbox.checked;
+    // Render selected districts tags on page load (if any)
+    // Note: Names will be slugs initially, will be updated when districts are loaded
+    if (selectedDistricts.length > 0) {
+      // Delay to ensure DOM is ready
+      setTimeout(() => {
+        renderSelectedDistrictsTags();
+      }, 100);
+    }
 
-          if (isChecked) {
-            if (!selectedDistricts.some(d => d.slug === slug)) {
-              selectedDistricts.push({ slug, name });
-            }
-          } else {
+    // Attach checkbox handlers for multi-select
+    function attachDistrictButtonHandlers(container: HTMLElement) {
+      const buttons = container.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+      buttons.forEach(button => {
+        button.addEventListener('click', () => {
+          const slug = button.dataset.slug || '';
+          const name = button.dataset.name || slug;
+          const isCurrentlySelected = button.dataset.selected === 'true';
+
+          if (isCurrentlySelected) {
+            // Deselect: remove from array
             const index = selectedDistricts.findIndex(d => d.slug === slug);
             if (index > -1) {
               selectedDistricts.splice(index, 1);
             }
+            button.dataset.selected = 'false';
+            // Update styles to unselected state
+            button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+            const icon = button.querySelector('svg');
+            const text = button.querySelector('span');
+            if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+            if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+          } else {
+            // Select: add to array
+            if (!selectedDistricts.some(d => d.slug === slug)) {
+              selectedDistricts.push({ slug, name });
+            }
+            button.dataset.selected = 'true';
+            // Update styles to selected state
+            button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+            const icon = button.querySelector('svg');
+            const text = button.querySelector('span');
+            if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+            if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
           }
 
           console.log('[HorizontalSearchBar] Selected districts:', selectedDistricts);
+          renderSelectedDistrictsTags();
         });
       });
     }
+
+    // Render selected districts tags (like screenshot UI)
+    function renderSelectedDistrictsTags() {
+      console.log('[HorizontalSearchBar] renderSelectedDistrictsTags called', {
+        hasContainer: !!selectedDistrictsContainer,
+        hasTags: !!selectedDistrictsTags,
+        selectedDistricts
+      });
+
+      if (!selectedDistrictsTags || !selectedDistrictsContainer) {
+        console.warn('[HorizontalSearchBar] Missing container or tags element');
+        return;
+      }
+
+      if (selectedDistricts.length === 0) {
+        selectedDistrictsContainer.style.display = 'none';
+        return;
+      }
+
+      console.log('[HorizontalSearchBar] Showing selectedDistricts container');
+      selectedDistrictsContainer.style.display = 'block';
+      selectedDistrictsTags.innerHTML = selectedDistricts.map(d => `
+        <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-secondary-700 rounded-lg text-sm border border-secondary-300 hover:border-secondary-400 transition-colors">
+          <svg class="w-3.5 h-3.5 shrink-0 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span>${d.name}</span>
+          <button
+            type="button"
+            class="ml-1 hover:bg-secondary-100 rounded p-0.5 transition-colors"
+            data-remove-district="${d.slug}"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `).join('');
+
+      // Attach remove handlers
+      selectedDistrictsTags.querySelectorAll('[data-remove-district]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const slug = (btn as HTMLElement).dataset.removeDistrict || '';
+          const index = selectedDistricts.findIndex(d => d.slug === slug);
+          if (index > -1) {
+            selectedDistricts.splice(index, 1);
+            renderSelectedDistrictsTags();
+            // Update button state
+            const button = districtListContainer?.querySelector(`[data-slug="${slug}"]`) as HTMLButtonElement;
+            if (button) {
+              button.dataset.selected = 'false';
+              button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+              const icon = button.querySelector('svg');
+              const text = button.querySelector('span');
+              if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+              if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+            }
+          }
+        });
+      });
+    }
+
+    // Clear all districts button
+    clearAllDistrictsBtn?.addEventListener('click', () => {
+      selectedDistricts.length = 0;
+      renderSelectedDistrictsTags();
+      // Update all button states
+      const buttons = districtListContainer?.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+      buttons?.forEach(button => {
+        button.dataset.selected = 'false';
+        button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+        const icon = button.querySelector('svg');
+        const text = button.querySelector('span');
+        if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+        if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+      });
+    });
+
     let currentProvinceName: string | null = null;
     let districtsLoaded = false;
 
@@ -662,20 +778,31 @@ const currentMaxPrice = currentFilters.maxPrice
             districtListContainer.innerHTML = html;
             districtsLoaded = true;
 
-            // Use flex layout for checkboxes
-            districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6', 'gap-y-2');
-            districtListContainer.classList.add('flex', 'flex-col', 'gap-y-1');
+            // Use grid layout for district buttons (3 columns like screenshot)
+            districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
+            districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
 
-            // Attach checkbox handlers
-            attachDistrictCheckboxHandlers(districtListContainer);
+            // Attach button handlers
+            attachDistrictButtonHandlers(districtListContainer);
+
+            // Update selectedDistricts names from loaded buttons (replace slugs with proper names)
+            selectedDistricts.forEach(district => {
+              const button = districtListContainer.querySelector(`[data-district-toggle][data-slug="${district.slug}"]`) as HTMLButtonElement;
+              if (button && button.dataset.name) {
+                district.name = button.dataset.name;
+              }
+            });
+
+            // Re-render tags with proper names
+            renderSelectedDistrictsTags();
 
             // Show dropdown and focus input
             districtDropdown?.classList.remove('hidden');
             districtSearchInput?.focus();
 
             // Check if any districts were loaded
-            const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
-            if (!districtCheckboxes || districtCheckboxes.length === 0) {
+            const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
+            if (!districtButtons || districtButtons.length === 0) {
               districtEmpty?.classList.remove('hidden');
             }
           })
@@ -1136,16 +1263,17 @@ const currentMaxPrice = currentFilters.maxPrice
           districtListContainer.innerHTML = html;
           districtsLoaded = true;
 
-          // Use flex layout for checkboxes
-          districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6');
-          districtListContainer.classList.add('flex', 'flex-col', 'gap-y-1');
+          // Use grid layout for district buttons (3 columns like screenshot)
+          districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
+          districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
 
-          // Sync selectedDistricts with checked checkboxes (populate names)
-          const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-          checkboxes.forEach(checkbox => {
-            if (checkbox.checked) {
-              const slug = checkbox.value;
-              const name = checkbox.dataset.name || slug;
+          // Sync selectedDistricts with selected buttons (populate names)
+          const buttons = districtListContainer.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+          buttons.forEach(button => {
+            const isSelected = button.dataset.selected === 'true';
+            if (isSelected) {
+              const slug = button.dataset.slug || '';
+              const name = button.dataset.name || slug;
               if (!selectedDistricts.some(d => d.slug === slug)) {
                 selectedDistricts.push({ slug, name });
               } else {
@@ -1157,8 +1285,11 @@ const currentMaxPrice = currentFilters.maxPrice
             }
           });
 
-          // Attach checkbox handlers
-          attachDistrictCheckboxHandlers(districtListContainer);
+          // Attach button handlers
+          attachDistrictButtonHandlers(districtListContainer);
+
+          // Re-render tags with proper names
+          renderSelectedDistrictsTags();
 
           // Check if any districts were loaded
           const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
@@ -1219,16 +1350,17 @@ const currentMaxPrice = currentFilters.maxPrice
               districtListContainer.innerHTML = html;
               districtsLoaded = true;
 
-              // Use flex layout for checkboxes
-              districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6');
-              districtListContainer.classList.add('flex', 'flex-col', 'gap-y-1');
+              // Use grid layout for district buttons (3 columns like screenshot)
+              districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
+              districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
 
-              // Sync selectedDistricts with checked checkboxes (populate names)
-              const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-              checkboxes.forEach(checkbox => {
-                if (checkbox.checked) {
-                  const slug = checkbox.value;
-                  const name = checkbox.dataset.name || slug;
+              // Sync selectedDistricts with selected buttons (populate names)
+              const buttons = districtListContainer.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+              buttons.forEach(button => {
+                const isSelected = button.dataset.selected === 'true';
+                if (isSelected) {
+                  const slug = button.dataset.slug || '';
+                  const name = button.dataset.name || slug;
                   if (!selectedDistricts.some(d => d.slug === slug)) {
                     selectedDistricts.push({ slug, name });
                   } else {
@@ -1240,14 +1372,17 @@ const currentMaxPrice = currentFilters.maxPrice
                 }
               });
 
-              // Attach checkbox handlers
-              attachDistrictCheckboxHandlers(districtListContainer);
+              // Attach button handlers
+              attachDistrictButtonHandlers(districtListContainer);
+
+              // Re-render tags with proper names
+              renderSelectedDistrictsTags();
 
               districtDropdown?.classList.remove('hidden');
 
               // Check if any districts were loaded
-              const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
-              if (!districtCheckboxes || districtCheckboxes.length === 0) {
+              const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
+              if (!districtButtons || districtButtons.length === 0) {
                 districtEmpty?.classList.remove('hidden');
               }
             })
@@ -1423,16 +1558,10 @@ const currentMaxPrice = currentFilters.maxPrice
       }
 
       // Add addresses param WITHOUT encoding (v1 uses plain commas)
+      // Only add if districts are actually selected in UI
       if (selectedDistricts.length > 0) {
         const districtSlugs = selectedDistricts.map(d => d.slug).join(',');
         queryParts.push(`addresses=${districtSlugs}`);
-      } else {
-        // Preserve current addresses param if no districts selected in UI
-        const currentParams = new URLSearchParams(window.location.search);
-        const currentAddresses = currentParams.get('addresses');
-        if (currentAddresses) {
-          queryParts.push(`addresses=${currentAddresses}`);
-        }
       }
 
       // Add URLSearchParams parts (other params can be encoded normally)

@@ -66,7 +66,7 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
   </div>
 
   <!-- Selected Districts (Tags) -->
-  <div class="mb-3 hidden" data-selected-districts-container>
+  <div class="mb-3" data-selected-districts-container style="display: none;">
     <div class="flex items-center justify-between mb-2">
       <span class="text-sm font-medium text-secondary-700">Địa điểm đã chọn</span>
       <button
@@ -74,7 +74,7 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
         class="text-xs text-primary-600 hover:text-primary-700 font-medium"
         data-clear-all-districts
       >
-        Xóa lựa chọn
+        Xóa tất cả
       </button>
     </div>
     <div class="flex flex-wrap gap-2" data-selected-districts-tags>
@@ -109,7 +109,7 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
         <div class="flex items-center justify-between">
           <h5 class="font-semibold text-sm text-slate-800">
-            Quận/Huyện tại <span data-province-name-display>{selectedProvince?.name || 'chọn tỉnh'}</span>
+            Tìm kiếm phổ biến
           </h5>
           <button
             type="button"
@@ -121,9 +121,9 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
         </div>
       </div>
 
-      <!-- District List -->
+      <!-- District List (3-column grid) -->
       <div
-        class="p-2"
+        class="p-3 grid grid-cols-3 gap-2"
         data-district-list-container
         hx-get={selectedProvince ? `/api/location/districts?province=${selectedProvince.nId}&base=${baseUrl}&mode=checkboxes&selected=${currentDistricts.join(',')}` : undefined}
         hx-trigger="load once, loadDistricts"
@@ -148,6 +148,8 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
 </div>
 
 <script>
+  console.log('[LocationSelector] Script loaded!');
+
   /**
    * Initialize location selector - runs on page load and after View Transitions
    * Now uses modal instead of dropdown for province selection
@@ -198,36 +200,20 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
       const url = `/api/location/districts?province=${encodeURIComponent(currentProvinceNId)}&base=${encodeURIComponent(baseUrl)}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
 
-      console.log('[LocationSelector] Loading districts with selected:', selectedSlugs);
+      console.log('[LocationSelector] Init: Loading districts with selected:', selectedSlugs);
 
       // Directly fetch and update (bypass HTMX "load once" limitation)
       fetch(url)
         .then(res => res.text())
         .then(html => {
           districtListContainer.innerHTML = html;
-          console.log('[LocationSelector] Districts loaded, HTML updated');
+          console.log('[LocationSelector] Init: Districts loaded, calling attachDistrictButtonHandlers');
 
-          // Attach handlers after a short delay to ensure function is defined
+          // Attach button handlers and sync selectedDistricts after a short delay
           setTimeout(() => {
-            const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-
-            // Sync selectedDistricts with checked checkboxes
-            checkboxes.forEach(checkbox => {
-              if (checkbox.checked) {
-                const slug = checkbox.value;
-                const name = checkbox.dataset.name || slug;
-                if (!selectedDistricts.some(d => d.slug === slug)) {
-                  selectedDistricts.push({ slug, name });
-                } else {
-                  const existing = selectedDistricts.find(d => d.slug === slug);
-                  if (existing && existing.name === slug) {
-                    existing.name = name;
-                  }
-                }
-              }
-            });
-
-            console.log('[LocationSelector] Checkboxes synced, selectedDistricts:', selectedDistricts);
+            attachDistrictButtonHandlers();
+            renderSelectedDistrictsTags();
+            console.log('[LocationSelector] District buttons synced, selectedDistricts:', selectedDistricts);
           }, 50);
         })
         .catch(err => console.error('[LocationSelector] Failed to load districts:', err));
@@ -259,26 +245,36 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
 
     // Render selected districts tags
     function renderSelectedDistrictsTags() {
-      if (!selectedDistrictsTags || !selectedDistrictsContainer) return;
+      console.log('[LocationSelector] renderSelectedDistrictsTags called', {
+        hasContainer: !!selectedDistrictsContainer,
+        hasTags: !!selectedDistrictsTags,
+        selectedDistricts
+      });
+
+      if (!selectedDistrictsTags || !selectedDistrictsContainer) {
+        console.warn('[LocationSelector] Missing container or tags element');
+        return;
+      }
 
       if (selectedDistricts.length === 0) {
-        selectedDistrictsContainer.classList.add('hidden');
+        selectedDistrictsContainer.style.display = 'none';
         updateSearchButtonText();
         return;
       }
 
-      selectedDistrictsContainer.classList.remove('hidden');
+      console.log('[LocationSelector] Showing selectedDistricts container');
+      selectedDistrictsContainer.style.display = 'block';
       updateSearchButtonText();
       selectedDistrictsTags.innerHTML = selectedDistricts.map(d => `
-        <div class="flex items-center gap-1.5 px-3 py-1.5 bg-primary-50 text-primary-700 rounded-lg text-sm border border-primary-200">
-          <svg class="w-3.5 h-3.5 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-secondary-700 rounded-lg text-sm border border-secondary-300 hover:border-secondary-400 transition-colors">
+          <svg class="w-3.5 h-3.5 shrink-0 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
           </svg>
-          <span class="font-medium">${d.name}</span>
+          <span>${d.name}</span>
           <button
             type="button"
-            class="ml-1 hover:bg-primary-100 rounded p-0.5 transition-colors"
+            class="ml-1 hover:bg-secondary-100 rounded p-0.5 transition-colors"
             data-remove-district="${d.slug}"
           >
             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -297,57 +293,90 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
           if (index > -1) {
             selectedDistricts.splice(index, 1);
             renderSelectedDistrictsTags();
-            updateCheckboxesState();
+            updateButtonsState();
           }
         });
       });
     }
 
-    // Update checkboxes state to match selectedDistricts
-    function updateCheckboxesState() {
-      const checkboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
-      checkboxes.forEach(checkbox => {
-        const isSelected = selectedDistricts.some(d => d.slug === checkbox.value);
-        checkbox.checked = isSelected;
+    // Update button styles to match selectedDistricts
+    function updateButtonsState() {
+      const buttons = districtListContainer?.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+      buttons.forEach(button => {
+        const slug = button.dataset.slug || '';
+        const isSelected = selectedDistricts.some(d => d.slug === slug);
+        button.dataset.selected = isSelected ? 'true' : 'false';
+
+        if (isSelected) {
+          // Selected state
+          button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+          const icon = button.querySelector('svg');
+          const text = button.querySelector('span');
+          if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+          if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
+        } else {
+          // Unselected state
+          button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+          const icon = button.querySelector('svg');
+          const text = button.querySelector('span');
+          if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+          if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+        }
       });
     }
 
-    // Attach checkbox handlers after initial HTMX load
-    function attachCheckboxHandlers() {
-      const checkboxes = districtListContainer.querySelectorAll('input[type="checkbox"]') as NodeListOf<HTMLInputElement>;
+    // Attach button click handlers for district selection (replaces checkbox logic)
+    function attachDistrictButtonHandlers() {
+      const buttons = districtListContainer.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
 
-      // Sync selectedDistricts with checked checkboxes (populate names from DOM)
-      checkboxes.forEach(checkbox => {
-        if (checkbox.checked) {
-          const slug = checkbox.value;
-          const name = checkbox.dataset.name || slug;
-          if (!selectedDistricts.some(d => d.slug === slug)) {
-            selectedDistricts.push({ slug, name });
-          } else {
-            // Update name if slug exists but name is missing
-            const existing = selectedDistricts.find(d => d.slug === slug);
-            if (existing && existing.name === slug) {
-              existing.name = name;
-            }
-          }
-        }
+      console.log('[LocationSelector] attachDistrictButtonHandlers called', {
+        buttonsFound: buttons.length,
+        containerExists: !!districtListContainer
       });
 
-      checkboxes.forEach(checkbox => {
-        checkbox.addEventListener('change', () => {
-          const slug = checkbox.value;
-          const name = checkbox.dataset.name || slug;
-          const isChecked = checkbox.checked;
+      buttons.forEach(button => {
+        // Sync selectedDistricts with initially selected buttons
+        const isSelected = button.dataset.selected === 'true';
+        if (isSelected) {
+          const slug = button.dataset.slug || '';
+          const name = button.dataset.name || slug;
+          if (!selectedDistricts.some(d => d.slug === slug)) {
+            selectedDistricts.push({ slug, name });
+          }
+        }
 
-          if (isChecked) {
-            if (!selectedDistricts.some(d => d.slug === slug)) {
-              selectedDistricts.push({ slug, name });
-            }
-          } else {
+        // Add click handler to toggle selection
+        button.addEventListener('click', () => {
+          console.log('[LocationSelector] District button clicked!');
+          const slug = button.dataset.slug || '';
+          const name = button.dataset.name || slug;
+          const isCurrentlySelected = button.dataset.selected === 'true';
+
+          if (isCurrentlySelected) {
+            // Deselect: remove from array
             const index = selectedDistricts.findIndex(d => d.slug === slug);
             if (index > -1) {
               selectedDistricts.splice(index, 1);
             }
+            button.dataset.selected = 'false';
+            // Update styles to unselected state
+            button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+            const icon = button.querySelector('svg');
+            const text = button.querySelector('span');
+            if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+            if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+          } else {
+            // Select: add to array
+            if (!selectedDistricts.some(d => d.slug === slug)) {
+              selectedDistricts.push({ slug, name });
+            }
+            button.dataset.selected = 'true';
+            // Update styles to selected state
+            button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+            const icon = button.querySelector('svg');
+            const text = button.querySelector('span');
+            if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+            if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
           }
 
           renderSelectedDistrictsTags();
@@ -357,8 +386,10 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
 
     // If province already selected on page load, attach handlers after HTMX loads districts
     if (currentProvinceNId && districtListContainer) {
+      console.log('[LocationSelector] Setting up HTMX afterSwap listener');
       districtListContainer.addEventListener('htmx:afterSwap', () => {
-        attachCheckboxHandlers();
+        console.log('[LocationSelector] HTMX afterSwap fired, calling attachDistrictButtonHandlers');
+        attachDistrictButtonHandlers();
       }, { once: true });
     }
 
@@ -471,7 +502,7 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
     clearAllDistrictsBtn?.addEventListener('click', () => {
       selectedDistricts.length = 0; // Clear array
       renderSelectedDistrictsTags();
-      updateCheckboxesState();
+      updateButtonsState();
     });
 
     // Close dropdown on click outside
@@ -520,7 +551,8 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
 
         // Listen for HTMX swap completion (one-time listener)
         const handleSwap = () => {
-          attachCheckboxHandlers();
+          console.log('[LocationSelector] Province selected: handleSwap called, calling attachDistrictButtonHandlers');
+          attachDistrictButtonHandlers();
 
           // Show dropdown after districts are loaded
           districtDropdown?.classList.remove('hidden');
