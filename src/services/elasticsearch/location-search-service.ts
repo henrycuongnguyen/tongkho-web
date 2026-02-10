@@ -104,21 +104,18 @@ interface LocationDocument {
 
 /**
  * Build ES query for location search
- * Follows v1 logic: use city_id filter (not n_parentid) and multi_match with folded/phrase fields
+ * Follows v1 logic exactly: simple multi_match on both location and project fields
+ * Reference: api_customer.py:3300-3338
  */
 function buildLocationQuery(query: string, cityId?: string) {
-  const filters: any[] = [
-    { term: { aactive: true } }
-  ];
+  const filters: any[] = [];
 
-  // Filter by city_id (province) - same as v1
-  // This ensures all results (districts, wards) belong to the selected province
+  // Filter by city_id if provided (v1 line 3334)
   if (cityId) {
     filters.push({ term: { city_id: cityId } });
   }
 
-  // Match v1 query structure: should with minimum_should_match
-  // Search both location names and project names
+  // V1 query structure: search both location and project fields in same multi_match
   return {
     bool: {
       should: [

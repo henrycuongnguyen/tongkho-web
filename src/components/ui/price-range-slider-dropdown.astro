@@ -264,9 +264,15 @@ const displayLabel = parsedMin > config.min || parsedMax < config.max
           : 'Khoảng giá';
         displayText.textContent = label;
 
-        // Update hidden inputs
-        hiddenMinInput.value = minVal.toString();
-        hiddenMaxInput.value = maxVal.toString();
+        // Update hidden inputs - only set if different from defaults (to avoid default price slug in URL)
+        if (minVal > config.min || maxVal < config.max) {
+          hiddenMinInput.value = minVal.toString();
+          hiddenMaxInput.value = maxVal.toString();
+        } else {
+          // Clear when at defaults (no price selected)
+          hiddenMinInput.value = '';
+          hiddenMaxInput.value = '';
+        }
 
         // Update preset buttons
         presetButtons.forEach(btn => {

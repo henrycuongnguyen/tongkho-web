@@ -66,7 +66,13 @@ const TRANSACTION_LABELS: Record<number, string> = {
   3: 'Dự án',
 };
 
-const baseUrl = TRANSACTION_BASE_URLS[transactionType] || '/mua-ban';
+// Determine baseUrl: use property type slug if present, else transaction URL
+// Example: /ban-nha-biet-thu-lien-ke → baseUrl = '/ban-nha-biet-thu-lien-ke'
+// Example: /mua-ban/ha-noi → baseUrl = '/mua-ban'
+const pathSegments = currentPath.split('/').filter(Boolean);
+const firstSegment = pathSegments[0] || '';
+const isPropertyTypeSlug = firstSegment && !['mua-ban', 'cho-thue', 'du-an'].includes(firstSegment);
+const baseUrl = isPropertyTypeSlug ? `/${firstSegment}` : (TRANSACTION_BASE_URLS[transactionType] || '/mua-ban');
 const transactionLabel = TRANSACTION_LABELS[transactionType] || 'Loại BĐS';
 
 // Find selected province - default to Hà Nội if no province in URL
