@@ -118,7 +118,8 @@ const selectedLocations = selectedLocation ? [selectedLocation] : [];
 delete filters._locationSlugs;
 
 // Get provinces with property counts and images (V1-compatible)
-const provinces = await getAllProvincesWithCount(undefined, true);
+// Default to old addresses (useNew=false) to match v1 behavior
+const provinces = await getAllProvincesWithCount(undefined, false);
 
 // Extract province and district slugs from selected locations
 let currentProvinceSlug = '';

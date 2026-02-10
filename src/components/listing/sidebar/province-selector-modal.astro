@@ -25,96 +25,119 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
 
 <!-- Dropdown Panel -->
 <div
-  class="province-dropdown-panel absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-secondary-100 w-full min-w-[970px] max-w-[970px] max-h-[600px] overflow-hidden hidden z-[99999] flex-col"
+  class="province-dropdown-panel absolute top-full left-0 mt-2 bg-white rounded-2xl shadow-2xl border border-secondary-100 w-[1100px] max-h-[600px] overflow-hidden hidden z-[99999] flex-col"
   data-province-dropdown-panel
   data-base-url={baseUrl}
-  style="width: 970px; max-width: calc(100vw - 2rem);"
+  style="max-width: calc(100vw - 2rem);"
 >
     <!-- Content (scrollable) -->
     <div class="overflow-y-auto flex-1 px-6 py-5">
       <!-- Header Row -->
       <div class="flex items-center justify-between mb-4">
         <h4 class="text-xl font-bold text-secondary-800">Top tỉnh thành nổi bật</h4>
-        <!-- Clear selection button -->
-        <button
-          type="button"
-          class="text-sm text-primary-600 hover:text-primary-700 font-medium"
-          data-clear-selection
-        >
-          Xóa lựa chọn
-        </button>
-      </div>
 
-      <!-- Featured Provinces -->
-      <div class="mb-6">
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {featured.map((province) => (
-            <button
-              type="button"
-              class:list={[
-                'featured-province-card group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-300',
-                'hover:shadow-lg hover:-translate-y-1',
-                province.slug === currentProvince
-                  ? 'ring-2 ring-primary-500'
-                  : 'ring-1 ring-secondary-200 hover:ring-primary-300'
-              ]}
-              data-province-slug={province.slug}
-              data-province-nid={province.nId}
-              data-province-name={province.name}
-            >
-              <!-- Image -->
-              <div class="aspect-[4/3] bg-secondary-100 relative overflow-hidden">
-                <img
-                  src={getCityImageUrl(province.cityImageWeb, province.cityImage)}
-                  alt={province.name}
-                  class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                  loading="lazy"
-                  onerror="this.src='https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=400&h=300&fit=crop'"
-                />
-                <!-- Gradient overlay -->
-                <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
-              </div>
+        <!-- Right side controls -->
+        <div class="flex items-center gap-4">
+          <!-- Address type checkbox -->
+          <label class="flex items-center gap-2 cursor-pointer text-sm text-secondary-700 hover:text-secondary-900 transition-colors">
+            <input
+              type="checkbox"
+              class="w-4 h-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+              data-address-type-checkbox
+            />
+            <span class="select-none">Sử dụng địa chỉ hành chính mới</span>
+          </label>
 
-              <!-- Name -->
-              <div class="absolute bottom-0 left-0 right-0 p-3">
-                <h5 class="font-semibold text-white text-sm line-clamp-2 group-hover:text-primary-200 transition-colors">
-                  {province.name}
-                </h5>
-                {province.districtCount > 0 && (
-                  <p class="text-white/80 text-xs mt-1">
-                    {province.districtCount} quận/huyện
-                  </p>
-                )}
-              </div>
-            </button>
-          ))}
+          <!-- Clear selection button -->
+          <button
+            type="button"
+            class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+            data-clear-selection
+          >
+            Xóa lựa chọn
+          </button>
         </div>
       </div>
 
-      <!-- All Provinces -->
-      <div>
-        <h4 class="text-xl font-bold text-secondary-800 mb-4">Tất cả tỉnh thành</h4>
+      <!-- Province List Container (loaded via HTMX) -->
+      <div
+        data-province-list-container
+        hx-get={`/api/location/provinces?useNew=false&current=${currentProvince || ''}`}
+        hx-trigger="load once, reloadProvinces"
+        hx-swap="innerHTML"
+      >
+        <!-- Initial content (SSR fallback) -->
+        <!-- Featured Provinces -->
+        <div class="mb-6">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            {featured.map((province) => (
+              <button
+                type="button"
+                class:list={[
+                  'featured-province-card group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-300',
+                  'hover:shadow-lg hover:-translate-y-1',
+                  province.slug === currentProvince
+                    ? 'ring-2 ring-primary-500'
+                    : 'ring-1 ring-secondary-200 hover:ring-primary-300'
+                ]}
+                data-province-slug={province.slug}
+                data-province-nid={province.nId}
+                data-province-name={province.name}
+              >
+                <!-- Image -->
+                <div class="aspect-[4/3] bg-secondary-100 relative overflow-hidden">
+                  <img
+                    src={getCityImageUrl(province.cityImageWeb, province.cityImage)}
+                    alt={province.name}
+                    class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                    loading="lazy"
+                    onerror="this.src='https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=400&h=300&fit=crop'"
+                  />
+                  <!-- Gradient overlay -->
+                  <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+                </div>
 
-        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-2">
-          {provinces.map((province) => (
-            <button
-              type="button"
-              class:list={[
-                'province-item text-left text-sm py-2 px-3 rounded-lg transition-all duration-150',
-                province.slug === currentProvince
-                  ? 'bg-primary-50 text-primary-600 font-semibold'
-                  : 'text-secondary-700 hover:bg-secondary-50 hover:text-primary-600'
-              ]}
-              data-province-slug={province.slug}
-              data-province-nid={province.nId}
-              data-province-name={province.name}
-            >
-              {province.name}
-              {province.districtCount > 0 && (
-                <span class="text-secondary-400 text-xs ml-1">({province.districtCount})</span>
-              )}
-            </button>
-          ))}
+                <!-- Name -->
+                <div class="absolute bottom-0 left-0 right-0 p-3">
+                  <h5 class="font-semibold text-white text-sm line-clamp-2 group-hover:text-primary-200 transition-colors">
+                    {province.name}
+                  </h5>
+                  {province.districtCount > 0 && (
+                    <p class="text-white/80 text-xs mt-1">
+                      {province.districtCount} quận/huyện
+                    </p>
+                  )}
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <!-- All Provinces -->
+        <div>
+          <h4 class="text-xl font-bold text-secondary-800 mb-4">Tất cả tỉnh thành</h4>
+
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-2">
+            {provinces.map((province) => (
+              <button
+                type="button"
+                class:list={[
+                  'province-item text-left text-sm py-2 px-3 rounded-lg transition-all duration-150',
+                  province.slug === currentProvince
+                    ? 'bg-primary-50 text-primary-600 font-semibold'
+                    : 'text-secondary-700 hover:bg-secondary-50 hover:text-primary-600'
+                ]}
+                data-province-slug={province.slug}
+                data-province-nid={province.nId}
+                data-province-name={province.name}
+              >
+                {province.name}
+                {province.districtCount > 0 && (
+                  <span class="text-secondary-400 text-xs ml-1">({province.districtCount})</span>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
@@ -133,10 +156,23 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
     }
 
     const clearBtn = panel.querySelector('[data-clear-selection]') as HTMLButtonElement;
-    const provinceButtons = panel.querySelectorAll('[data-province-slug]') as NodeListOf<HTMLButtonElement>;
+    const addressCheckbox = panel.querySelector('[data-address-type-checkbox]') as HTMLInputElement;
+    const provinceListContainer = panel.querySelector('[data-province-list-container]') as HTMLDivElement;
+    const baseUrl = panel.getAttribute('data-base-url') || '/mua-ban';
 
     // Unique ID for this dropdown
     const dropdownId = 'province-selector-modal';
+
+    // LocalStorage key for address type preference
+    const STORAGE_KEY = 'tongkho_use_new_addresses';
+
+    // Restore checkbox state from localStorage (default: false = old addresses)
+    const savedPreference = localStorage.getItem(STORAGE_KEY);
+    if (savedPreference !== null) {
+      addressCheckbox.checked = savedPreference === 'true';
+    } else {
+      addressCheckbox.checked = false; // Default to old addresses
+    }
 
     // Close dropdown function
     function closeDropdown() {
@@ -186,34 +222,74 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
       }
     });
 
-    // Province selection - dispatch event for location-selector to handle
-    provinceButtons.forEach((btn) => {
-      btn.addEventListener('click', () => {
-        const provinceSlug = btn.dataset.provinceSlug || '';
-        const provinceName = btn.dataset.provinceName || '';
-        const provinceNId = btn.dataset.provinceNid || '';
+    // Handle checkbox change - reload provinces
+    addressCheckbox?.addEventListener('change', () => {
+      const useNew = addressCheckbox.checked;
 
-        if (provinceSlug && provinceNId) {
-          // Dispatch event for location-selector to handle
-          // This will update province display and load districts
-          const event = new CustomEvent('province-selected', {
-            detail: {
-              slug: provinceSlug,
-              name: provinceName,
-              nId: provinceNId
-            }
-          });
-          document.dispatchEvent(event);
+      // Save preference to localStorage
+      localStorage.setItem(STORAGE_KEY, useNew.toString());
 
-          // Close modal
-          closeDropdown();
-        }
+      // Get current province slug
+      const currentProvince = panel.closest('[data-location-selector]')?.getAttribute('data-current-province') || '';
+
+      // Update HTMX URL
+      const newUrl = `/api/location/provinces?useNew=${useNew}&current=${encodeURIComponent(currentProvince)}`;
+      provinceListContainer?.setAttribute('hx-get', newUrl);
+
+      // Trigger HTMX reload
+      if (typeof (window as any).htmx !== 'undefined') {
+        (window as any).htmx.process(provinceListContainer);
+        (window as any).htmx.trigger(provinceListContainer, 'reloadProvinces');
+      }
+
+      console.log('[province-modal] Address type changed:', useNew ? 'new' : 'old');
+    });
+
+    // Attach province click handlers after HTMX swap
+    function attachProvinceHandlers() {
+      const provinceButtons = provinceListContainer?.querySelectorAll('[data-province-slug]') as NodeListOf<HTMLButtonElement>;
+
+      provinceButtons.forEach((btn) => {
+        // Remove old listeners (if any)
+        const clone = btn.cloneNode(true) as HTMLButtonElement;
+        btn.parentNode?.replaceChild(clone, btn);
+
+        // Add new listener
+        clone.addEventListener('click', () => {
+          const provinceSlug = clone.dataset.provinceSlug || '';
+          const provinceName = clone.dataset.provinceName || '';
+          const provinceNId = clone.dataset.provinceNid || '';
+
+          if (provinceSlug && provinceNId) {
+            // Dispatch event for location-selector to handle
+            // This will update province display and load districts
+            const event = new CustomEvent('province-selected', {
+              detail: {
+                slug: provinceSlug,
+                name: provinceName,
+                nId: provinceNId
+              }
+            });
+            document.dispatchEvent(event);
+
+            // Close modal
+            closeDropdown();
+          }
+        });
       });
+    }
+
+    // Attach handlers on initial load
+    attachProvinceHandlers();
+
+    // Re-attach handlers after HTMX swap
+    provinceListContainer?.addEventListener('htmx:afterSwap', () => {
+      console.log('[province-modal] Provinces reloaded');
+      attachProvinceHandlers();
     });
 
     // Clear selection - navigate back to base URL (all provinces)
     clearBtn?.addEventListener('click', () => {
-      const baseUrl = panel.getAttribute('data-base-url') || '/mua-ban';
       const targetUrl = baseUrl;
 
       // Close dropdown
