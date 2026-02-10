@@ -7,7 +7,9 @@
 import { db } from '@/db';
 import { news, folder } from '@/db/schema';
 import { eq, and, desc } from 'drizzle-orm';
-import { getS3ImageUrl } from '@/utils/s3-url-helper';
+
+// Base URL for uploaded images (same as postgres-news-project-service)
+const UPLOADS_BASE_URL = 'https://quanly.tongkhobds.com';
 
 export interface FeaturedProject {
   id: number;
@@ -19,6 +21,42 @@ export interface FeaturedProject {
 
 // Featured projects folder name (same as v1)
 const FEATURED_PROJECTS_FOLDER = 'banner-du-an-noi-bat';
+
+/**
+ * Get full image URL from news avatar path
+ * Handles both local uploads and S3 storage
+ *
+ * Formats supported:
+ * - Local: "news.avatar.xxx.jpg" → https://quanly.tongkhobds.com/tongkho/static/uploads/news/xxx.jpg
+ * - S3 key: "news/xxx.jpg" → https://s3-han02.fptcloud.com/bds-crawl-data/news/xxx.jpg
+ * - Full URL: "https://..." → returns as-is
+ */
+function getNewsAvatarUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+
+  // Already a full URL
+  if (path.startsWith('http://') || path.startsWith('https://')) {
+    return path;
+  }
+
+  // Local upload format: "news.avatar.xxx.jpg"
+  if (path.startsWith('news.avatar.')) {
+    return `${UPLOADS_BASE_URL}/tongkho/static/uploads/news/${path}`;
+  }
+
+  // S3 key format: "news/xxx.jpg" or "uploads/news/xxx.jpg" (without "news.avatar." prefix)
+  // These are direct S3 paths
+  if (!path.startsWith('news.avatar.')) {
+    const S3_ENDPOINT = 'https://s3-han02.fptcloud.com';
+    const S3_BUCKET = 'bds-crawl-data';
+    return `${S3_ENDPOINT}/${S3_BUCKET}/${path}`;
+  }
+
+  // Fallback to S3
+  const S3_ENDPOINT = 'https://s3-han02.fptcloud.com';
+  const S3_BUCKET = 'bds-crawl-data';
+  return `${S3_ENDPOINT}/${S3_BUCKET}/${path}`;
+}
 
 /**
  * Get featured projects for sidebar
@@ -73,7 +111,7 @@ export async function getFeaturedProjects(
       title: row.name || '',
       // Use version_docs (project slug) directly from news table, fallback to id
       slug: row.versionDocs || String(row.id),
-      mainImage: getS3ImageUrl(row.avatar) || null,
+      mainImage: getNewsAvatarUrl(row.avatar),
       description: row.description,
     }));
 
