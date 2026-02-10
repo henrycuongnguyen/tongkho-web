@@ -55,10 +55,12 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
 
   // Location filters - districts take priority over provinces
   if (districtIds.length > 0) {
+    console.log('[ES Query Builder] Adding district filter:', districtIds);
     must.push({
       terms: { district_id: districtIds }
     });
   } else if (provinceIds.length > 0) {
+    console.log('[ES Query Builder] Adding province filter:', provinceIds);
     must.push({
       terms: { province_id: provinceIds }
     });
@@ -131,7 +133,7 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
   const sortConfig = buildSort(sort);
 
   // Build final query
-  return {
+  const finalQuery = {
     query: {
       bool: {
         must,
@@ -146,6 +148,10 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     sort: sortConfig,
     _source: SOURCE_FIELDS
   };
+
+  console.log('[ES Query Builder] Final ES query:', JSON.stringify(finalQuery, null, 2));
+
+  return finalQuery;
 }
 
 /**

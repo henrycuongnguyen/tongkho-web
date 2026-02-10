@@ -372,6 +372,8 @@ export async function resolveLocationSlugs(
 }>> {
   if (slugs.length === 0) return [];
 
+  console.log('[LocationService] resolveLocationSlugs input:', slugs);
+
   try {
     const rows = await db
       .select({
@@ -381,6 +383,8 @@ export async function resolveLocationSlugs(
         slugV1: locations.nSlugV1,
         level: locations.nLevel,
         provinceId: locations.nParentid,
+        aactive: locations.aactive,
+        nStatus: locations.nStatus,
       })
       .from(locations)
       .where(
@@ -390,6 +394,19 @@ export async function resolveLocationSlugs(
           eq(locations.aactive, true)
         )
       );
+
+    console.log('[LocationService] Query result count:', rows.length);
+    if (rows.length > 0) {
+      console.log('[LocationService] First result:', {
+        nId: rows[0].nId,
+        name: rows[0].name,
+        slug: rows[0].slug,
+        slugV1: rows[0].slugV1,
+        level: rows[0].level,
+        aactive: rows[0].aactive,
+        nStatus: rows[0].nStatus
+      });
+    }
 
     return rows.map(row => {
       // Determine which slug matched (prefer V1 slug for backward compatibility)
@@ -406,6 +423,7 @@ export async function resolveLocationSlugs(
 
   } catch (error) {
     console.error('[LocationService] Failed to resolve location slugs:', error);
+    console.error(error);
     return [];
   }
 }

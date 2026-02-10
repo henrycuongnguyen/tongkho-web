@@ -11,7 +11,7 @@ import ListingGrid from '@/components/listing/listing-grid.astro';
 import ListingPagination from '@/components/listing/listing-pagination.astro';
 import SidebarWrapper from '@/components/listing/sidebar/sidebar-wrapper.astro';
 import { searchProperties } from '@/services/elasticsearch/property-search-service';
-import { resolveLocationSlugs, getAllProvincesWithCount } from '@/services/location/location-service';
+import { resolveLocationSlugs, getAllProvincesWithCount, getDistrictsByProvinceNId } from '@/services/location/location-service';
 import { fetchPropertyTypesByTransaction } from '@/services/menu-service';
 import { getFeaturedProjects } from '@/services/featured-project-service';
 import { getSideBlock } from '@/services/get-side-block-service';
@@ -103,12 +103,19 @@ const resolvedLocations = locationSlugs.length > 0
 // Take ONLY the first location (single-select enforcement)
 const selectedLocation = resolvedLocations[0] || null;
 
-// Set province OR district filter (mutually exclusive)
+// Set district filter (always use district_id for ES compatibility)
+// When province selected, get all districts and query by district_id
+// (ES docs have district_id but not province_id field)
 if (selectedLocation) {
   if (selectedLocation.type === 'province') {
-    filters.provinceIds = [selectedLocation.nId];
+    // Get all districts for this province
+    const districts = await getDistrictsByProvinceNId(selectedLocation.nId);
+    const districtNIds = districts.map(d => d.nId).filter(Boolean) as string[];
+    filters.districtIds = districtNIds;
+    console.log('[Page] Province selected, querying by district IDs:', districtNIds.length, 'districts');
   } else if (selectedLocation.type === 'district') {
     filters.districtIds = [selectedLocation.nId];
+    console.log('[Page] District selected:', selectedLocation.nId);
   }
 }
 
@@ -165,6 +172,14 @@ if (!shouldHideForTransactionOnly) {
   }
 }
 
+// DEBUG: Log final filters before ES query
+console.log('[DEBUG /mua-ban/ha-noi] Final filters for ES:', JSON.stringify({
+  transactionType: filters.transactionType,
+  provinceIds: filters.provinceIds,
+  districtIds: filters.districtIds,
+  propertyTypes: filters.propertyTypes
+}, null, 2));
+
 // Parallel queries - fetch properties, featured projects, and sidebar data simultaneously (SSG optimization)
 const [searchResult, featuredProjects, sideBlocks] = await Promise.all([
   searchProperties(filters),
@@ -175,6 +190,8 @@ const [searchResult, featuredProjects, sideBlocks] = await Promise.all([
   }) : Promise.resolve([]),
 ]);
 const { hits: properties, total, took } = searchResult;
+
+console.log('[DEBUG /mua-ban/ha-noi] ES results - total:', total, 'hits:', properties.length);
 
 // Build metadata
 const title = getPageTitle(filters);
