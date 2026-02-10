@@ -1,20 +1,17 @@
 ---
 /**
- * Featured Project Banner
+ * Featured Project Banner (SSG)
  * Display highlighted projects in sidebar slideshow from news table
  * Matches v1 logic: queries news by folder "banner-du-an-noi-bat"
- * Uses Swiper.js for slideshow functionality (installed via npm)
+ * Data passed from parent (fetched in parallel at page level)
  */
-import { getFeaturedProjects } from '@/services/featured-project-service';
+import type { FeaturedProject } from '@/services/featured-project-service';
 
 interface Props {
-  limit?: number;
-  excludeProjectId?: number;
+  projects?: FeaturedProject[];
 }
 
-const { limit = 5, excludeProjectId } = Astro.props;
-
-const projects = await getFeaturedProjects(limit, excludeProjectId);
+const { projects = [] } = Astro.props;
 
 const FALLBACK_IMAGE = '/images/placeholder-project.jpg';
 
@@ -73,32 +70,39 @@ const swiperId = `featured-projects-${Math.random().toString(36).substring(2, 11
 )}
 
 <style>
-  /* Import Swiper styles */
+  /* Import Swiper CSS from npm package */
   @import 'swiper/css';
+  @import 'swiper/css/autoplay';
 </style>
 
-<script>
-  // Import Swiper and Autoplay module
-  import Swiper from 'swiper';
-  import { Autoplay } from 'swiper/modules';
+<script is:inline data-swiper-id={swiperId} data-has-multiple={projects.length > 1}>
+  // Initialize Swiper after page load (use globally loaded Swiper from layout)
+  (function() {
+    const script = document.currentScript;
+    const swiperId = script.getAttribute('data-swiper-id');
+    const hasMultipleSlides = script.getAttribute('data-has-multiple') === 'true';
 
-  // Initialize all featured project swipers on the page
-  document.addEventListener('DOMContentLoaded', () => {
-    const swiperElements = document.querySelectorAll('[id^="featured-projects-"]');
+    function initSwiper() {
+      const swiperEl = document.getElementById(swiperId);
 
-    swiperElements.forEach((element) => {
-      if (element instanceof HTMLElement && !element.classList.contains('swiper-initialized')) {
-        new Swiper(`#${element.id}`, {
-          modules: [Autoplay],
+      if (swiperEl && typeof window.Swiper !== 'undefined' && !swiperEl.classList.contains('swiper-initialized')) {
+        new window.Swiper(`#${swiperId}`, {
+          modules: window.SwiperModules ? [window.SwiperModules.Autoplay] : [],
           slidesPerView: 1,
           spaceBetween: 15,
-          loop: true,
-          autoplay: {
+          loop: hasMultipleSlides,
+          autoplay: hasMultipleSlides ? {
             delay: 5000,
             disableOnInteraction: false,
-          },
+          } : false,
         });
       }
-    });
-  });
+    }
+
+    // Init on page load and View Transitions
+    document.addEventListener('astro:page-load', initSwiper);
+    if (document.readyState === 'complete') {
+      initSwiper();
+    }
+  })();
 </script>
