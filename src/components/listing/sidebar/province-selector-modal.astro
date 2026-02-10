@@ -35,25 +35,14 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
       <!-- Header Row -->
       <div class="flex items-center justify-between mb-4">
         <h4 class="text-xl font-bold text-secondary-800">Top tỉnh thành nổi bật</h4>
-        <div class="flex items-center gap-4">
-          <!-- Checkbox for new addresses -->
-          <label class="flex items-center gap-2 text-sm text-secondary-600 cursor-pointer">
-            <input
-              type="checkbox"
-              class="w-4 h-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
-              data-new-address-toggle
-            />
-            <span>Sử dụng địa chỉ hành chính mới</span>
-          </label>
-          <!-- Clear selection button -->
-          <button
-            type="button"
-            class="text-sm text-primary-600 hover:text-primary-700 font-medium"
-            data-clear-selection
-          >
-            Xóa lựa chọn
-          </button>
-        </div>
+        <!-- Clear selection button -->
+        <button
+          type="button"
+          class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+          data-clear-selection
+        >
+          Xóa lựa chọn
+        </button>
       </div>
 
       <!-- Featured Provinces -->
@@ -128,7 +117,6 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
           ))}
         </div>
       </div>
-
     </div>
   </div>
 </div>
@@ -198,7 +186,7 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
       }
     });
 
-    // Province selection - save state and close modal
+    // Province selection - dispatch event for location-selector to handle
     provinceButtons.forEach((btn) => {
       btn.addEventListener('click', () => {
         const provinceSlug = btn.dataset.provinceSlug || '';
@@ -206,45 +194,35 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
         const provinceNId = btn.dataset.provinceNid || '';
 
         if (provinceSlug && provinceNId) {
-          // Save to sessionStorage for current tab
-          sessionStorage.setItem('selected-province', JSON.stringify({
-            slug: provinceSlug,
-            name: provinceName,
-            nId: provinceNId
-          }));
-
-          // Dispatch event to notify location-selector
+          // Dispatch event for location-selector to handle
+          // This will update province display and load districts
           const event = new CustomEvent('province-selected', {
-            detail: { slug: provinceSlug, name: provinceName, nId: provinceNId }
+            detail: {
+              slug: provinceSlug,
+              name: provinceName,
+              nId: provinceNId
+            }
           });
           document.dispatchEvent(event);
 
-          // Update province display in button
-          const provinceDisplay = document.querySelector('[data-province-display]');
-          if (provinceDisplay) {
-            provinceDisplay.textContent = provinceName;
-          }
-
           // Close modal
           closeDropdown();
-        } else {
-          console.error('[province-modal] Missing province data - slug:', provinceSlug, 'nId:', provinceNId);
         }
       });
     });
 
-    // Clear selection
+    // Clear selection - navigate back to base URL (all provinces)
     clearBtn?.addEventListener('click', () => {
       const baseUrl = panel.getAttribute('data-base-url') || '/mua-ban';
-      closeDropdown();
-      window.location.href = baseUrl;
-    });
+      const targetUrl = baseUrl;
 
-    // New address toggle (future enhancement)
-    const newAddressToggle = panel.querySelector('[data-new-address-toggle]') as HTMLInputElement;
-    newAddressToggle?.addEventListener('change', (e) => {
-      const checked = (e.target as HTMLInputElement).checked;
-      // TODO: Implement new address filtering
+      // Close dropdown
+      closeDropdown();
+
+      // Navigate only if different URL
+      if (window.location.pathname !== targetUrl) {
+        window.location.href = targetUrl;
+      }
     });
   }
 
