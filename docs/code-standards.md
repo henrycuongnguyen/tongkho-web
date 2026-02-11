@@ -81,11 +81,55 @@ window.location.href = baseUrl;  // Always navigates, even if already there
 - Integration: Wrap with `onclick="event.stopPropagation()"` in cards to prevent link navigation
 - Platforms: Facebook, Zalo, Twitter/X, Copy Link (clipboard)
 
+### Client-Side Script Patterns
+
+**Compare Manager (scripts/compare-manager.ts)**
+- Singleton pattern for localStorage-based state management
+- Exports `CompareManager` with methods: `init()`, `add()`, `remove()`, `toggle()`, `getItems()`, `clear()`
+- Use `.btn-compare` CSS class for button binding
+- Data attributes required: `data-estate-id`, `data-transaction-type`, `data-url`, `data-image`, `data-title`
+- XSS Prevention: Sanitize all data attributes via `sanitize()` utility before use
+- Event Delegation: Single listener on `document.body` to handle HTMX dynamic content swaps
+- Toast Notifications: Use `showToast(message, type)` for user feedback (Vietnamese messages)
+- Validation: Enforce max 2 items & same transaction type requirement
+
+**Pattern for Client-Side Scripts:**
+```typescript
+// Singleton pattern with IIFE (Immediately Invoked Function Expression)
+const ManagerName = (() => {
+  // Private variables & helper functions
+  const init = () => {
+    // Setup: event listeners, DOM queries, initialization
+    if ((document.body as any).__listenerAttached) return; // Prevent duplicates
+    document.body.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      // Handle delegation logic
+    });
+    (document.body as any).__listenerAttached = true;
+  };
+
+  // Public API
+  return { init, methodA, methodB };
+})();
+
+// Global export for accessibility
+if (typeof window !== 'undefined') {
+  (window as any).ManagerName = ManagerName;
+}
+export default ManagerName;
+```
+
+**Integration in Astro Layouts:**
+1. Import script in `base-layout.astro`
+2. Initialize on `DOMContentLoaded` event
+3. Re-initialize after HTMX swaps: `document.body.addEventListener('htmx:afterSwap', () => ManagerName.init())`
+4. Define CSS classes & data attributes in `global.css` for styling
+
 ---
 
 ## Document Version
 
-- **Version:** 2.2
+- **Version:** 2.3
 - **Last Updated:** 2026-02-11
 - **Structure:** Modular (split into 3 files for maintainability)
-- **Latest Change:** Added ShareButtons reusable UI component pattern, event propagation safety for interactive elements in cards
+- **Latest Change:** Added compare-manager.ts client-side script pattern (singleton IIFE, event delegation, XSS protection, toast notifications)

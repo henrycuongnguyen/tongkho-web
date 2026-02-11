@@ -433,6 +433,75 @@ showLabel: boolean   // Show "Chia sẻ:" label (inline only)
 - Accessible labels and ARIA attributes
 - Event propagation control for card integration
 
+### Client-Side State Management Pattern (Vanilla JS)
+
+**File:** `scripts/compare-manager.ts`
+
+**Purpose:** Manage user comparison list without backend (localStorage-based), similar to favorites/wishlist
+
+**Architecture:**
+```
+Window.CompareManager (Global Singleton)
+├─ localStorage key: 'compare_items'
+├─ Data type: CompareItem[] (max 2)
+├─ State: [{estateId, transactionType, url, image, title}]
+└─ Events: 'compareListChanged' (custom event on update)
+
+Event Flow:
+1. User clicks .btn-compare button (data attributes)
+2. CompareManager.toggle() validates & adds/removes item
+3. localStorage updated, event dispatched
+4. Event listeners sync UI (button active state)
+5. Cross-tab sync via storage events
+```
+
+**Key Design Decisions:**
+- **Singleton Pattern:** IIFE (Immediately Invoked Function Expression) prevents duplicate instances
+- **Event Delegation:** Single body listener handles HTMX dynamic content swaps
+- **Data Validation:**
+  - Max 2 items: Prevents performance issues
+  - Same transaction type: User can't compare buy listings with rentals
+- **XSS Protection:** Sanitize all data attributes before using in DOM
+- **Graceful Degradation:** localStorage unavailable (private browsing) returns empty array
+- **Vietnamese UX:** All toast messages in Vietnamese
+
+**Integration Points:**
+```
+base-layout.astro
+├─ Import compare-manager.ts
+├─ Initialize on DOMContentLoaded
+└─ Re-initialize on htmx:afterSwap (for dynamic content)
+
+property-card.astro & listing-property-card.astro
+├─ Add .btn-compare button with data attributes
+│  ├─ data-estate-id: Property ID
+│  ├─ data-transaction-type: "1" (sale) or "2" (rent)
+│  ├─ data-url: Detail page URL
+│  ├─ data-image: Thumbnail image
+│  └─ data-title: Property name
+└─ No inline onclick handlers (event delegation)
+
+global.css
+├─ .btn-compare: Base button style
+└─ .btn-compare.active: Highlight when in comparison list
+```
+
+**Methods:**
+- `init()` – Sync button active states with localStorage, attach event listeners
+- `add(item)` – Validate & add property, dispatch event, show toast
+- `remove(estateId)` – Remove property, show success toast
+- `toggle(element)` – Entry point from click handler (add or remove based on state)
+- `getItems()` – Return current comparison list
+- `clear()` – Remove all items (for next phase: floating bar)
+
+**Toast Notifications:**
+- Success: "Đã thêm vào so sánh" (Added to comparison)
+- Success: "Đã xóa khỏi so sánh" (Removed from comparison)
+- Error: "Tối đa 2 BĐS để so sánh" (Max 2 properties)
+- Error: "Chỉ so sánh BĐS cùng loại giao dịch" (Only compare same type)
+
+**Next Phase:** Phase 3 adds floating comparison bar to display & interact with selected items
+
 ### Related Services
 
 **LocationService (`services/location/location-service.ts`):**
@@ -446,6 +515,7 @@ showLabel: boolean   // Show "Chia sẻ:" label (inline only)
 - Property type filter card (dynamic counts per type)
 - Featured cities section (use displayOrder for ranking)
 - Share buttons on article pages (news sharing pattern)
+- Favorites list (similar to compare-manager pattern)
 
 ---
 

@@ -85,6 +85,8 @@ tongkho-web/
 │   │       ├── 0000_peaceful_payback.sql    # Base schema migration
 │   │       ├── 0001_add_menu_indexes.sql    # Menu performance indexes
 │   │       └── README-MENU-INDEXES.md       # Migration documentation
+│   ├── scripts/
+│   │   └── compare-manager.ts               # Compare/wishlist localStorage manager (212 LOC) [Phase 2]
 │   ├── services/
 │   │   └── menu-service.ts                  # Menu generation service (384 LOC) [Phase 4]
 │   ├── layouts/
@@ -419,6 +421,54 @@ interface StaticOption {
 
 **Usage:** Renders property/project/news grids on homepage
 
+### Compare Manager (compare-manager.ts) [NEW - Phase 2]
+**File:** `src/scripts/compare-manager.ts`
+
+**Purpose:** Client-side property comparison system using localStorage (max 2 items, same transaction type validation)
+
+**Key Functions:**
+- `init()` – Initialize on DOM load, sync button active states with localStorage
+- `add(item)` – Add property to comparison list with validation
+- `remove(estateId)` – Remove property from list
+- `toggle(element)` – Toggle property in/out of list (main interaction)
+- `getItems()` – Retrieve all compared properties
+- `clear()` – Remove all items
+
+**Features:**
+- **Max 2 Items:** Validation enforces comparison limit; toast error if exceeded
+- **Same Transaction Type:** Enforces sale/rent matching; prevents mixing transaction types
+- **Toast Notifications:** Success/error messages in Vietnamese
+- **XSS Protection:** Data attribute sanitization via `sanitize()` utility
+- **Event Delegation:** Single body listener (prevents memory leaks with HTMX)
+- **Cross-Tab Sync:** localStorage events enable sync across browser tabs
+- **Graceful Degradation:** Fallback if localStorage unavailable (private browsing)
+
+**Data Structure:**
+```typescript
+interface CompareItem {
+  estateId: string;       // Property ID
+  transactionType: string; // "1" (sale) or "2" (rent)
+  url: string;            // Property detail link
+  image: string;          // Thumbnail URL
+  title: string;          // Property name
+}
+```
+
+**Utilities:**
+- `sanitize(value)` – XSS prevention via textContent → innerHTML
+- `normalizeTransactionType(value)` – Handles multiple formats (1/2, sale/rent, Vietnamese)
+- `showToast(message, type)` – Simple toast with auto-dismiss (3s)
+
+**Integration Points:**
+- property-card.astro: `.btn-compare` button with data attributes
+- listing-property-card.astro: `.btn-compare` button with data attributes
+- base-layout.astro: Script initialization on DOMContentLoaded & htmx:afterSwap
+- global.css: `.btn-compare.active` styling (blue highlight)
+
+**localStorage Key:** `compare_items` (JSON stringified array)
+
+**Usage:** Bind click handler to `.btn-compare` buttons; manager automatically syncs UI state with storage
+
 ### Formatting Utilities (format.ts)
 **Purpose:** Vietnamese localization & text formatting
 
@@ -542,5 +592,6 @@ npm run astro    # Astro CLI commands
 | 1.2 | 2026-02-06 | Phase 2 complete: Added menu-data.ts, build-time menu generation with fallback support |
 | 1.3 | 2026-02-06 | Phase 3 complete: Extracted static-data.ts for filter options; database-driven header navigation |
 | 1.4 | 2026-02-06 | Phase 4 complete: Hierarchical news folders, dynamic folder pages (27 total), recursive data structures |
+| 2.2 | 2026-02-11 | Phase 2 compare service: Created compare-manager.ts (localStorage-based, max 2 items, transaction type validation, toast notifications, XSS protection). Updated property cards with compare buttons. All 211 tests passing |
 | 2.1 | 2026-02-11 | Phase 1 share functionality: Integrated ShareButtons component (popup variant) into property-card.astro and listing-property-card.astro; Share button row added to action buttons |
 | 2.0 | 2026-02-07 | Scout report: Added 32 components (8 new sections), 8 page routes, dynamic detail pages, authentication modal, SEO schemas, image gallery, news system, price history chart. Total ~3,500 LOC |

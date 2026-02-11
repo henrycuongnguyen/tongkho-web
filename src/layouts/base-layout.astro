@@ -149,5 +149,20 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
   <body class="min-h-screen flex flex-col">
     <slot />
     <ScrollToTopButton />
+
+    <!-- Compare Manager Script -->
+    <script>
+      import CompareManager from '@/scripts/compare-manager';
+
+      // Initialize on DOM ready
+      document.addEventListener('DOMContentLoaded', () => {
+        CompareManager.init();
+      });
+
+      // Re-initialize after HTMX swaps (for dynamic content)
+      document.body.addEventListener('htmx:afterSwap', () => {
+        CompareManager.init();
+      });
+    </script>
   </body>
 </html>
