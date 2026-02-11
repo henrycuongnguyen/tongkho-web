@@ -203,9 +203,11 @@ if (resolvedDistricts.length > 0) {
 }
 
 // Resolve property type name for breadcrumb (prioritize slug-based detection)
-const propertyTypeName = propertyTypeFromSlug?.title || (
+// Use vietnamese field for Vietnamese text, fallback to title if not available
+const propertyTypeName = propertyTypeFromSlug?.vietnamese || propertyTypeFromSlug?.title || (
   filters.propertyTypes?.length === 1
-    ? propertyTypes.find(pt => pt.id === filters.propertyTypes![0])?.title || ''
+    ? (propertyTypes.find(pt => pt.id === filters.propertyTypes![0])?.vietnamese ||
+       propertyTypes.find(pt => pt.id === filters.propertyTypes![0])?.title || '')
     : ''
 );
 
@@ -396,6 +398,21 @@ if (hasDistrictContext) {
         district: districtSlug,
         slug: propertySlug,
       });
+
+      // Replace English property type names in chartTitle with Vietnamese
+      if (priceHistoryData && propertyTypeName) {
+        const englishPropertyTypes = [
+          'Apartment', 'Villa', 'Townhouse', 'Land', 'House',
+          'Office', 'Shop', 'Warehouse', 'Hotel', 'Resort'
+        ];
+
+        let updatedTitle = priceHistoryData.chartTitle;
+        for (const englishType of englishPropertyTypes) {
+          const regex = new RegExp(englishType, 'gi');
+          updatedTitle = updatedTitle.replace(regex, propertyTypeName);
+        }
+        priceHistoryData.chartTitle = updatedTitle;
+      }
     } catch (error) {
       console.error('[ListingPage] Failed to fetch price history:', error);
     }

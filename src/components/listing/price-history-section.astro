@@ -2,7 +2,7 @@
 /**
  * Price History Section
  * Displays price trend chart below listing pagination
- * Shows only when price filters are active
+ * Matches V1 design: grid layout with price boxes
  */
 import type { PriceHistoryChartData, PriceHistoryAnalysis } from '@/services/price-history-service';
 
@@ -33,29 +33,86 @@ const chartData = JSON.stringify({
 const defaultPeriod = twoYear ? '2year' : '5year';
 const defaultData = twoYear || fiveYear;
 
-// Extract analyzed data for display
-const commonPrice = analyzedData?.commonPriceValue;
-const changePercent = analyzedData?.changedPercentValue;
-const changeStatus = analyzedData?.changedPercentStatus;
-const isUp = changeStatus && changeStatus > 0;
+// Extract analyzed data for display (V1 pattern)
+const commonPriceValue = analyzedData?.commonPriceValue?.replace('tr/m²', '').trim();
+const commonPriceLabel = analyzedData?.commonPriceLabel;
+const changedPercentValue = analyzedData?.changedPercentValue?.replace('%', '').trim();
+const changedPercentLabel = analyzedData?.changedPercentLabel;
+const changedPercentStatus = analyzedData?.changedPercentStatus;
+const percentDistanceFromMaxValue = analyzedData?.percentDistanceFromMaxValue;
+const percentDistanceFromMaxLabel = analyzedData?.percentDistanceFromMaxLabel;
+const isUp = changedPercentStatus && changedPercentStatus > 0;
+
+// Check if we have any data to show
+const hasAnalyzedData = commonPriceValue || changedPercentValue || percentDistanceFromMaxValue;
 ---
 
 <section
-  class="mt-12 bg-white rounded-xl shadow-sm border border-slate-100 p-6"
+  class="price-history mt-8 bg-white rounded-xl shadow-sm border border-slate-100 p-6"
   id="price-history-section"
   data-chart={chartData}
   data-default-period={defaultPeriod}
 >
-  <!-- Header -->
-  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-    <div>
-      <h2 class="text-xl font-semibold text-slate-900">{chartTitle}</h2>
-      <p class="text-sm text-slate-500 mt-1">
-        Xu hướng giá bất động sản trong khu vực tìm kiếm của bạn
-      </p>
-    </div>
+  <!-- Price Boxes Grid (V1 pattern) -->
+  {hasAnalyzedData && (
+    <div class="price-wrapper grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <!-- Box 1: Giá phổ biến -->
+      {commonPriceValue && (
+        <div class="price-box border border-gray-200 rounded-lg p-4 bg-white hover:shadow-lg transition-shadow text-center">
+          <div class="price-box-title flex items-center justify-center gap-1 mb-3">
+            <span class="price-number text-2xl font-bold text-slate-900">{commonPriceValue}</span>
+            <span class="price-unit text-lg text-slate-600">{chartUnit}</span>
+          </div>
+          <div class="price-box-content text-sm text-slate-600" set:html={commonPriceLabel || 'Giá phổ biến khu vực'} />
+        </div>
+      )}
 
-    <!-- Period Toggle -->
+      <!-- Box 2: % Thay đổi -->
+      {changedPercentValue && (
+        <div class="price-box border border-gray-200 rounded-lg p-4 bg-white hover:shadow-lg transition-shadow text-center">
+          <div class="price-box-title flex items-center justify-center gap-2 mb-3">
+            {isUp ? (
+              <svg class="w-7 h-7 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M7 17L17 7M17 7H7M17 7V17" />
+              </svg>
+            ) : (
+              <svg class="w-7 h-7 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M7 7L17 17M17 17H7M17 17V7" />
+              </svg>
+            )}
+            <span class:list={['price-number text-2xl font-bold', isUp ? 'text-green-600' : 'text-red-600']}>
+              {changedPercentValue}%
+            </span>
+          </div>
+          <div class="price-box-content text-sm text-slate-600" set:html={changedPercentLabel || 'Thay đổi trong 2 năm'} />
+        </div>
+      )}
+
+      <!-- Box 3: % So với đỉnh (V1 star icons pattern) -->
+      {percentDistanceFromMaxValue && (
+        <div class="price-box border border-gray-200 rounded-lg p-4 bg-white hover:shadow-lg transition-shadow text-center">
+          <div class="price-box-title flex items-center justify-center gap-1 mb-3">
+            <svg class="w-6 h-6 text-teal-300" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <svg class="w-7 h-7 text-teal-500 -translate-y-1" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <svg class="w-6 h-6 text-teal-300" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </div>
+          <div class="price-box-content text-sm text-slate-600" set:html={percentDistanceFromMaxLabel || 'Khoảng cách so với giá đỉnh'} />
+        </div>
+      )}
+
+      
+    </div>
+  )}
+
+  <!-- Period Toggle -->
+  <div class="flex items-center justify-between gap-4 mb-4">
+    <h3 class="text-lg font-semibold text-slate-800">{chartTitle}</h3>
     <div class="flex gap-2" id="price-history-period-selector">
       <button
         data-period="2year"
@@ -85,34 +142,6 @@ const isUp = changeStatus && changeStatus > 0;
       </button>
     </div>
   </div>
-
-  <!-- Stats Cards -->
-  {(commonPrice || changePercent) && (
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-      {commonPrice && (
-        <div class="bg-slate-50 rounded-lg p-4">
-          <p class="text-sm text-slate-500 mb-1">Giá phổ biến</p>
-          <p class="text-lg font-semibold text-slate-900">{commonPrice}</p>
-        </div>
-      )}
-
-      {changePercent && (
-        <div class="bg-slate-50 rounded-lg p-4">
-          <p class="text-sm text-slate-500 mb-1">Thay đổi</p>
-          <p class:list={['text-lg font-semibold', isUp ? 'text-green-600' : 'text-red-600']}>
-            {changePercent} {isUp ? '↑' : '↓'}
-          </p>
-        </div>
-      )}
-
-      <div class="bg-slate-50 rounded-lg p-4" id="price-history-change-card">
-        <p class="text-sm text-slate-500 mb-1">Xu hướng</p>
-        <p class="text-lg font-semibold text-slate-900" id="price-history-trend">
-          {defaultData?.trendDirection === 'up' ? 'Tăng' : defaultData?.trendDirection === 'down' ? 'Giảm' : 'Ổn định'}
-        </p>
-      </div>
-    </div>
-  )}
 
   <!-- Chart -->
   <div class="relative h-64 sm:h-80">
