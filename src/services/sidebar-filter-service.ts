@@ -5,7 +5,7 @@
 
 import { db } from '@/db';
 import { locations, propertyType } from '@/db/schema';
-import { eq, and, ne, desc } from 'drizzle-orm';
+import { eq, and, ne, desc, asc } from 'drizzle-orm';
 
 export interface SidebarFilter {
   title: string;
@@ -134,6 +134,7 @@ async function generatePropertyTypeBlock(
           eq(propertyType.aactive, true)
         )
       )
+      .orderBy(asc(propertyType.id))
       .limit(20);
 
     if (types.length === 0) return null;

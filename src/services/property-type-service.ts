@@ -5,7 +5,7 @@
 
 import { db } from "@/db";
 import { propertyType } from "@/db/schema/menu";
-import { eq, and } from "drizzle-orm";
+import { eq, and, asc } from "drizzle-orm";
 
 export interface PropertyTypeWithSlug {
   id: number;
@@ -41,7 +41,8 @@ export async function getPropertyTypesByTransaction(
           eq(propertyType.aactive, true),
           eq(propertyType.transactionType, transactionType)
         )
-      );
+      )
+      .orderBy(asc(propertyType.id));
 
     return results.map((row) => ({
       id: row.id,
@@ -78,7 +79,8 @@ export async function getAllPropertyTypes(): Promise<PropertyTypeWithSlug[]> {
         aactive: propertyType.aactive,
       })
       .from(propertyType)
-      .where(eq(propertyType.aactive, true));
+      .where(eq(propertyType.aactive, true))
+      .orderBy(asc(propertyType.id));
 
     return results.map((row) => ({
       id: row.id,

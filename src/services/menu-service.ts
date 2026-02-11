@@ -12,7 +12,7 @@
 
 import { db } from "@/db";
 import { propertyType, folder } from "@/db/schema/menu";
-import { eq, and, isNull } from "drizzle-orm";
+import { eq, and, isNull, asc } from "drizzle-orm";
 import type {
   MenuPropertyType,
   MenuFolder,
@@ -99,7 +99,8 @@ export async function fetchPropertyTypesByTransaction(
           eq(propertyType.transactionType, transactionType),
           isNull(propertyType.parentId) // Only root items
         )
-      );
+      )
+      .orderBy(asc(propertyType.id));
 
     // Step 2: If root items exist, use them. Otherwise, get all items.
     const result =
@@ -121,7 +122,8 @@ export async function fetchPropertyTypesByTransaction(
                 eq(propertyType.aactive, true),
                 eq(propertyType.transactionType, transactionType)
               )
-            );
+            )
+            .orderBy(asc(propertyType.id));
 
     return result.map((row) => ({
       id: row.id,
