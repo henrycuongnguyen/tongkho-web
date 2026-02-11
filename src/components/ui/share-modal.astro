@@ -1,0 +1,309 @@
+---
+/**
+ * Share Modal Component
+ * Modal dialog for sharing with URL input and social buttons
+ * Matches v1 design
+ */
+interface Props {
+  url: string;
+  title: string;
+}
+
+const { url, title } = Astro.props;
+---
+
+<!-- Share Modal -->
+<div id="shareModal" class="share-modal fixed inset-0 z-50 hidden items-center justify-center bg-black/50 backdrop-blur-sm">
+  <div class="modal-dialog relative w-full max-w-md mx-4 animate-fadeIn" onclick="event.stopPropagation()">
+    <div class="modal-content bg-white rounded-2xl shadow-2xl overflow-hidden">
+      <!-- Modal Header -->
+      <div class="modal-header flex items-center justify-center py-4 px-6 border-b border-slate-200 relative">
+        <h5 class="modal-title text-lg font-semibold text-slate-800">Chia sẻ</h5>
+        <button
+          class="close-modal absolute right-4 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center rounded-full hover:bg-slate-100 transition-colors"
+          aria-label="Đóng"
+        >
+          <svg class="w-5 h-5 text-slate-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="modal-body flex flex-col items-center py-6 px-6 gap-4">
+        <!-- URL Input -->
+        <input
+          id="share-url"
+          type="text"
+          class="share-input w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500"
+          readonly
+          data-url={url}
+        />
+
+        <!-- Share Buttons List -->
+        <ul class="share-list flex flex-wrap items-center justify-center gap-3 w-full" data-url={url} data-title={title}>
+          <!-- Facebook -->
+          <li>
+            <button
+              title="Chia sẻ qua Facebook"
+              class="btn-share w-14 h-14 flex items-center justify-center rounded-xl hover:scale-110 transition-all duration-200"
+              data-platform="facebook"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="w-12 h-12">
+                <path fill="#3F51B5" d="M42,37c0,2.762-2.238,5-5,5H11c-2.761,0-5-2.238-5-5V11c0-2.762,2.239-5,5-5h26c2.762,0,5,2.238,5,5V37z"/>
+                <path fill="#FFF" d="M34.368,25H31v13h-5V25h-3v-4h3v-2.41c0.002-3.508,1.459-5.59,5.592-5.59H35v4h-2.287C31.104,17,31,17.6,31,18.723V21h4L34.368,25z"/>
+              </svg>
+            </button>
+          </li>
+
+          <!-- Messenger -->
+          <li>
+            <button
+              title="Chia sẻ qua Messenger"
+              class="btn-share w-14 h-14 flex items-center justify-center rounded-xl hover:scale-110 transition-all duration-200"
+              data-platform="messenger"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="w-12 h-12">
+                <radialGradient id="8O3wK6b5ASW2Wn6hRCB5xa" cx="11.087" cy="7.022" r="47.612" gradientTransform="matrix(1 0 0 -1 0 50)" gradientUnits="userSpaceOnUse">
+                  <stop offset="0" stop-color="#1292ff"/>
+                  <stop offset=".079" stop-color="#2982ff"/>
+                  <stop offset=".23" stop-color="#4e69ff"/>
+                  <stop offset=".351" stop-color="#6559ff"/>
+                  <stop offset=".428" stop-color="#6d53ff"/>
+                  <stop offset=".754" stop-color="#df47aa"/>
+                  <stop offset=".946" stop-color="#ff6257"/>
+                </radialGradient>
+                <path fill="url(#8O3wK6b5ASW2Wn6hRCB5xa)" d="M44,23.5C44,34.27,35.05,43,24,43c-1.651,0-3.25-0.194-4.784-0.564c-0.465-0.112-0.951-0.069-1.379,0.145L13.46,44.77C12.33,45.335,11,44.513,11,43.249v-4.025c0-0.575-0.257-1.111-0.681-1.499C6.425,34.165,4,29.11,4,23.5C4,12.73,12.95,4,24,4S44,12.73,44,23.5z"/>
+                <path fill="#fff" d="M34.394,18.501l-5.7,4.22c-0.61,0.46-1.44,0.46-2.04,0.01L22.68,19.74c-1.68-1.25-4.06-0.82-5.19,0.94l-1.21,1.89l-4.11,6.68c-0.6,0.94,0.55,2.01,1.44,1.34l5.7-4.22c0.61-0.46,1.44-0.46,2.04-0.01l3.974,2.991c1.68,1.25,4.06,0.82,5.19-0.94l1.21-1.89l4.11-6.68C36.434,18.901,35.284,17.831,34.394,18.501z"/>
+              </svg>
+            </button>
+          </li>
+
+          <!-- Telegram -->
+          <li>
+            <button
+              title="Chia sẻ qua Telegram"
+              class="btn-share w-14 h-14 flex items-center justify-center rounded-xl hover:scale-110 transition-all duration-200"
+              data-platform="telegram"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" class="w-12 h-12">
+                <path fill="#29b6f6" d="M24 4A20 20 0 1 0 24 44A20 20 0 1 0 24 4Z"/>
+                <path fill="#fff" d="M33.95,15l-3.746,19.126c0,0-0.161,0.874-1.245,0.874c-0.576,0-0.873-0.274-0.873-0.274l-8.114-6.733l-3.97-2.001l-5.095-1.355c0,0-0.907-0.262-0.907-1.012c0-0.625,0.933-0.923,0.933-0.923l21.316-8.468c-0.001-0.001,0.651-0.235,1.126-0.234C33.667,14,34,14.125,34,14.5C34,14.75,33.95,15,33.95,15z"/>
+                <path fill="#b0bec5" d="M23,30.505l-3.426,3.374c0,0-0.149,0.115-0.348,0.12c-0.069,0.002-0.143-0.009-0.219-0.043l0.964-5.965L23,30.505z"/>
+                <path fill="#cfd8dc" d="M29.897,18.196c-0.169-0.22-0.481-0.26-0.701-0.093L16,26c0,0,2.106,5.892,2.427,6.912c0.322,1.021,0.58,1.045,0.58,1.045l0.964-5.965l9.832-9.096C30.023,18.729,30.064,18.416,29.897,18.196z"/>
+              </svg>
+            </button>
+          </li>
+
+          <!-- X (Twitter) -->
+          <li>
+            <button
+              title="Chia sẻ qua X"
+              class="btn-share w-14 h-14 flex items-center justify-center rounded-xl hover:scale-110 transition-all duration-200"
+              data-platform="twitter"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 50" class="w-12 h-12">
+                <path d="M 11 4 C 7.134 4 4 7.134 4 11 L 4 39 C 4 42.866 7.134 46 11 46 L 39 46 C 42.866 46 46 42.866 46 39 L 46 11 C 46 7.134 42.866 4 39 4 L 11 4 z M 13.085938 13 L 21.023438 13 L 26.660156 21.009766 L 33.5 13 L 36 13 L 27.789062 22.613281 L 37.914062 37 L 29.978516 37 L 23.4375 27.707031 L 15.5 37 L 13 37 L 22.308594 26.103516 L 13.085938 13 z M 16.914062 15 L 31.021484 35 L 34.085938 35 L 19.978516 15 L 16.914062 15 z"/>
+              </svg>
+            </button>
+          </li>
+
+          <!-- Copy Link -->
+          <li>
+            <button
+              title="Sao chép vào bộ nhớ tạm"
+              class="btn-share copy-btn w-14 h-14 flex items-center justify-center rounded-xl hover:scale-110 transition-all duration-200"
+              data-platform="copy"
+            >
+              <svg class="copy-icon w-12 h-12" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+                <path d="M18.64 114.25l83.27-98.22c2.63 0 7.45.24 7.45 6.74v94.53c0 2.63-2.13 4.76-4.76 4.76H24.42c-2.63.01-5.78-2.35-5.78-7.81z" fill="#a15d38"/>
+                <path d="M18.64 114.38V20.54c0-2.51 2.03-4.54 4.54-4.54h78.58c2.51 0 4.54 2.03 4.54 4.54v93.84c0 2.51-2.03 4.54-4.54 4.54H23.18c-2.51 0-4.54-2.03-4.54-4.54z" fill="#ba793e"/>
+                <path d="M28.45 109.66V25.02c0-1.29 1.05-2.34 2.34-2.34h64.42c1.29 0 2.34 1.05 2.34 2.34v84.64c0 1.29-1.05 2.34-2.34 2.34H30.79c-1.29 0-2.34-1.04-2.34-2.34z" fill="#ffffff"/>
+                <g fill="none" stroke="#b0bec5" stroke-width="3" stroke-linecap="round" stroke-miterlimit="10">
+                  <path d="M38.65 54.36h48.7"/>
+                  <path d="M38.65 42.91h48.7"/>
+                  <path d="M38.65 65.81h48.7"/>
+                  <path d="M38.65 77.27h48.7"/>
+                  <path d="M38.65 88.72h48.7"/>
+                  <path d="M38.65 100.17h20.83"/>
+                </g>
+              </svg>
+              <svg class="check-icon hidden w-12 h-12" viewBox="0 0 128 128" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="64" cy="64" r="60" fill="#10b981"/>
+                <path d="M45 64l10 10 28-28" fill="none" stroke="white" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </li>
+
+          <!-- Native Share (if supported) -->
+          <li class="native-share-item hidden">
+            <button
+              title="Chia sẻ"
+              class="btn-share w-14 h-14 flex items-center justify-center rounded-xl hover:scale-110 transition-all duration-200"
+              data-platform="native"
+            >
+              <svg class="w-10 h-10" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+                <path d="m246.125 201.823-104.784-124.877-26.997 22.654 108.778 129.637z" fill="#6c7fd9"/>
+                <path d="m283.794 285.72h48.765v34.942h-48.765z" fill="#fc2b3a" transform="matrix(.766 -.643 .643 .766 -122.788 269.026)"/>
+                <path d="m165.116 413.839c-1.518-4.836-.344-10.117 2.914-14l174.407-207.85c3.647-4.347 9.439-6.346 14.953-5.008 34.544 8.385 72.484-3.033 96.385-32.765 20.793-25.866 25.719-59.805 15.871-89.486-1.436-4.329-7.075-5.402-10.007-1.908l-50.845 60.594c-3.252 3.876-8.326 5.723-13.309 4.844l-30.026-5.294c-4.983-.879-9.119-4.349-10.849-9.104l-10.428-28.651c-1.731-4.755-.793-10.072 2.459-13.948l50.925-60.69c2.931-3.493.896-8.848-3.613-9.524-31.565-4.728-64.765 6.576-86.784 32.816-23.954 28.547-28.199 67.056-14.213 99.03 2.279 5.21 1.332 11.27-2.324 15.626l-174.41 207.856c-3.293 3.925-8.353 5.926-13.435 5.274-25.412-3.261-51.934 6.459-69.071 28.272-16.97 21.601-20.248 50.12-10.734 74.367 1.604 4.089 7.046 4.916 9.869 1.552l43.118-51.387c.871-1.038 2.229-1.532 3.563-1.297l26.75 4.717c1.334.235 2.441 1.164 2.905 2.437l9.29 25.524c.463 1.273.212 2.696-.658 3.734l-43.162 51.438c-2.824 3.365-1.06 8.571 3.244 9.453 26.277 5.385 54.597-3.435 73.049-25.425 17.196-20.493 21.628-47.436 14.166-71.197z" fill="#b4dbff"/>
+              </svg>
+            </button>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Utility functions
+  function openShareUrl(url: string): void {
+    window.open(url, '_blank', 'width=600,height=400');
+  }
+
+  function handleCopyLink(btn: Element, url: string): void {
+    navigator.clipboard.writeText(url).then(() => {
+      const copyIcon = btn.querySelector('.copy-icon');
+      const checkIcon = btn.querySelector('.check-icon');
+
+      if (copyIcon && checkIcon) {
+        copyIcon.classList.add('hidden');
+        checkIcon.classList.remove('hidden');
+
+        setTimeout(() => {
+          copyIcon.classList.remove('hidden');
+          checkIcon.classList.add('hidden');
+        }, 2000);
+      }
+
+      // Show toast
+      showToast('Đã sao chép link!', 'success');
+    });
+  }
+
+  function showToast(message: string, type: 'success' | 'error' = 'success'): void {
+    const toast = document.createElement('div');
+    const bgColor = type === 'success' ? 'bg-green-500' : 'bg-red-500';
+    toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-[9999] animate-fadeIn`;
+    toast.textContent = message;
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+      toast.classList.add('opacity-0');
+      setTimeout(() => toast.remove(), 300);
+    }, 2000);
+  }
+
+  function getShareUrl(platform: string, url: string, title: string): string | null {
+    switch (platform) {
+      case 'facebook':
+        return `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`;
+      case 'messenger':
+        return `https://www.facebook.com/dialog/send?link=${encodeURIComponent(url)}&app_id=YOUR_APP_ID&redirect_uri=${encodeURIComponent(url)}`;
+      case 'telegram':
+        return `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+      case 'twitter':
+        return `https://twitter.com/intent/tweet?url=${encodeURIComponent(url)}&text=${encodeURIComponent(title)}`;
+      default:
+        return null;
+    }
+  }
+
+  // Initialize modal
+  function initShareModal() {
+    const modal = document.getElementById('shareModal');
+    const urlInput = modal?.querySelector('#share-url') as HTMLInputElement;
+    const shareList = modal?.querySelector('.share-list');
+    const closeBtn = modal?.querySelector('.close-modal');
+
+    if (!modal || !urlInput || !shareList) return;
+
+    // Check if native share is supported
+    if (navigator.share) {
+      const nativeBtn = modal.querySelector('.native-share-item');
+      if (nativeBtn) nativeBtn.classList.remove('hidden');
+    }
+
+    // Close modal handlers
+    const closeModal = () => {
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      document.body.style.overflow = '';
+    };
+
+    closeBtn?.addEventListener('click', closeModal);
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) closeModal();
+    });
+
+    // Handle share button clicks
+    shareList.querySelectorAll('.btn-share').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const platform = (btn as HTMLElement).dataset.platform;
+        const baseUrl = window.location.origin;
+        const relativeUrl = shareList.getAttribute('data-url') || '';
+        const url = baseUrl + relativeUrl;
+        const title = shareList.getAttribute('data-title') || '';
+
+        if (platform === 'copy') {
+          handleCopyLink(btn, url);
+        } else if (platform === 'native' && navigator.share) {
+          navigator.share({
+            title: title,
+            url: url
+          }).catch(() => {});
+        } else {
+          const shareUrl = getShareUrl(platform!, url, title);
+          if (shareUrl) openShareUrl(shareUrl);
+        }
+      });
+    });
+
+    // Expose open modal function
+    (window as any).openShareModal = (url: string, title: string) => {
+      const baseUrl = window.location.origin;
+      const fullUrl = baseUrl + url;
+
+      urlInput.value = fullUrl;
+      urlInput.setAttribute('data-url', url);
+      shareList.setAttribute('data-url', url);
+      shareList.setAttribute('data-title', title);
+
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+      document.body.style.overflow = 'hidden';
+    };
+  }
+
+  // Init on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initShareModal);
+  } else {
+    initShareModal();
+  }
+
+  // Re-init after HTMX swaps
+  document.body.addEventListener('htmx:afterSwap', initShareModal);
+</script>
+
+<style>
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .animate-fadeIn {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  .share-input:focus {
+    outline: none;
+  }
+</style>

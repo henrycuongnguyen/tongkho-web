@@ -131,7 +131,7 @@ const { property } = Astro.props;
       <!-- Action Buttons - horizontal, always visible -->
       <div class="flex items-center gap-2">
         <!-- Share Button -->
-        <div onclick="event.stopPropagation()">
+        <div onclick="event.preventDefault(); event.stopPropagation();">
           <ShareButtons
             url={`/bds/${property.slug}`}
             title={property.title}
