@@ -219,7 +219,7 @@ const { url, title } = Astro.props;
     if (!modal || !urlInput || !shareList) return;
 
     // Check if native share is supported
-    if (navigator.share) {
+    if (typeof navigator.share === 'function') {
       const nativeBtn = modal.querySelector('.native-share-item');
       if (nativeBtn) nativeBtn.classList.remove('hidden');
     }
