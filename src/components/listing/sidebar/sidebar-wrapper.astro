@@ -13,20 +13,39 @@ import PriceRangeFilterCard from './price-range-filter-card.astro';
 import AreaRangeFilterCard from './area-range-filter-card.astro';
 import DynamicSidebarFilters from './dynamic-sidebar-filters.astro';
 import FeaturedProjectBanner from './featured-project-banner.astro';
+import PriceTrendCard from './price-trend-card.astro';
+
+interface PriceTrendData {
+  changePercent?: string;
+  trendDirection?: 'up' | 'down' | 'stable';
+  propertyType?: string;
+  location?: string;
+}
 
 interface Props {
   filters: PropertySearchFilters;
   dynamicFilterBlocks?: SidebarFilterBlock[];
   featuredProjects?: FeaturedProject[];
   sideBlocks?: SideBlock[];
+  priceTrend?: PriceTrendData | null;
 }
 
-const { filters, dynamicFilterBlocks = [], featuredProjects = [], sideBlocks = [] } = Astro.props;
+const { filters, dynamicFilterBlocks = [], featuredProjects = [], sideBlocks = [], priceTrend } = Astro.props;
 ---
 
 <div class="space-y-4">
   <!-- Quick Contact -->
   <ContactCard />
+
+  <!-- Price Trend Card (shows when price history available) -->
+  {priceTrend && (
+    <PriceTrendCard
+      changePercent={priceTrend.changePercent}
+      trendDirection={priceTrend.trendDirection}
+      propertyType={priceTrend.propertyType}
+      location={priceTrend.location}
+    />
+  )}
 
   <!-- Price Range Filter -->
   <PriceRangeFilterCard currentMin={filters.minPrice} currentMax={filters.maxPrice} />

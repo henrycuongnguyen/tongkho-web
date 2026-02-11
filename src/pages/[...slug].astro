@@ -401,6 +401,14 @@ if (hasDistrictContext) {
     }
   }
 }
+
+// Build price trend data for sidebar card
+const priceTrendData = priceHistoryData ? {
+  changePercent: priceHistoryData.analyzedData?.changedPercentValue,
+  trendDirection: (priceHistoryData.twoYear?.trendDirection || priceHistoryData.fiveYear?.trendDirection) as 'up' | 'down' | 'stable' | undefined,
+  propertyType: propertyTypeName || 'BĐS',
+  location: selectedLocation?.name || 'khu vực này',
+} : null;
 ---
 
 <ListingWithSidebarLayout title={pageTitle} description={description}>
@@ -506,6 +514,6 @@ if (hasDistrictContext) {
 
   <!-- Sidebar -->
   <Fragment slot="sidebar">
-    <SidebarWrapper filters={filters} featuredProjects={featuredProjects} sideBlocks={sideBlocks} />
+    <SidebarWrapper filters={filters} featuredProjects={featuredProjects} sideBlocks={sideBlocks} priceTrend={priceTrendData} />
   </Fragment>
 </ListingWithSidebarLayout>
