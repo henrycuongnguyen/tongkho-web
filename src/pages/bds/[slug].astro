@@ -7,7 +7,7 @@
 import MainLayout from '@/layouts/main-layout.astro';
 import ImageGalleryCarousel from '@/components/property/property-detail-image-gallery-carousel.astro';
 import PropertyInfoSection from '@/components/property/property-info-section.astro';
-import ContactSidebar from '@/components/property/contact-sidebar.astro';
+import ContactCard from '@/components/shared/contact-card.astro';
 import SidebarFilterList from '@/components/property/sidebar-filter-list.astro';
 import SidebarFeaturedProject from '@/components/property/sidebar-featured-project.astro';
 import PropertyCard from '@/components/cards/property-card.astro';
@@ -124,7 +124,7 @@ const pageDescription = property.description.slice(0, 160);
 
         <!-- Right Column: Contact Sidebar + Filters (4 cols, smaller) -->
         <div class="lg:col-span-3 space-y-6">
-          <ContactSidebar />
+          <ContactCard showMobileBar={true} />
           <SidebarFeaturedProject />
           <SidebarFilterList title="Lọc theo khoảng giá" items={priceRanges} minParam="priceMin" maxParam="priceMax" />
           <SidebarFilterList title="Lọc theo diện tích" items={areaRanges} minParam="areaMin" maxParam="areaMax" />
