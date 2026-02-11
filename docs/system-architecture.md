@@ -250,7 +250,85 @@ Astro Build Process
      └─ No runtime database calls (data baked into HTML)
 ```
 
-### 3. Data Source: Mock Data
+### 3. SEO Metadata Flow (Phase 5)
+**Purpose:** Dynamic page titles, descriptions, and SEO content from database
+
+```
+Listing Page Request: /mua-ban/ha-noi/gia-tu-1-ty-den-2-ty?filters...
+  ↓
+[...slug].astro:229 calls getSeoMetadata(pathname)
+  ↓
+seo-metadata-service.ts (orchestration)
+  ├─ Parse slug: '/mua-ban/ha-noi/gia-tu-1-ty-den-2-ty'
+  │   → baseSlug: '/mua-ban/ha-noi'
+  │   → priceSlug: 'gia-tu-1-ty-den-2-ty'
+  │
+  └─ Try ElasticSearch (searchSeoMetadata)
+     ├─ Query: seo_meta_data index
+     ├─ Filter: slug exact match + is_active=true
+     └─ Returns: SeoMetadataResult or null
+       │
+       ├─ If found: Format + return
+       │
+       ├─ If not found: Try PostgreSQL (getSeoMetadataFromDb)
+       │   ├─ Query: seo_meta_data table via Drizzle
+       │   ├─ Filter: slug + isActive=true
+       │   └─ Returns: SeoMetadataResult or null
+       │     │
+       │     ├─ If found: Format + return
+       │     │
+       │     ├─ If not found: Fetch default (slug='/default/')
+       │     │   └─ Returns: SeoMetadataResult or null
+       │     │
+       │     └─ If still null: Return empty metadata object
+
+Formatting phase (regardless of source):
+  ├─ Extract title, metaDescription, contentBelow
+  ├─ Apply price context if priceSlug exists
+  │   Example: Replace {price} placeholder in title
+  │   'Mua bán nhà {price}' → 'Mua bán nhà giá từ 1 tỷ đến 2 tỷ'
+  │
+  ├─ Replace relative image URLs with CDN URLs
+  │   /uploads/image.jpg → {PUBLIC_IMAGE_SERVER_URL}/uploads/image.jpg
+  │
+  └─ Return: SeoMetadata (always object, never null)
+
+Rendering in [...slug].astro:
+  ├─ pageTitle = seoMetadata.titleWeb || seoMetadata.title || generated
+  ├─ Rendered as H1 in results header (line 305)
+  ├─ contentBelow rendered below pagination if exists (line 346)
+  └─ Meta tags passed to layout
+```
+
+**Database Schema (seo_meta_data table):**
+- `slug` (string, primary): URL path (e.g., '/mua-ban/ha-noi')
+- `title` (text): Page title for meta tags
+- `titleWeb` (text): H1 heading for web display
+- `metaDescription` (text): Meta description tag
+- `contentAbove` (text, HTML): Content above listings
+- `contentBelow` (text, HTML): Content below listings (main SEO content)
+- `ogTitle`, `ogDescription`, `ogImage` (text): Open Graph
+- `twitterTitle`, `twitterDescription`, `twitterImage` (text): Twitter card
+- `canonicalUrl`, `schemaJson`, `breadcrumbJson` (text): SEO extras
+- `isActive` (boolean): Enable/disable SEO for slug
+- `isDefault` (boolean): Mark as default fallback
+
+**Example metadata entry:**
+```json
+{
+  "slug": "/mua-ban/ha-noi",
+  "title": "Mua bán nhà đất tại Hà Nội giá rẻ nhất 2024",
+  "titleWeb": "Mua bán nhà đất {price} tại Hà Nội",
+  "metaDescription": "Tìm kiếm nhà đất bán tại Hà Nội {price}. Hơn 10,000 tin đăng mỗi ngày",
+  "contentBelow": "<h2>Thị trường bất động sản Hà Nội</h2><p>...</p>"
+}
+```
+
+When user searches `/mua-ban/ha-noi/gia-tu-1-ty-den-2-ty`:
+1. Title becomes: "Mua bán nhà đất giá từ 1 tỷ đến 2 tỷ tại Hà Nội"
+2. Description becomes: "Tìm kiếm nhà đất bán tại Hà Nội giá từ 1 tỷ đến 2 tỷ. Hơn 10,000 tin đăng..."
+
+### 5. Data Source: Mock Data
 ```typescript
 mock-properties.ts (single source of truth)
 ├── mockProperties: Property[]
@@ -261,7 +339,7 @@ mock-properties.ts (single source of truth)
   Section components → Rendered as HTML
 ```
 
-### 4. Styling Pipeline
+### 6. Styling Pipeline
 ```
 tailwind.config.mjs (define colors, fonts)
     ↓

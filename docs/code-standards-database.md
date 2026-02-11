@@ -282,6 +282,95 @@ async function getCachedRedis<T>(
 
 ---
 
+## Multi-Source Fallback Pattern (SEO Services - Phase 5)
+
+For critical features that require high availability, implement multi-source fallback pattern:
+
+```typescript
+// seo-metadata-service.ts pattern
+export async function getSeoMetadata(slug: string): Promise<SeoMetadata> {
+  // 1. Try primary source (ElasticSearch)
+  let result = await searchSeoMetadata({ slug });
+
+  // 2. Fallback to secondary source (PostgreSQL)
+  if (!result) {
+    result = await getSeoMetadataFromDb(slug);
+  }
+
+  // 3. Fallback to tertiary source (Default)
+  if (!result) {
+    result = await getDefaultSeoMetadata();
+  }
+
+  // 4. Format and return (never null)
+  return formatSeoMetadata(result);
+}
+```
+
+**Benefits:**
+- Search features unaffected by ElasticSearch outages
+- Database query fallback for consistency
+- Default values ensure graceful degradation
+- Proper error logging at each layer
+
+**Implementation Rules:**
+- Each layer should be independent (no cascade failures)
+- Log at WARN level when falling back to next layer
+- Return typed result (never null) to prevent downstream errors
+- Handle serialization (JSON.parse for ES, case mapping for DB)
+- Validate input (sanitize slugs to prevent injection)
+
+**Example: SEO Metadata Flow**
+```typescript
+// ElasticSearch layer - validates & sanitizes
+async function searchSeoMetadata(options: SeoMetadataSearchOptions): Promise<SeoMetadataResult | null> {
+  const sanitized = sanitizeSlug(options.slug);  // Only a-z, 0-9, -, /, _
+  if (!sanitized) return null;
+
+  // Query with exact match + is_active filter
+  const hits = await es.search({
+    query: { bool: { must: [
+      { term: { slug } },
+      { term: { is_active: true } }
+    ]}}
+  });
+
+  return hits.length > 0 ? parseSeoHit(hits[0]._source) : null;
+}
+
+// Database layer - Drizzle ORM
+async function getSeoMetadataFromDb(slug: string): Promise<SeoMetadataResult | null> {
+  const result = await db
+    .select()
+    .from(seoMetaData)
+    .where(and(
+      eq(seoMetaData.slug, slug),
+      eq(seoMetaData.isActive, true)
+    ))
+    .limit(1);
+
+  return result.length > 0 ? mapDbRecordToResult(result[0]) : null;
+}
+
+// Default layer - hardcoded or from database
+async function getDefaultSeoMetadata(): Promise<SeoMetadataResult | null> {
+  return getSeoMetadataFromDb('/default/');  // Reuse DB layer
+}
+```
+
+**Environment Config:**
+```typescript
+const ES_URL = import.meta.env.ES_URL || process.env.ES_URL || '';
+const ES_API_KEY = import.meta.env.ES_API_KEY || process.env.ES_API_KEY || '';
+
+// If either is missing, ES layer returns null immediately
+if (!ES_URL || !ES_API_KEY) {
+  console.warn('[Service] ElasticSearch not configured, will use database');
+}
+```
+
+---
+
 ## Recursive Data Structures
 
 For hierarchical data (e.g., nested news folders), use recursive type definitions:

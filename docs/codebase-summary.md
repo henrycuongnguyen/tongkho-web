@@ -86,7 +86,13 @@ tongkho-web/
 │   │       ├── 0001_add_menu_indexes.sql    # Menu performance indexes
 │   │       └── README-MENU-INDEXES.md       # Migration documentation
 │   ├── services/
-│   │   └── menu-service.ts                  # Menu generation service (384 LOC) [Phase 4]
+│   │   ├── menu-service.ts                  # Menu generation service (384 LOC) [Phase 4]
+│   │   ├── seo/
+│   │   │   ├── types.ts                     # SEO metadata type definitions (140 LOC) [Phase 5]
+│   │   │   ├── seo-metadata-service.ts      # Main orchestration service (226 LOC) [Phase 5]
+│   │   │   └── seo-metadata-db-service.ts   # PostgreSQL fallback service (142 LOC) [Phase 5]
+│   │   └── elasticsearch/
+│   │       └── seo-metadata-search-service.ts # ElasticSearch SEO service (152 LOC) [Phase 5]
 │   ├── layouts/
 │   │   ├── base-layout.astro                # HTML base template (65 LOC)
 │   │   └── main-layout.astro                # Header + main + footer (35 LOC)
@@ -498,6 +504,80 @@ npm run astro    # Astro CLI commands
 
 **Usage:** Import like `import { formatPrice } from '@utils/format'`
 
+### SEO Metadata Service (seo-metadata-service.ts) [Phase 5]
+**Purpose:** Server-side SEO metadata orchestration for listing pages. Fetches and renders dynamic title & content from database.
+
+**Architecture:** ElasticSearch → PostgreSQL → Default fallback
+
+**Key Functions:**
+- `getSeoMetadata(slug)` – Main orchestration function, returns formatted SeoMetadata object
+  - Parses slug to extract 3-part URL format (transaction/location/price)
+  - Tries ElasticSearch first, falls back to PostgreSQL if not found
+  - Uses default SEO metadata as final fallback
+  - Applies price context if 3-part URL detected
+  - Ensures return is never null (empty object if all sources fail)
+- `parseSlug(slug)` – Extract base slug & price slug from URL path
+  - Handles: '/mua-ban/ha-noi' → baseSlug, '/mua-ban/ha-noi/gia-tu-1-ty-den-2-ty' → baseSlug + priceSlug
+- `formatSeoMetadata(result, priceSlug)` – Format raw DB result + apply price context
+- `applyPriceContext(metadata, priceSlug)` – Replace {price} placeholder with actual range
+  - Examples: 'gia-tu-1-ty-den-2-ty' → 'giá từ 1 tỷ đến 2 tỷ'
+  - Matches 10+ price slug patterns (range, under, over, in tỷ/triệu)
+- `replaceImageUrls(content)` – Convert relative URLs to absolute for CDN
+  - `/uploads/image.jpg` → `{PUBLIC_IMAGE_SERVER_URL}/uploads/image.jpg`
+
+**Features:**
+- Graceful degradation on service failures (logs warnings, continues)
+- Dynamic title rendering from database (H1 headings)
+- SEO content below listings (contentBelow field)
+- Price context injection for template-based metadata
+- Image URL CDN integration
+- Environment-based image server URL (PUBLIC_IMAGE_SERVER_URL)
+
+**Data Flow (Listing Page):**
+1. URL arrives: `/mua-ban/ha-noi/gia-tu-1-ty-den-2-ty?filters...`
+2. `getSeoMetadata(pathname)` called during SSR
+3. Fetches metadata from ES → DB → Default
+4. Renders as:
+   - Page title (H1) from `titleWeb` or `title`
+   - Content above (if exists, before results grid)
+   - Content below (if exists & properties found, after pagination)
+5. Meta tags from `metaDescription`, `ogTitle`, etc.
+
+**Integration Points:**
+- Called in `[...slug].astro:229` during page rendering
+- Result passed to layout as title & description
+- `contentBelow` rendered at line 346 with prose styling
+
+### SEO Metadata Search Service (seo-metadata-search-service.ts) [Phase 5]
+**Purpose:** ElasticSearch integration for SEO metadata queries
+
+**Key Functions:**
+- `searchSeoMetadata(options)` – Query seo_meta_data ES index
+  - Returns SeoMetadataResult or null if not found
+  - Validates slug, sanitizes for injection attacks
+  - Filters by `is_active: true`
+
+**Features:**
+- Slug sanitization (only allow a-z, 0-9, -, /, _)
+- Exact slug matching via ES `term` query
+- Returns 30+ fields from _source
+- Graceful error handling with null return
+
+### SEO Metadata DB Service (seo-metadata-db-service.ts) [Phase 5]
+**Purpose:** PostgreSQL fallback for SEO metadata (via seo_meta_data table)
+
+**Key Functions:**
+- `getSeoMetadataFromDb(slug)` – Query by slug, filters `isActive=true`
+- `getDefaultSeoMetadata()` – Fetch default SEO (slug='/default/')
+- `seoMetadataExists(slug)` – Lightweight existence check
+- `mapDbRecordToResult(record)` – Convert DB record to typed result
+
+**Features:**
+- Drizzle ORM integration
+- Case-insensitive field mapping (camelCase + snake_case)
+- Database error isolation (never throws, logs & returns null)
+- Default fallback support
+
 ---
 
 ## Dependencies Summary
@@ -541,5 +621,6 @@ npm run astro    # Astro CLI commands
 | 1.1 | 2026-02-06 | Phase 1 complete: Added menu service layer, database schema (propertyType, folder), Drizzle ORM integration |
 | 1.2 | 2026-02-06 | Phase 2 complete: Added menu-data.ts, build-time menu generation with fallback support |
 | 1.3 | 2026-02-06 | Phase 3 complete: Extracted static-data.ts for filter options; database-driven header navigation |
+| 1.4 | 2026-02-11 | Phase 5 complete: SEO metadata integration (ES→DB→Default flow, price context injection, dynamic content rendering) |
 | 1.4 | 2026-02-06 | Phase 4 complete: Hierarchical news folders, dynamic folder pages (27 total), recursive data structures |
 | 2.0 | 2026-02-07 | Scout report: Added 32 components (8 new sections), 8 page routes, dynamic detail pages, authentication modal, SEO schemas, image gallery, news system, price history chart. Total ~3,500 LOC |

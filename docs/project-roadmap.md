@@ -12,6 +12,48 @@
 
 ## Recently Completed
 
+### SEO Metadata Integration for Listing Pages (✅ COMPLETE)
+**Branch:** listing72
+**Plan:** plans/260211-0922-seo-metadata-integration/
+**Completed:** 2026-02-11 (Same day)
+
+| Phase | Status | Details |
+|---|---|---|
+| Phase 1: ElasticSearch SEO Service | ✅ Complete | Query logic, slug handling, slug injection fix ✓ |
+| Phase 2: SEO Metadata Service | ✅ Complete | Orchestration, fallback chain, price slug parsing ✓ |
+| Phase 3: Type Definitions | ✅ Complete | TypeScript interfaces for all metadata types ✓ |
+| Phase 4: API Endpoint | ⏭️ Skipped | Not needed - direct service calls more efficient ✓ |
+| Phase 5: Listing Page Integration | ✅ Complete | Astro SSR integration with fallback logic ✓ |
+| Phase 6: PostgreSQL Fallback | ✅ Complete | Drizzle ORM queries with default metadata ✓ |
+| Phase 7: Environment Config | ✅ Complete | SEO index and image domain variables ✓ |
+| Phase 8: Testing & Validation | ✅ Complete | Build pass, type checking pass, code review 9.5/10 ✓ |
+
+**Delivery Time:** 1 day (excellent velocity)
+**Business Impact:** Dynamic SEO metadata for listing pages, improved search engine visibility
+**Performance:** SSR-compatible, no additional API overhead
+**Quality:** 9.5/10 code review, security fixes applied (slug sanitization, image domain config)
+
+**Features Implemented:**
+- ✅ ElasticSearch integration for SEO metadata queries
+- ✅ PostgreSQL fallback when ES unavailable
+- ✅ 3-part URL support (transaction/location/price slug)
+- ✅ Default SEO fallback for unmapped slugs
+- ✅ Title and content_below rendering in listing pages
+- ✅ Security: Slug sanitization prevents ES injection
+- ✅ Security: Image domain configurable via environment variable
+
+**Security Fixes:**
+- ✅ ES slug injection vulnerability fixed (removed special chars)
+- ✅ Image URL domain moved to environment variable (configurable)
+
+**New Files Created:**
+- `src/services/elasticsearch/seo-metadata-search-service.ts` - ES queries
+- `src/services/seo/seo-metadata-service.ts` - Main orchestration
+- `src/services/seo/seo-metadata-db-service.ts` - PostgreSQL fallback
+- `src/services/seo/types.ts` - TypeScript types
+
+---
+
 ### Sidebar Location Filter Cards (SSR) (✅ COMPLETE)
 **Branch:** listing72ui
 **Plan:** plans/260210-1109-sidebar-location-filters/
@@ -155,8 +197,16 @@ Core static site with 32 components, 8 page routes, responsive design, Vietnames
 - `pages/tin-tuc/danh-muc/[folder].astro` - Folder pages (27) ✅
 - `pages/bds/[slug].astro` - Property detail (SSR) ✅
 
+#### Completed SEO Tasks
+- [x] Listing page SEO metadata (ElasticSearch + PostgreSQL) - 2026-02-11 ✅
+  - Dynamic title from metadata.title or metadata.titleWeb
+  - Content_below rendering for listing pages
+  - 3-part URL support (transaction/location/price)
+  - Fallback to default SEO when slug not found
+  - Security: Slug sanitization, configurable image domains
+
 #### Remaining SEO Tasks
-- [ ] Per-page meta tag generation
+- [ ] Per-page meta tag generation (property detail pages)
 - [ ] Open Graph image generation
 - [ ] Twitter Card support
 - [ ] Breadcrumb JSON-LD schema
