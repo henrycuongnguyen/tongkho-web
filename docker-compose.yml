@@ -3,20 +3,26 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        DATABASE_URL: ${DATABASE_URL}
+        ES_URL: ${ES_URL}
+        ES_INDEX: ${ES_INDEX}
+        ES_API_KEY: ${ES_API_KEY}
+        SEO_ES_INDEX: ${SEO_ES_INDEX:-seo_meta_data}
+        PUBLIC_SITE_URL: ${PUBLIC_SITE_URL:-https://tongkhobds.com}
+        PUBLIC_API_URL: ${PUBLIC_API_URL:-}
+        PUBLIC_IMAGE_SERVER_URL: ${PUBLIC_IMAGE_SERVER_URL:-https://quanly.tongkhobds.com}
     ports:
       - "4321:4321"
+    env_file:
+      - .env
     environment:
       - HOST=0.0.0.0
       - PORT=4321
-      # Elasticsearch
-      - ES_URL=${ES_URL}
-      - ES_INDEX=${ES_INDEX}
-      - ES_API_KEY=${ES_API_KEY}
-      # PostgreSQL
-      - DATABASE_URL=${DATABASE_URL}
-      # Public vars (optional)
       - PUBLIC_SITE_URL=${PUBLIC_SITE_URL:-https://tongkhobds.com}
       - PUBLIC_API_URL=${PUBLIC_API_URL:-}
+      - PUBLIC_IMAGE_SERVER_URL=${PUBLIC_IMAGE_SERVER_URL:-https://quanly.tongkhobds.com}
+      - SEO_ES_INDEX=${SEO_ES_INDEX:-seo_meta_data}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:4321/"]
