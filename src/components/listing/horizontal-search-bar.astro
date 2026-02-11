@@ -155,7 +155,7 @@ const currentMaxPrice = currentFilters.maxPrice
         <!-- Selected Districts (Tags) -->
         <div class="px-5 pt-3 pb-2" data-selected-districts-container style="display: none;">
           <div class="flex items-center justify-between mb-2">
-            <span class="text-xs font-medium text-secondary-600">Địa điểm đã chọn</span>
+            <span class="text-sm font-semibold text-secondary-700">Địa điểm đã chọn</span>
             <button
               type="button"
               class="text-xs text-primary-600 hover:text-primary-700 font-medium"
@@ -170,17 +170,30 @@ const currentMaxPrice = currentFilters.maxPrice
         </div>
 
         <!-- Section Title -->
-        <div class="px-5 py-2 border-b border-secondary-100">
+        <div class="px-5 py-2 pt-4 border-b border-secondary-100">
           <h6 class="text-xs font-semibold text-secondary-600 uppercase tracking-wide">Tìm kiếm phổ biến</h6>
         </div>
 
-        <!-- District List Container (populated via HTMX) - Layout switches between grid/list -->
-        <div
-          data-district-list-container
-          hx-swap="innerHTML"
-          class="px-5 py-4"
-        >
-          <!-- Districts (grid) or search results (list) will be loaded here -->
+        <!-- Main Content: 2-column layout -->
+        <div class="flex">
+          <!-- Left Column: District Grid -->
+          <div class="flex-1 px-5 py-4 border-r border-secondary-100">
+            <div
+              data-district-list-container
+              hx-swap="innerHTML"
+              class=""
+            >
+              <!-- Districts (grid) or search results (list) will be loaded here -->
+            </div>
+          </div>
+
+          <!-- Right Column: Top 5 Most Searched -->
+          <div class="w-[260px] px-4 py-4">
+            <h6 class="text-sm font-semibold text-secondary-700 mb-3">Tìm kiếm nhiều nhất</h6>
+            <div class="space-y-2" data-top-districts>
+              <!-- Top districts will be loaded here -->
+            </div>
+          </div>
         </div>
 
         <!-- Loading State -->
@@ -190,9 +203,7 @@ const currentMaxPrice = currentFilters.maxPrice
         </div>
 
         <!-- Empty State -->
-        <div class="px-5 py-6 text-sm text-secondary-500 text-center hidden" data-district-empty>
-          Không tìm thấy quận/huyện
-        </div>
+       
       </div>
 
       <!-- Property Type Dropdown -->
@@ -537,6 +548,10 @@ const currentMaxPrice = currentFilters.maxPrice
   /**
    * Horizontal Search Bar Logic
    */
+
+  // Store handler reference for cleanup (prevent duplicate listeners on re-init)
+  let provinceSelectedHandler: ((event: CustomEvent) => void) | null = null;
+
   function initHorizontalSearchBar() {
     const searchBar = document.querySelector('[data-search-bar]');
     if (!searchBar) {
@@ -568,6 +583,7 @@ const currentMaxPrice = currentFilters.maxPrice
     const selectedDistrictsContainer = searchBar.querySelector('[data-selected-districts-container]') as HTMLDivElement;
     const selectedDistrictsTags = searchBar.querySelector('[data-selected-districts-tags]') as HTMLDivElement;
     const clearAllDistrictsBtn = searchBar.querySelector('[data-clear-all-districts]') as HTMLButtonElement;
+    const topDistrictsContainer = searchBar.parentElement?.querySelector('[data-top-districts]') as HTMLDivElement;
 
     // District dropdown - close function for dropdown manager
     const districtDropdownId = `district-${Math.random().toString(36).substr(2, 9)}`;
@@ -725,13 +741,92 @@ const currentMaxPrice = currentFilters.maxPrice
       });
     });
 
+    // Render top 5 most searched districts (v1 compatible)
+    // NOW DYNAMIC: Fetches data from API based on current province
+    function renderTopDistricts() {
+      if (!topDistrictsContainer) return;
+
+      // If no province selected, show placeholder
+      if (!currentProvinceNId) {
+        topDistrictsContainer.innerHTML = `
+          <div class="text-sm text-secondary-500 text-center py-4">
+            Chọn tỉnh để xem
+          </div>`;
+        return;
+      }
+
+      // Show loading state
+      topDistrictsContainer.innerHTML = `
+        <div class="text-sm text-secondary-500 text-center py-4">
+          <svg class="w-5 h-5 animate-spin mx-auto text-primary-500" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+        </div>`;
+
+      // Fetch top districts from API (use format=dropdown for button format)
+      const apiUrl = `/api/location/top-searched?province=${encodeURIComponent(currentProvinceNId)}&limit=5&base=${encodeURIComponent(baseUrl)}&format=dropdown`;
+      console.log('[HorizontalSearchBar] Fetching top districts from:', apiUrl);
+
+      fetch(apiUrl)
+        .then(response => response.text())
+        .then(html => {
+          console.log('[HorizontalSearchBar] Top districts HTML received');
+          topDistrictsContainer.innerHTML = html;
+
+          // Attach click handlers to top district items
+          const topDistrictItems = topDistrictsContainer.querySelectorAll('[data-top-district-item]') as NodeListOf<HTMLButtonElement>;
+          console.log('[HorizontalSearchBar] Found top district items:', topDistrictItems.length);
+
+          topDistrictItems.forEach(item => {
+            item.addEventListener('click', () => {
+              const slug = item.dataset.slug || '';
+              const name = item.dataset.name || '';
+
+              console.log('[HorizontalSearchBar] Top district clicked:', { slug, name });
+
+              // Add to selectedDistricts if not already selected
+              if (!selectedDistricts.some(d => d.slug === slug)) {
+                selectedDistricts.push({ slug, name });
+                renderSelectedDistrictsTags();
+
+                // Update button state in main grid if visible
+                const mainButton = districtListContainer?.querySelector(`[data-district-toggle][data-slug="${slug}"]`) as HTMLButtonElement;
+                if (mainButton) {
+                  mainButton.dataset.selected = 'true';
+                  mainButton.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+                  const icon = mainButton.querySelector('svg');
+                  const text = mainButton.querySelector('span');
+                  if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+                  if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
+                }
+              }
+            });
+          });
+        })
+        .catch(error => {
+          console.error('[HorizontalSearchBar] Failed to fetch top districts:', error);
+          topDistrictsContainer.innerHTML = `
+            <div class="text-sm text-red-500 text-center py-4">
+              Lỗi tải dữ liệu
+            </div>`;
+        });
+    }
+
     let currentProvinceName: string | null = null;
     let districtsLoaded = false;
 
+    // Remove old listener if exists (prevent duplicates on re-init)
+    if (provinceSelectedHandler) {
+      console.log('[HorizontalSearchBar] Removing old province-selected listener');
+      document.removeEventListener('province-selected', provinceSelectedHandler as EventListener);
+    }
 
-    // Listen for province selection and update display + load districts
-    document.addEventListener('province-selected', ((e: CustomEvent) => {
+    // Create new handler
+    provinceSelectedHandler = ((e: CustomEvent) => {
       const { name, nId, slug } = e.detail;
+
+      console.log('[HorizontalSearchBar] Received province-selected event:', { name, nId, slug });
 
       // Update location display
       if (locationDisplay) {
@@ -766,6 +861,13 @@ const currentMaxPrice = currentFilters.maxPrice
       selectedDistricts.length = 0;
       console.log('[HorizontalSearchBar] Cleared selectedDistricts on province change');
 
+      // Dispatch province-changed event for other components (e.g., most-searched-locations)
+      console.log('[HorizontalSearchBar] Dispatching province-changed event:', { provinceNId: nId, provinceName: name, provinceSlug: slug, baseUrl });
+      const provinceChangedEvent = new CustomEvent('province-changed', {
+        detail: { provinceNId: nId, provinceName: name, provinceSlug: slug, baseUrl }
+      });
+      document.dispatchEvent(provinceChangedEvent);
+
       // Load districts via fetch
       if (districtListContainer && currentProvinceNId) {
         // Show loading state
@@ -780,6 +882,9 @@ const currentMaxPrice = currentFilters.maxPrice
         fetch(url)
           .then(response => response.text())
           .then(html => {
+            console.log('[HorizontalSearchBar] Districts API response length:', html.length);
+            console.log('[HorizontalSearchBar] Districts HTML preview:', html.substring(0, 500));
+
             districtLoading?.classList.add('hidden');
             districtListContainer.innerHTML = html;
             districtsLoaded = true;
@@ -802,15 +907,26 @@ const currentMaxPrice = currentFilters.maxPrice
             // Re-render tags with proper names
             renderSelectedDistrictsTags();
 
+            // Render top 5 most searched districts
+            renderTopDistricts();
+
             // Show dropdown and focus input
             districtDropdown?.classList.remove('hidden');
             districtSearchInput?.focus();
 
-            // Check if any districts were loaded
-            const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
-            if (!districtButtons || districtButtons.length === 0) {
-              districtEmpty?.classList.remove('hidden');
-            }
+            // CRITICAL FIX: Delay check until browser parses HTML into DOM
+            setTimeout(() => {
+              const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
+              console.log('[HorizontalSearchBar] District buttons found (after timeout):', districtButtons?.length);
+
+              if (!districtButtons || districtButtons.length === 0) {
+                console.log('[HorizontalSearchBar] No districts, showing empty state');
+                districtEmpty?.classList.remove('hidden');
+              } else {
+                console.log('[HorizontalSearchBar] Districts found, HIDING empty state');
+                districtEmpty?.classList.add('hidden');
+              }
+            }, 50); // Increased delay to ensure DOM parsing
           })
           .catch(error => {
             console.error('[HorizontalSearchBar] Failed to load districts:', error);
@@ -821,7 +937,11 @@ const currentMaxPrice = currentFilters.maxPrice
             }
           });
       }
-    }) as EventListener);
+    }) as (event: CustomEvent) => void;
+
+    // Add listener
+    console.log('[HorizontalSearchBar] Adding province-selected listener');
+    document.addEventListener('province-selected', provinceSelectedHandler as EventListener);
 
     // Property Type dropdown
     const propertyTypeTrigger = searchBar.querySelector('[data-property-type-trigger]') as HTMLButtonElement;
@@ -1250,6 +1370,8 @@ const currentMaxPrice = currentFilters.maxPrice
       // If districts already loaded, just show dropdown
       if (districtsLoaded) {
         districtDropdown?.classList.remove('hidden');
+        // CRITICAL FIX: Hide empty state when opening dropdown with loaded data
+        districtEmpty?.classList.add('hidden');
         return;
       }
 
@@ -1297,11 +1419,18 @@ const currentMaxPrice = currentFilters.maxPrice
           // Re-render tags with proper names
           renderSelectedDistrictsTags();
 
-          // Check if any districts were loaded
-          const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
-          if (!districtCheckboxes || districtCheckboxes.length === 0) {
-            districtEmpty?.classList.remove('hidden');
-          }
+          // Render top 5 most searched districts
+          renderTopDistricts();
+
+          // Check if any districts were loaded (defer to next tick for DOM parsing)
+          setTimeout(() => {
+            const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
+            if (!districtCheckboxes || districtCheckboxes.length === 0) {
+              districtEmpty?.classList.remove('hidden');
+            } else {
+              districtEmpty?.classList.add('hidden');
+            }
+          }, 0);
         })
         .catch(error => {
           console.error('[HorizontalSearchBar] Failed to load districts on focus:', error);
@@ -1384,13 +1513,20 @@ const currentMaxPrice = currentFilters.maxPrice
               // Re-render tags with proper names
               renderSelectedDistrictsTags();
 
+              // Render top 5 most searched districts
+              renderTopDistricts();
+
               districtDropdown?.classList.remove('hidden');
 
-              // Check if any districts were loaded
-              const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
-              if (!districtButtons || districtButtons.length === 0) {
-                districtEmpty?.classList.remove('hidden');
-              }
+              // Check if any districts were loaded (defer to next tick for DOM parsing)
+              setTimeout(() => {
+                const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
+                if (!districtButtons || districtButtons.length === 0) {
+                  districtEmpty?.classList.remove('hidden');
+                } else {
+                  districtEmpty?.classList.add('hidden');
+                }
+              }, 50); // Increased delay to ensure DOM parsing
             })
             .catch(error => {
               console.error('[HorizontalSearchBar] Failed to reload districts:', error);
@@ -1450,25 +1586,27 @@ const currentMaxPrice = currentFilters.maxPrice
           districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6', 'gap-y-2');
           districtListContainer.classList.add('flex', 'flex-col');
 
-          // Check if any results
-          const resultButtons = districtListContainer?.querySelectorAll('button, a');
-          if (!resultButtons || resultButtons.length === 0) {
-            districtEmpty?.classList.remove('hidden');
-            districtEmpty.textContent = `Không tìm thấy "${query}"`;
-          } else {
-            districtEmpty?.classList.add('hidden');
+          // Check if any results (defer to next tick for DOM parsing)
+          setTimeout(() => {
+            const resultButtons = districtListContainer?.querySelectorAll('button, a');
+            if (!resultButtons || resultButtons.length === 0) {
+              districtEmpty?.classList.remove('hidden');
+              districtEmpty.textContent = `Không tìm thấy "${query}"`;
+            } else {
+              districtEmpty?.classList.add('hidden');
 
-            // Add click handlers for search result buttons
-            resultButtons.forEach(btn => {
-              btn.addEventListener('click', (e) => {
-                const href = btn.getAttribute('data-href') || btn.getAttribute('href');
-                if (href) {
-                  e.preventDefault();
-                  window.location.href = href;
-                }
+              // Add click handlers for search result buttons
+              resultButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                  const href = btn.getAttribute('data-href') || btn.getAttribute('href');
+                  if (href) {
+                    e.preventDefault();
+                    window.location.href = href;
+                  }
+                });
               });
-            });
-          }
+            }
+          }, 0);
         })
         .catch(error => {
           console.error('[HorizontalSearchBar] Location search failed:', error);
