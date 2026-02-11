@@ -146,7 +146,7 @@ function getClearPriceUrl(): string {
         class:list={[
           'block px-3 py-2 text-sm rounded-lg transition-all',
           isActive(range)
-            ? 'bg-primary-50 text-primary-600 font-medium border-l-2 border-primary-500'
+            ? 'bg-primary-50 text-primary-600 font-medium border-primary-500'
             : 'text-secondary-800 hover:bg-secondary-50 hover:text-primary-600'
         ]}
       >
@@ -155,13 +155,4 @@ function getClearPriceUrl(): string {
     ))}
   </div>
 
-  <!-- Clear filter -->
-  {(currentMin !== undefined || currentMax !== undefined) && (
-    <a
-      href={getClearPriceUrl()}
-      class="block mt-3 text-center text-sm text-primary-600 hover:text-primary-700 font-medium"
-    >
-      Xóa bộ lọc giá
-    </a>
-  )}
 </div>
