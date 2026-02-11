@@ -521,7 +521,9 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
     });
 
     // Listen for province selection
+    console.log('[LocationSelector] Adding province-selected listener');
     document.addEventListener('province-selected', ((e: CustomEvent) => {
+      console.log('[LocationSelector] Received province-selected event:', e.detail);
       const { slug, name, nId } = e.detail;
 
       // Update state
@@ -534,6 +536,14 @@ const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).s
       // CRITICAL: Clear selected districts when province changes (don't carry over districts from old province)
       selectedDistricts.length = 0;
       renderSelectedDistrictsTags();
+
+      // Dispatch province-changed event for other components (e.g., most-searched-locations)
+      console.log('[LocationSelector] Dispatching province-changed event:', { provinceNId: nId, provinceName: name, provinceSlug: slug, baseUrl });
+      const provinceChangedEvent = new CustomEvent('province-changed', {
+        detail: { provinceNId: nId, provinceName: name, provinceSlug: slug, baseUrl }
+      });
+      document.dispatchEvent(provinceChangedEvent);
+      console.log('[LocationSelector] Event dispatched');
 
       // Update both province displays
       if (provinceDisplay) {
