@@ -19,6 +19,10 @@ import { parseListingUrl, getPageTitle, getPageDescription } from '@/utils/listi
 import type { PropertySearchFilters } from '@/services/elasticsearch/types';
 import { getSeoMetadata } from '@/services/seo/seo-metadata-service';
 import type { SeoMetadata } from '@/services/seo/types';
+import { filterRelaxationService } from '@/services/search-relaxation/filter-relaxation-service';
+import type { LocationContext, RelaxationLevel } from '@/services/search-relaxation/types';
+import { trackZeroResults, trackFallbackSuccess } from '@/services/analytics/fallback-analytics';
+import { fallbackCache } from '@/services/cache/fallback-cache';
 
 // Valid transaction slugs
 const VALID_TRANSACTIONS = ['mua-ban', 'cho-thue', 'du-an'];
@@ -241,8 +245,119 @@ const [searchResult, featuredProjects, sideBlocks] = await Promise.all([
     return [];
   }) : Promise.resolve([]),
 ]);
-const { hits: properties, total, took } = searchResult;
+let { hits: properties, total, took } = searchResult;
 
+// ZERO RESULTS FALLBACK: Cascading 3-tier relaxation strategy (v1 parity)
+let isFallback = false;
+let relaxationMetadata: RelaxationLevel | null = null;
+
+if (properties.length === 0) {
+  console.log('[Fallback] Original search returned 0 results, attempting fallback...');
+
+  // Track zero results event for analytics
+  try {
+    trackZeroResults(filters);
+  } catch (error) {
+    console.error('[Analytics] Failed to track zero results:', error);
+  }
+
+  // Check cache first to avoid redundant ES queries
+  const cached = fallbackCache.get(filters);
+  if (cached) {
+    console.log(`[Fallback] Using cached Level ${cached.level} results (${cached.results.hits.length} hits)`);
+    isFallback = true;
+    relaxationMetadata = { level: cached.level, description: 'Kết quả gợi ý', removedFilters: [], relaxedParams: filters };
+    properties = cached.results.hits;
+    total = cached.results.total;
+    took = cached.results.took;
+  }
+
+  // If no cached results, perform fallback search
+  if (!isFallback) {
+    // Build location context for Level 2 expansion
+  const locationContext: LocationContext = {
+    currentProvince: selectedLocation && (selectedLocation.type === 'province' || selectedLocation.type === 'district')
+      ? {
+          nId: selectedLocation.provinceId || selectedLocation.nId,
+          slug: selectedLocation.slug,
+          name: selectedLocation.name,
+        }
+      : undefined,
+    currentDistrict: selectedLocation && selectedLocation.type === 'district'
+      ? {
+          nId: selectedLocation.nId,
+          slug: selectedLocation.slug,
+          name: selectedLocation.name,
+          provinceNId: selectedLocation.provinceId!,
+        }
+      : undefined,
+  };
+
+  // Try Level 1: Remove filters, keep location
+  if (filterRelaxationService.canRelax(filters, 1)) {
+    console.log('[Fallback] Attempting Level 1 relaxation (remove filters, keep location)...');
+    const relaxation = filterRelaxationService.relaxLevel1(filters);
+    const fallbackResult = await searchProperties(relaxation.relaxedParams);
+
+    if (fallbackResult.hits.length > 0) {
+      isFallback = true;
+      relaxationMetadata = relaxation;
+      properties = fallbackResult.hits;
+      total = fallbackResult.total;
+      took = fallbackResult.took;
+      console.log(`[Fallback] Level 1 found ${fallbackResult.hits.length} results`);
+    }
+  }
+
+  // Try Level 2: Expand to city if Level 1 failed
+  if (!isFallback && filterRelaxationService.canRelaxLevel2(filters, locationContext)) {
+    console.log('[Fallback] Level 1 failed, attempting Level 2 (expand to city)...');
+    const relaxation = filterRelaxationService.relaxLevel2(filters, locationContext);
+    const fallbackResult = await searchProperties(relaxation.relaxedParams);
+
+    if (fallbackResult.hits.length > 0) {
+      isFallback = true;
+      relaxationMetadata = relaxation;
+      properties = fallbackResult.hits;
+      total = fallbackResult.total;
+      took = fallbackResult.took;
+      console.log(`[Fallback] Level 2 found ${fallbackResult.hits.length} results`);
+    }
+  }
+
+  // Try Level 3: Go nationwide if Level 2 failed
+  if (!isFallback && filterRelaxationService.canRelaxLevel3(filters)) {
+    console.log('[Fallback] Level 2 failed, attempting Level 3 (nationwide)...');
+    const relaxation = filterRelaxationService.relaxLevel3(filters);
+    const fallbackResult = await searchProperties(relaxation.relaxedParams);
+
+    if (fallbackResult.hits.length > 0) {
+      isFallback = true;
+      relaxationMetadata = relaxation;
+      properties = fallbackResult.hits;
+      total = fallbackResult.total;
+      took = fallbackResult.took;
+      console.log(`[Fallback] Level 3 found ${fallbackResult.hits.length} results`);
+    }
+  }
+
+    // Note: Don't fallback to featured projects - they're projects, not properties
+    // If all relaxation levels fail, properties stays empty
+    if (!isFallback) {
+      console.log('[Fallback] All relaxation levels exhausted, showing zero results');
+    }
+
+    // Cache successful fallback results
+    if (isFallback && relaxationMetadata && properties.length > 0) {
+      try {
+        fallbackCache.set(filters, { hits: properties, total, took }, relaxationMetadata.level);
+        trackFallbackSuccess(relaxationMetadata.level, properties.length, filters);
+      } catch (error) {
+        console.error('[Cache/Analytics] Failed to cache or track fallback:', error);
+      }
+    }
+  }
+}
 
 // Build metadata - prioritize SEO metadata over generated title
 const pageTitle = seoMetadata?.titleWeb || seoMetadata?.title || getPageTitle(filters);
@@ -329,7 +444,11 @@ function buildSortUrl(sortOption: string): string {
   </div>
 
   <!-- Property Grid -->
-  <ListingGrid properties={properties} />
+  <ListingGrid
+    properties={properties}
+    isFallback={isFallback}
+    relaxationMetadata={relaxationMetadata}
+  />
 
   <!-- Pagination -->
   {totalPages > 1 && (
