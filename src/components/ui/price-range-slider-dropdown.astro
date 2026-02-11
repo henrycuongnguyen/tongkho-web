@@ -1,0 +1,445 @@
+---
+/**
+ * Price Range Slider Dropdown
+ * With dual-handle slider, input fields, preset options, and reset button
+ */
+
+interface Props {
+  transactionType: number;
+  currentMin?: string;
+  currentMax?: string;
+}
+
+const { transactionType, currentMin, currentMax } = Astro.props;
+
+// Price ranges based on transaction type (in millions for sale, millions for rent) - v1 format
+const SALE_CONFIG = {
+  min: 0,
+  max: 60000, // 60 billion
+  step: 100,
+  unit: 'triệu',
+  presets: [
+    { label: '800 triệu - 1 tỷ', min: 800, max: 1000 },
+    { label: '1 tỷ - 2 tỷ', min: 1000, max: 2000 },
+    { label: '2 tỷ - 3 tỷ', min: 2000, max: 3000 },
+    { label: '3 tỷ - 5 tỷ', min: 3000, max: 5000 },
+    { label: '5 tỷ - 7 tỷ', min: 5000, max: 7000 },
+    { label: '7 tỷ - 10 tỷ', min: 7000, max: 10000 },
+    { label: '10 tỷ - 20 tỷ', min: 10000, max: 20000 },
+    { label: '20 tỷ - 30 tỷ', min: 20000, max: 30000 },
+    { label: '30 tỷ - 40 tỷ', min: 30000, max: 40000 },
+    { label: '40 tỷ - 60 tỷ', min: 40000, max: 60000 },
+    { label: 'Trên 60 tỷ', min: 60000, max: 60000 },
+    { label: 'Thương lượng', min: 0, max: 0 },
+  ]
+};
+
+const RENT_CONFIG = {
+  min: 0,
+  max: 100, // 100 million
+  step: 1,
+  unit: 'triệu',
+  presets: [
+    { label: 'Dưới 1 triệu', min: 0, max: 1 },
+    { label: '1 - 3 triệu', min: 1, max: 3 },
+    { label: '3 - 5 triệu', min: 3, max: 5 },
+    { label: '5 - 10 triệu', min: 5, max: 10 },
+    { label: '10 - 40 triệu', min: 10, max: 40 },
+  ]
+};
+
+const config = transactionType === 2 ? RENT_CONFIG : SALE_CONFIG;
+
+// Parse current values
+const parsedMin = currentMin ? Number(currentMin) : config.min;
+const parsedMax = currentMax ? Number(currentMax) : config.max;
+
+// Format display label
+function formatPrice(value: number): string {
+  if (value >= 1000) {
+    return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)} tỷ`;
+  }
+  return `${value} triệu`;
+}
+
+const displayLabel = parsedMin > config.min || parsedMax < config.max
+  ? `${formatPrice(parsedMin)} - ${formatPrice(parsedMax)}`
+  : 'Khoảng giá';
+---
+
+<div class="price-slider-dropdown relative">
+  <!-- Trigger Button -->
+  <button
+    type="button"
+    class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white hover:border-primary-400 focus:outline-none focus:border-primary-400 text-secondary-700 text-sm text-left flex items-center justify-between transition-all"
+    data-price-slider-trigger
+  >
+    <span class="font-medium" data-price-display>{displayLabel}</span>
+    <svg
+      class="w-4 h-4 text-secondary-400 shrink-0 transition-transform"
+      data-arrow
+      fill="none"
+      stroke="currentColor"
+      viewBox="0 0 24 24"
+    >
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+    </svg>
+  </button>
+
+  <!-- Hidden inputs for form submission -->
+  <input type="hidden" name="price-min" data-price-min value={currentMin || ''} />
+  <input type="hidden" name="price-max" data-price-max value={currentMax || ''} />
+
+  <!-- Dropdown Panel -->
+  <div
+    class="absolute top-full left-0 mt-2 bg-white rounded-xl shadow-xl border border-secondary-100 w-full min-w-[360px] max-w-[360px] p-4 hidden z-[99999]"
+    data-price-slider-panel
+    data-config={JSON.stringify(config)}
+  >
+    <h4 class="text-lg font-bold text-secondary-800 text-center mb-3">Khoảng giá</h4>
+
+    <!-- Content -->
+    <div>
+      <!-- Range Display -->
+      <div class="flex justify-between mb-3 text-sm">
+        <span class="text-secondary-600">
+          từ <span class="text-primary-500 font-semibold" data-min-display>{formatPrice(parsedMin)}</span>
+        </span>
+        <span class="text-secondary-600">
+          đến <span class="text-primary-500 font-semibold" data-max-display>{formatPrice(parsedMax)}</span>
+        </span>
+      </div>
+
+      <!-- Input Fields -->
+      <div class="grid grid-cols-2 gap-2 mb-3">
+        <input
+          type="number"
+          class="w-full px-2 py-1.5 border border-secondary-200 rounded-lg text-center text-sm text-secondary-700 focus:outline-none focus:border-primary-400"
+          data-min-input
+          value={parsedMin}
+          min={config.min}
+          max={config.max}
+          step={config.step}
+        />
+        <input
+          type="number"
+          class="w-full px-2 py-1.5 border border-secondary-200 rounded-lg text-center text-sm text-secondary-700 focus:outline-none focus:border-primary-400"
+          data-max-input
+          value={parsedMax}
+          min={config.min}
+          max={config.max}
+          step={config.step}
+        />
+      </div>
+
+      <!-- Dual Range Slider -->
+      <div class="relative h-6 mb-4 flex items-center" data-slider-container>
+        <div class="absolute left-0 right-0 h-2 bg-secondary-200 rounded-full"></div>
+        <div class="absolute h-2 bg-primary-500 rounded-full" data-range-fill></div>
+        <div
+          class="absolute w-5 h-5 bg-primary-500 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing z-20"
+          data-thumb-min
+        ></div>
+        <div
+          class="absolute w-5 h-5 bg-primary-500 rounded-full border-2 border-white shadow-md cursor-grab active:cursor-grabbing z-20"
+          data-thumb-max
+        ></div>
+      </div>
+
+      <!-- Preset Options -->
+      <div class="max-h-40 overflow-y-auto space-y-0.5 mb-3">
+        {config.presets.map((preset) => {
+          return (
+            <button
+              type="button"
+              class="quick-pick w-full flex items-center justify-between px-2 py-1.5 rounded-lg hover:bg-secondary-50 transition-colors text-secondary-700 text-sm"
+              data-preset-button
+              data-preset-min={preset.min}
+              data-preset-max={preset.max}
+            >
+              <span>{preset.label}</span>
+              <div class="w-4 h-4 rounded-full border-2 border-secondary-300 flex items-center justify-center">
+                <svg class="w-2.5 h-2.5 text-white hidden" fill="currentColor" viewBox="0 0 20 20">
+                  <path
+                    fill-rule="evenodd"
+                    d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
+                    clip-rule="evenodd"
+                  />
+                </svg>
+              </div>
+            </button>
+          );
+        })}
+      </div>
+
+      <!-- Reset Button -->
+      <button
+        type="button"
+        class="px-4 py-1.5 bg-red-500 text-white text-sm rounded-lg hover:bg-red-600 transition-colors font-medium"
+        data-reset-price
+      >
+        Đặt lại
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  /**
+   * Price Slider Dropdown Logic
+   */
+  function initPriceSliderDropdowns() {
+    document.querySelectorAll('[data-price-slider-trigger]').forEach((trigger) => {
+      const container = trigger.closest('.price-slider-dropdown') as HTMLElement;
+      if (!container || container.dataset.initialized) return;
+
+      container.dataset.initialized = 'true';
+
+      const panel = container.querySelector('[data-price-slider-panel]') as HTMLElement;
+      const arrow = container.querySelector('[data-arrow]') as SVGElement;
+      const displayText = container.querySelector('[data-price-display]') as HTMLElement;
+
+      const minInput = container.querySelector('[data-min-input]') as HTMLInputElement;
+      const maxInput = container.querySelector('[data-max-input]') as HTMLInputElement;
+      const sliderContainer = container.querySelector('[data-slider-container]') as HTMLElement;
+      const rangeFill = container.querySelector('[data-range-fill]') as HTMLElement;
+      const thumbMin = container.querySelector('[data-thumb-min]') as HTMLElement;
+      const thumbMax = container.querySelector('[data-thumb-max]') as HTMLElement;
+      const minDisplay = container.querySelector('[data-min-display]') as HTMLElement;
+      const maxDisplay = container.querySelector('[data-max-display]') as HTMLElement;
+      const presetButtons = container.querySelectorAll('[data-preset-button]') as NodeListOf<HTMLButtonElement>;
+      const resetBtn = container.querySelector('[data-reset-price]') as HTMLButtonElement;
+      const hiddenMinInput = container.querySelector('[data-price-min]') as HTMLInputElement;
+      const hiddenMaxInput = container.querySelector('[data-price-max]') as HTMLInputElement;
+
+      const config = JSON.parse(panel.dataset.config || '{}');
+      let isOpen = false;
+      let minVal = Number(minInput.value) || config.min;
+      let maxVal = Number(maxInput.value) || config.max;
+
+      // Generate unique ID for this dropdown
+      const dropdownId = `price-slider-${Math.random().toString(36).substr(2, 9)}`;
+
+      // Format price for display
+      function formatPrice(value: number): string {
+        if (value >= 1000) {
+          return `${(value / 1000).toFixed(value % 1000 === 0 ? 0 : 1)} tỷ`;
+        }
+        return `${value} triệu`;
+      }
+
+      // Close function for dropdown manager
+      function closeDropdown() {
+        isOpen = false;
+        panel?.classList.add('hidden');
+        arrow?.classList.remove('rotate-180');
+      }
+
+      // Register with dropdown manager
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.register(dropdownId, closeDropdown);
+      }
+
+      // Update all displays
+      function updateDisplays() {
+        // Update range fill and thumbs
+        const minPercent = ((minVal - config.min) / (config.max - config.min)) * 100;
+        const maxPercent = ((maxVal - config.min) / (config.max - config.min)) * 100;
+        rangeFill.style.left = `${minPercent}%`;
+        rangeFill.style.right = `${100 - maxPercent}%`;
+        thumbMin.style.left = `calc(${minPercent}% - 10px)`;
+        thumbMax.style.left = `calc(${maxPercent}% - 10px)`;
+
+        // Update input values
+        if (minInput.value !== minVal.toString()) minInput.value = minVal.toString();
+        if (maxInput.value !== maxVal.toString()) maxInput.value = maxVal.toString();
+
+        // Update text displays
+        minDisplay.textContent = formatPrice(minVal);
+        maxDisplay.textContent = formatPrice(maxVal);
+
+        // Update trigger button
+        const label = minVal > config.min || maxVal < config.max
+          ? `${formatPrice(minVal)} - ${formatPrice(maxVal)}`
+          : 'Khoảng giá';
+        displayText.textContent = label;
+
+        // Update hidden inputs - only set if different from defaults (to avoid default price slug in URL)
+        if (minVal > config.min || maxVal < config.max) {
+          hiddenMinInput.value = minVal.toString();
+          hiddenMaxInput.value = maxVal.toString();
+        } else {
+          // Clear when at defaults (no price selected)
+          hiddenMinInput.value = '';
+          hiddenMaxInput.value = '';
+        }
+
+        // Update preset buttons
+        presetButtons.forEach(btn => {
+          const presetMin = Number(btn.dataset.presetMin);
+          const presetMax = Number(btn.dataset.presetMax);
+          const isActive = minVal === presetMin && maxVal === presetMax;
+          const circle = btn.querySelector('div');
+          const check = btn.querySelector('svg');
+          if (isActive) {
+            btn.classList.add('bg-primary-50', 'text-primary-600');
+            btn.classList.remove('text-secondary-700');
+            circle?.classList.add('border-primary-500', 'bg-primary-500');
+            circle?.classList.remove('border-secondary-300');
+            check?.classList.remove('hidden');
+          } else {
+            btn.classList.remove('bg-primary-50', 'text-primary-600');
+            btn.classList.add('text-secondary-700');
+            circle?.classList.remove('border-primary-500', 'bg-primary-500');
+            circle?.classList.add('border-secondary-300');
+            check?.classList.add('hidden');
+          }
+        });
+      }
+
+      // Toggle dropdown
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+
+        if (!isOpen) {
+          // Notify dropdown manager to close other dropdowns
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.open(dropdownId);
+          }
+        }
+
+        isOpen = !isOpen;
+        panel?.classList.toggle('hidden', !isOpen);
+        arrow?.classList.toggle('rotate-180', isOpen);
+
+        if (!isOpen) {
+          // Notify dropdown manager this dropdown is closed
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(dropdownId);
+          }
+        }
+      });
+
+      // Close on outside click
+      document.addEventListener('click', (e) => {
+        if (!container.contains(e.target as Node) && isOpen) {
+          closeDropdown();
+          // Notify dropdown manager
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(dropdownId);
+          }
+        }
+      });
+
+      // Drag functionality for thumbs
+      function setupDrag(thumb: HTMLElement, isMin: boolean) {
+        let isDragging = false;
+
+        const onMove = (clientX: number) => {
+          if (!isDragging) return;
+          const rect = sliderContainer.getBoundingClientRect();
+          const percent = Math.max(0, Math.min(100, ((clientX - rect.left) / rect.width) * 100));
+          const value = config.min + Math.round(((percent / 100) * (config.max - config.min)) / config.step) * config.step;
+
+          if (isMin) {
+            minVal = Math.min(value, maxVal - config.step);
+          } else {
+            maxVal = Math.max(value, minVal + config.step);
+          }
+          updateDisplays();
+        };
+
+        thumb.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          e.preventDefault();
+        });
+
+        thumb.addEventListener('touchstart', (e) => {
+          isDragging = true;
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => onMove(e.clientX));
+        document.addEventListener('touchmove', (e) => onMove(e.touches[0].clientX));
+
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+        document.addEventListener('touchend', () => {
+          isDragging = false;
+        });
+      }
+
+      setupDrag(thumbMin, true);
+      setupDrag(thumbMax, false);
+
+      // Handle input changes
+      const handleMinInput = () => {
+        const val = Number(minInput.value) || 0;
+        minVal = Math.max(config.min, Math.min(val, maxVal - config.step));
+        updateDisplays();
+      };
+
+      const handleMaxInput = () => {
+        const val = Number(maxInput.value) || config.max;
+        maxVal = Math.min(config.max, Math.max(val, minVal + config.step));
+        updateDisplays();
+      };
+
+      minInput.addEventListener('input', handleMinInput);
+      minInput.addEventListener('change', handleMinInput);
+      maxInput.addEventListener('input', handleMaxInput);
+      maxInput.addEventListener('change', handleMaxInput);
+
+      // Handle preset button clicks
+      presetButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          minVal = Number(btn.dataset.presetMin);
+          maxVal = Number(btn.dataset.presetMax);
+          updateDisplays();
+        });
+      });
+
+      // Handle reset button
+      resetBtn?.addEventListener('click', () => {
+        minVal = config.min;
+        maxVal = config.max;
+        updateDisplays();
+      });
+
+      // Initialize displays
+      updateDisplays();
+    });
+  }
+
+  // Initialize on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initPriceSliderDropdowns);
+  } else {
+    initPriceSliderDropdowns();
+  }
+
+  // Run on Astro View Transitions
+  document.addEventListener('astro:page-load', initPriceSliderDropdowns);
+</script>
+
+<style>
+  /* Smooth scrollbar */
+  [data-price-slider-panel] {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-secondary-300)) transparent;
+  }
+
+  [data-price-slider-panel]::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  [data-price-slider-panel]::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  [data-price-slider-panel]::-webkit-scrollbar-thumb {
+    background-color: rgb(var(--color-secondary-300));
+    border-radius: 3px;
+  }
+</style>

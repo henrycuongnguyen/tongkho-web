@@ -72,7 +72,9 @@ const tabs = [
     <!-- Advanced Filters -->
     <div class="flex flex-col md:flex-row gap-2 mt-2 overflow-visible" data-filters>
       <!-- Property Type -->
-      <PropertyTypeDropdown />
+      <div data-property-type-container data-transaction-type="1">
+        <PropertyTypeDropdown transactionType={1} />
+      </div>
 
       <!-- Price Range Dropdown -->
       <RangeSliderDropdown type="price" />
@@ -84,6 +86,9 @@ const tabs = [
 </div>
 
 <script>
+  import { buildSearchUrl, buildPropertyTypeSlugMap } from '@/utils/listing-url-parser';
+  import type { SearchFilters } from '@/types/search-filters';
+
   const container = document.querySelector('[data-hero-search]');
   if (container) {
     const tabs = container.querySelectorAll('.tab-btn') as NodeListOf<HTMLButtonElement>;
@@ -95,6 +100,10 @@ const tabs = [
     const locationDropdown = container.querySelector('[data-location-dropdown]') as HTMLElement;
 
     let activeTab = 'sale';
+    let activeTransactionType = '1'; // 1 = sale, 2 = rent, 3 = project
+
+    // Build property type slug map from DOM
+    const propertyTypeSlugMap = buildPropertyTypeSlugMap();
 
     // Open location dropdown when clicking on keyword input
     keywordInput?.addEventListener('click', () => {
@@ -107,6 +116,15 @@ const tabs = [
       btn.addEventListener('click', () => {
         activeTab = btn.dataset.tab || 'sale';
         tabInput.value = activeTab;
+
+        // Map tab to transaction type
+        if (activeTab === 'project') {
+          activeTransactionType = '3';
+        } else if (activeTab === 'rent') {
+          activeTransactionType = '2';
+        } else {
+          activeTransactionType = '1';
+        }
 
         // Update tab styles
         tabs.forEach((t) => {
@@ -138,23 +156,56 @@ const tabs = [
       });
     });
 
-    // Form submission
+    // Form submission with URL builder
     form.addEventListener('submit', (e) => {
       e.preventDefault();
-      const formData = new FormData(form);
-      const params = new URLSearchParams();
 
-      // Add non-empty params
-      ['q', 'city', 'type', 'price', 'area'].forEach((key) => {
-        const value = formData.get(key) as string;
-        if (value) params.set(key, value);
-      });
+      // Get selected location
+      const locationInput = container.querySelector('[data-location-dropdown] input[type="hidden"]') as HTMLInputElement;
+      const selectedLocation = locationInput?.value || '';
 
-      // Get path from active tab
-      const activeBtn = container.querySelector(`[data-tab="${activeTab}"]`) as HTMLButtonElement;
-      const basePath = activeBtn?.dataset.path || '/mua-ban';
+      // Get selected property types
+      const propertyTypeInput = container.querySelector('[data-property-dropdown] input[type="hidden"]') as HTMLInputElement;
+      const selectedPropertyTypes = propertyTypeInput?.value || '';
 
-      window.location.href = `${basePath}?${params.toString()}`;
+      // Get price range from price slider/dropdown
+      const priceInput = container.querySelector('input[name="price"]') as HTMLInputElement;
+      const priceRange = priceInput?.value || '';
+      let minPrice = '';
+      let maxPrice = '';
+      if (priceRange) {
+        const [min, max] = priceRange.split('-');
+        minPrice = min || '';
+        maxPrice = max || '';
+      }
+
+      // Get area range from area slider/dropdown
+      const areaInput = container.querySelector('input[name="area"]') as HTMLInputElement;
+      const areaRange = areaInput?.value || '';
+      let minArea = '';
+      let maxArea = '';
+      if (areaRange) {
+        const [min, max] = areaRange.split('-');
+        minArea = min || '';
+        maxArea = max || '';
+      }
+
+      // Build search filters
+      const filters: SearchFilters = {
+        transaction_type: activeTransactionType,
+        selected_addresses: selectedLocation,
+        property_types: selectedPropertyTypes,
+        min_price: minPrice,
+        max_price: maxPrice,
+        min_area: minArea,
+        max_area: maxArea,
+      };
+
+      // Build URL using v1-compatible builder
+      const url = buildSearchUrl(filters, propertyTypeSlugMap);
+
+      // Navigate to search results
+      window.location.href = url;
     });
   }
 </script>

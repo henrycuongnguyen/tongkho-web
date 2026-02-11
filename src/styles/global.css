@@ -320,3 +320,23 @@
     display: none;
   }
 }
+
+/* Compare button active state */
+.btn-compare.active {
+  @apply text-blue-500 bg-blue-50;
+}
+
+.btn-compare.active svg {
+  fill: currentColor;
+}
+
+/* Compare bar body padding */
+body.compare-bar-active {
+  padding-bottom: 100px;
+}
+
+@media (max-width: 640px) {
+  body.compare-bar-active {
+    padding-bottom: 140px;
+  }
+}

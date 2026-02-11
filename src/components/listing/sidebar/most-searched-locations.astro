@@ -1,0 +1,145 @@
+---
+/**
+ * Most Searched Locations Component
+ * Displays top 5 most searched districts for selected province
+ * Matches v1 UI from reference/resaland_v1/views/search/get_districts_list.load:29-51
+ */
+
+interface Props {
+  /** Base URL for navigation (e.g., /mua-ban) */
+  baseUrl: string;
+  /** Current province nId for fetching top districts */
+  provinceNId?: string;
+}
+
+const { baseUrl, provinceNId } = Astro.props;
+---
+
+<div
+  class="most-searched-locations bg-white rounded-lg border border-secondary-200 p-4"
+  data-most-searched-container
+  data-initial-province={provinceNId}
+  data-initial-base-url={baseUrl}
+>
+  <h3 class="text-base font-semibold text-secondary-900 mb-3">
+    Tìm kiếm nhiều nhất
+  </h3>
+
+  <!-- Loading/Content Area -->
+  <ul
+    class="space-y-0"
+    data-most-searched-list
+  >
+    {!provinceNId && (
+      <li class="text-sm text-secondary-500 text-center py-4">
+        Vui lòng chọn tỉnh/thành phố
+      </li>
+    )}
+  </ul>
+</div>
+
+<script>
+  /**
+   * Dynamic update logic for most searched locations
+   * Updates when province selection changes
+   */
+
+  // Store handler reference for cleanup
+  let provinceChangeHandler: ((event: CustomEvent) => void) | null = null;
+
+  function initMostSearchedLocations() {
+    const container = document.querySelector('[data-most-searched-container]') as HTMLElement;
+    if (!container) {
+      return;
+    }
+
+    const listElement = container.querySelector('[data-most-searched-list]') as HTMLElement;
+    if (!listElement) {
+      return;
+    }
+
+    // Remove old listener if exists (prevent duplicates)
+    if (provinceChangeHandler) {
+      document.removeEventListener('province-changed', provinceChangeHandler as EventListener);
+    }
+
+    // Create new handler
+    provinceChangeHandler = ((event: CustomEvent) => {
+      const { provinceNId, baseUrl } = event.detail;
+
+      if (!provinceNId) {
+        // No province selected - show placeholder
+        listElement.innerHTML = `
+          <li class="text-sm text-secondary-500 text-center py-4">
+            Vui lòng chọn tỉnh/thành phố
+          </li>`;
+        return;
+      }
+
+      // Fetch new data manually (HTMX "load once" won't trigger again)
+      const newUrl = `/api/location/top-searched?province=${encodeURIComponent(provinceNId)}&limit=5&base=${encodeURIComponent(baseUrl)}`;
+
+      // Show loading state
+      listElement.innerHTML = `
+        <li class="text-sm text-secondary-500 text-center py-4">
+          <svg class="w-5 h-5 animate-spin mx-auto text-primary-500" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+        </li>`;
+
+      fetch(newUrl)
+        .then(response => response.text())
+        .then(html => {
+          // CRITICAL: Query fresh element (don't use cached reference)
+          const freshContainer = document.querySelector('[data-most-searched-container]') as HTMLElement;
+          const freshListElement = freshContainer?.querySelector('[data-most-searched-list]') as HTMLElement;
+
+          if (!freshListElement) {
+            console.error('[MostSearched] Fresh list element not found!');
+            return;
+          }
+
+          // Update content
+          freshListElement.innerHTML = html;
+        })
+        .catch(error => {
+          console.error('[MostSearched] Fetch error:', error);
+          listElement.innerHTML = `
+            <li class="text-sm text-red-500 text-center py-4">
+              Lỗi tải dữ liệu
+            </li>`;
+        });
+    }) as (event: CustomEvent) => void;
+
+    // Add listener
+    document.addEventListener('province-changed', provinceChangeHandler as EventListener);
+
+    // Load initial data if provinceNId exists in SSR props
+    const initialProvinceNId = container.getAttribute('data-initial-province');
+    const initialBaseUrl = container.getAttribute('data-initial-base-url');
+    if (initialProvinceNId && initialBaseUrl) {
+      const initialUrl = `/api/location/top-searched?province=${encodeURIComponent(initialProvinceNId)}&limit=5&base=${encodeURIComponent(initialBaseUrl)}`;
+      fetch(initialUrl)
+        .then(response => response.text())
+        .then(html => {
+          // Use fresh query for initial load too
+          const freshListElement = document.querySelector('[data-most-searched-list]') as HTMLElement;
+          if (freshListElement) {
+            freshListElement.innerHTML = html;
+          }
+        })
+        .catch(error => console.error('[MostSearched] Initial load error:', error));
+    }
+  }
+
+  // Initialize on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initMostSearchedLocations);
+  } else {
+    initMostSearchedLocations();
+  }
+
+  // Re-initialize after Astro View Transitions
+  document.addEventListener('astro:page-load', initMostSearchedLocations);
+</script>

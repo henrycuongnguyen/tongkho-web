@@ -1,0 +1,143 @@
+---
+/**
+ * Location Filter Card (V1-Compatible SSR Component)
+ * Uses pre-fetched Elasticsearch aggregations for accurate property counts
+ * Hierarchical location filters: Provinces → Districts → Wards
+ */
+import type { SideBlock } from '@/services/get-side-block-service';
+
+interface Props {
+  sideBlocks?: SideBlock[];
+}
+
+const { sideBlocks = [] } = Astro.props;
+
+// Parse URL context
+const url = Astro.url;
+
+// Extract first block (we only show one block in this card)
+const block = sideBlocks.length > 0 ? sideBlocks[0] : null;
+
+// Hide card if no block
+const shouldHideCard = !block;
+
+// Helper: Check if item is active
+function isActive(itemUrl: string): boolean {
+  return url.pathname === itemUrl || url.pathname === itemUrl + '/';
+}
+
+// Helper: Preserve query params when building URL
+function buildItemUrl(baseUrl: string): string {
+  const searchParams = url.searchParams.toString();
+  return searchParams ? `${baseUrl}?${searchParams}` : baseUrl;
+}
+
+const maxItems = 10;
+const hasMoreItems = block ? block.filters.length > maxItems : false;
+---
+
+{!shouldHideCard && (
+<div
+  class="bg-white rounded-lg shadow-sm border border-secondary-100 p-4"
+  data-location-filter-card
+>
+  {/* Block Title */}
+  {block && (
+    <h3 class="font-semibold text-secondary-900 mb-4 text-base text-center">
+      {block.title}
+    </h3>
+  )}
+
+  {/* Location list */}
+  {block && block.filters.length > 0 && (
+    <div class="space-y-1">
+      {block.filters.map((filter, idx) => (
+      <div
+        class:list={[
+          'location-item',
+          idx >= maxItems && 'hidden'
+        ]}
+      >
+        <a
+          href={buildItemUrl(filter.url)}
+          class:list={[
+            'flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-all',
+            isActive(filter.url)
+              ? 'bg-primary-50 text-primary-600 font-medium border-l-2 border-primary-500'
+              : 'text-secondary-800 hover:bg-secondary-50 hover:text-primary-600'
+          ]}
+        >
+          <span class="truncate">{filter.title}</span>
+        </a>
+      </div>
+      ))}
+    </div>
+  )}
+
+  {/* Show More / Show Less */}
+  {hasMoreItems && block && (
+    <div class="mt-3 pt-3 border-t border-secondary-100">
+      <button
+        type="button"
+        class="text-sm text-primary-600 hover:text-primary-700 flex items-center justify-center gap-1 font-medium w-full"
+        data-location-show-more
+      >
+        <span>Xem thêm ({block.filters.length - maxItems})</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      <button
+        type="button"
+        class="hidden text-sm text-primary-600 hover:text-primary-700 flex items-center justify-center gap-1 font-medium w-full"
+        data-location-show-less
+      >
+        <span>Thu gọn</span>
+        <svg class="w-4 h-4 rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    </div>
+  )}
+
+</div>
+)}
+
+<script>
+  // Expand/collapse logic (client-side)
+  function initLocationFilterCard() {
+    const card = document.querySelector('[data-location-filter-card]');
+    if (!card) return;
+
+    const showMoreBtn = card.querySelector('[data-location-show-more]');
+    const showLessBtn = card.querySelector('[data-location-show-less]');
+    const items = card.querySelectorAll('.location-item');
+
+    const maxItems = 10;
+
+    if (showMoreBtn) {
+      showMoreBtn.addEventListener('click', () => {
+        items.forEach(item => item.classList.remove('hidden'));
+        showMoreBtn.classList.add('hidden');
+        showLessBtn?.classList.remove('hidden');
+      });
+    }
+
+    if (showLessBtn) {
+      showLessBtn.addEventListener('click', () => {
+        items.forEach((item, idx) => {
+          if (idx >= maxItems) item.classList.add('hidden');
+        });
+        showLessBtn.classList.add('hidden');
+        showMoreBtn?.classList.remove('hidden');
+
+        // Smooth scroll to card top
+        card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      });
+    }
+  }
+
+  // Initialize on load and View Transition
+  initLocationFilterCard();
+  document.addEventListener('astro:after-swap', initLocationFilterCard);
+</script>

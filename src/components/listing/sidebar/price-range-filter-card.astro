@@ -1,0 +1,158 @@
+---
+/**
+ * Price Range Filter Card
+ * 13 predefined price ranges + custom input
+ */
+
+interface Props {
+  currentMin?: number;
+  currentMax?: number;
+}
+
+const { currentMin, currentMax } = Astro.props;
+
+// Price ranges (v1 format)
+const PRICE_RANGES = [
+  { label: '800 triệu - 1 tỷ', min: 800_000_000, max: 1_000_000_000 },
+  { label: '1 tỷ - 2 tỷ', min: 1_000_000_000, max: 2_000_000_000 },
+  { label: '2 tỷ - 3 tỷ', min: 2_000_000_000, max: 3_000_000_000 },
+  { label: '3 tỷ - 5 tỷ', min: 3_000_000_000, max: 5_000_000_000 },
+  { label: '5 tỷ - 7 tỷ', min: 5_000_000_000, max: 7_000_000_000 },
+  { label: '7 tỷ - 10 tỷ', min: 7_000_000_000, max: 10_000_000_000 },
+  { label: '10 tỷ - 20 tỷ', min: 10_000_000_000, max: 20_000_000_000 },
+  { label: '20 tỷ - 30 tỷ', min: 20_000_000_000, max: 30_000_000_000 },
+  { label: '30 tỷ - 40 tỷ', min: 30_000_000_000, max: 40_000_000_000 },
+  { label: '40 tỷ - 60 tỷ', min: 40_000_000_000, max: 60_000_000_000 },
+  { label: 'Trên 60 tỷ', min: 60_000_000_000, max: null },
+  { label: 'Thương lượng', min: 0, max: 0 },
+];
+
+// Check if range is active
+function isActive(range: typeof PRICE_RANGES[0]): boolean {
+  if (currentMin === undefined && currentMax === undefined) return false;
+  return currentMin === range.min && (currentMax === range.max || (!range.max && !currentMax));
+}
+
+// Build URL for range (v1 format: /mua-ban/ha-noi/gia-tu-1-ty-den-2-ty)
+function getRangeUrl(range: typeof PRICE_RANGES[0]): string {
+  // Extract path parts from current URL
+  const pathParts = Astro.url.pathname.split('/').filter(Boolean);
+
+  // Arg0: transaction type (mua-ban, cho-thue, du-an)
+  const transactionType = pathParts[0] || 'mua-ban';
+
+  // Arg1: location slug (ha-noi, ba-dinh, or toan-quoc)
+  let locationSlug = pathParts.length > 1 ? pathParts[1] : null;
+
+  // Build price slug
+  const priceSlug = buildPriceSlug(range.min, range.max);
+
+  // Build URL parts
+  const urlParts = [transactionType];
+
+  // Add location (required if price slug exists, per v1 format)
+  if (locationSlug && locationSlug !== 'toan-quoc' && !locationSlug.startsWith('gia-')) {
+    // Valid location slug
+    urlParts.push(locationSlug);
+  } else {
+    // No specific location, use "toan-quoc" for nationwide
+    urlParts.push('toan-quoc');
+  }
+
+  // Add price slug (arg3 position)
+  urlParts.push(priceSlug);
+
+  // Preserve other query params (area, property types, etc.)
+  const params = new URLSearchParams(Astro.url.search);
+  params.delete('gtn'); // Remove old price params
+  params.delete('gcn');
+  params.delete('page'); // Reset to page 1
+
+  const query = params.toString();
+  const basePath = '/' + urlParts.join('/');
+  return query ? `${basePath}?${query}` : basePath;
+}
+
+// Build price slug from min/max values
+function buildPriceSlug(min: number, max: number | null): string {
+  if (min === 0 && !max) return 'gia-thuong-luong';
+
+  // Below X
+  if (min === 0 && max) {
+    return `gia-duoi-${convertAmountToPriceSlug(max)}`;
+  }
+
+  // Above X
+  if (min > 0 && !max) {
+    return `gia-tren-${convertAmountToPriceSlug(min)}`;
+  }
+
+  // Range X-Y
+  if (min > 0 && max) {
+    return `gia-tu-${convertAmountToPriceSlug(min)}-den-${convertAmountToPriceSlug(max)}`;
+  }
+
+  return 'gia-thuong-luong';
+}
+
+// Convert amount (VND) to price slug part
+// Input: 1_000_000_000 → Output: "1-ty"
+// Input: 500_000_000 → Output: "500-trieu"
+function convertAmountToPriceSlug(amount: number): string {
+  if (amount >= 1_000_000_000) {
+    const ty = amount / 1_000_000_000;
+    const formatted = ty % 1 === 0 ? ty.toString() : ty.toFixed(1);
+    return `${formatted}-ty`;
+  }
+  const trieu = amount / 1_000_000;
+  return `${trieu.toFixed(0)}-trieu`;
+}
+
+// Get URL without price filter (remove arg3 price slug)
+function getClearPriceUrl(): string {
+  const pathParts = Astro.url.pathname.split('/').filter(Boolean);
+
+  // Keep arg0 (transaction) and arg1 (location if not price slug)
+  const urlParts: string[] = [];
+
+  if (pathParts[0]) {
+    urlParts.push(pathParts[0]); // transaction
+  }
+
+  // Add location only if arg1 is not a price slug
+  if (pathParts.length > 1 && !pathParts[1].startsWith('gia-')) {
+    urlParts.push(pathParts[1]); // location
+  }
+
+  // Preserve other query params
+  const params = new URLSearchParams(Astro.url.search);
+  params.delete('gtn'); // Remove old price params
+  params.delete('gcn');
+  params.delete('page'); // Reset to page 1
+
+  const query = params.toString();
+  const basePath = urlParts.length > 0 ? '/' + urlParts.join('/') : '/';
+  return query ? `${basePath}?${query}` : basePath;
+}
+---
+
+<div class="bg-white rounded-lg shadow-sm border border-secondary-100 p-4">
+  <h3 class="font-semibold text-secondary-900 mb-4 text-base">Lọc theo khoảng giá</h3>
+
+  <div class="space-y-1.5">
+    {PRICE_RANGES.map((range) => (
+      <a
+        href={getRangeUrl(range)}
+        class:list={[
+          'block px-3 py-2 text-sm rounded-lg transition-all',
+          isActive(range)
+            ? 'bg-primary-50 text-primary-600 font-medium border-primary-500'
+            : 'text-secondary-800 hover:bg-secondary-50 hover:text-primary-600'
+        ]}
+      >
+        {range.label}
+      </a>
+    ))}
+  </div>
+
+</div>

@@ -1,0 +1,1838 @@
+---
+/**
+ * Horizontal Search Bar Component
+ * Replaces sidebar filter with clean horizontal layout
+ * Layout: Location | Search | Property Type | Price | Filter Icon | Search Button
+ */
+import ProvinceModal from './sidebar/province-selector-modal.astro';
+import PriceRangeSliderDropdown from '@/components/ui/price-range-slider-dropdown.astro';
+import RangeSliderDropdown from '@/components/ui/range-slider-dropdown.astro';
+import type { Province } from '@/services/location/types';
+
+interface PropertyType {
+  id: number;
+  title: string;
+  slug: string;
+  vietnamese?: string | null;
+}
+
+interface Props {
+  /** Current transaction type (1=sale, 2=rent, 3=project) */
+  transactionType: number;
+  /** Available property types for this transaction */
+  propertyTypes: PropertyType[];
+  /** List of all provinces */
+  provinces?: Province[];
+  /** Current province slug from URL */
+  currentProvince?: string;
+  /** Current district slugs from URL (multi-select support) */
+  currentDistricts?: string[];
+  /** Current filter values from URL */
+  currentFilters: {
+    propertyTypes?: number[];
+    minPrice?: string;
+    maxPrice?: string;
+    keyword?: string;
+    minArea?: string;
+    maxArea?: string;
+    radius?: string;
+    bedrooms?: string;
+    bathrooms?: string;
+  };
+  /** Current URL path */
+  currentPath: string;
+}
+
+const {
+  transactionType,
+  propertyTypes,
+  provinces = [],
+  currentProvince,
+  currentDistricts = [],
+  currentFilters,
+  currentPath,
+} = Astro.props;
+
+// Transaction type to base URL mapping
+const TRANSACTION_BASE_URLS: Record<number, string> = {
+  1: '/mua-ban',
+  2: '/cho-thue',
+  3: '/du-an',
+};
+
+const TRANSACTION_LABELS: Record<number, string> = {
+  1: 'Mua bán',
+  2: 'Cho thuê',
+  3: 'Dự án',
+};
+
+// Determine baseUrl: use property type slug if present, else transaction URL
+// Example: /ban-nha-biet-thu-lien-ke → baseUrl = '/ban-nha-biet-thu-lien-ke'
+// Example: /mua-ban/ha-noi → baseUrl = '/mua-ban'
+const pathSegments = currentPath.split('/').filter(Boolean);
+const firstSegment = pathSegments[0] || '';
+const isPropertyTypeSlug = firstSegment && !['mua-ban', 'cho-thue', 'du-an'].includes(firstSegment);
+const baseUrl = isPropertyTypeSlug ? `/${firstSegment}` : (TRANSACTION_BASE_URLS[transactionType] || '/mua-ban');
+const transactionLabel = TRANSACTION_LABELS[transactionType] || 'Loại BĐS';
+
+// Find selected province - default to Hà Nội if no province in URL
+const selectedProvince = currentProvince
+  ? provinces.find(p => p.slug === currentProvince)
+  : provinces.find(p => p.name === 'Hà Nội' || p.slug === 'ha-noi') || null;
+
+// Debug: Log province selection
+
+// Get featured provinces (top 5 with images)
+const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).slice(0, 5);
+
+// Convert price filters from VND to millions for display
+const currentMinPrice = currentFilters.minPrice
+  ? (Number(currentFilters.minPrice) / 1_000_000).toString()
+  : undefined;
+const currentMaxPrice = currentFilters.maxPrice
+  ? (Number(currentFilters.maxPrice) / 1_000_000).toString()
+  : undefined;
+---
+
+<div class="horizontal-search-bar relative py-2 top-0 z-[60]">
+  <div class="">
+    <div class="flex items-center gap-0 flex-wrap lg:flex-nowrap relative z-10" data-search-bar data-base-url={baseUrl} data-current-province-nid={selectedProvince?.nId || ''} data-current-province-slug={selectedProvince?.slug || ''}>
+      <!-- Unified Search Container: Province Selector + Search Input -->
+      <div class="flex items-stretch flex-[4] min-w-[450px] border border-secondary-300 rounded-lg bg-white hover:border-primary-400 transition-all focus-within:border-primary-400">
+        <!-- Location Dropdown -->
+        <div class="relative">
+          <button
+            type="button"
+            class="h-full px-4 py-2.5 bg-white text-sm text-left flex items-center justify-between gap-2 transition-colors focus:outline-none border-r border-secondary-200 rounded-l-lg hover:bg-secondary-50"
+            data-location-trigger
+          >
+            <div class="flex items-center gap-2 whitespace-nowrap">
+              <svg class="w-4 h-4 text-secondary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span class="text-secondary-700 font-medium" data-location-display>
+                {selectedProvince ? selectedProvince.name : 'Hà Nội'}
+              </span>
+            </div>
+            <svg class="w-4 h-4 text-secondary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Province Dropdown Panel -->
+          <ProvinceModal
+            provinces={provinces}
+            featuredProvinces={featuredProvinces}
+            baseUrl={baseUrl}
+            currentProvince={currentProvince}
+          />
+        </div>
+
+        <!-- Keyword Search with District Dropdown -->
+        <div class="flex-1 relative">
+          <input
+            type="text"
+            placeholder="Tìm kiếm theo quận/huyện hoặc từ khóa"
+            class="w-full h-full px-4 py-2.5 pl-10 bg-transparent text-sm focus:outline-none rounded-r-lg"
+            data-keyword-input
+            data-district-search-input
+            value={currentFilters.keyword || ''}
+            autocomplete="off"
+          />
+          <svg class="w-5 h-5 text-secondary-400 absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+
+        </div>
+      </div>
+
+      <!-- District/Search Results Dropdown (outside unified container) -->
+      <div
+        class="absolute top-full left-0 w-[900px] mt-2 bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden max-h-[420px] overflow-y-auto"
+        data-district-dropdown
+      >
+        <!-- Selected Districts (Tags) -->
+        <div class="px-5 pt-3 pb-2" data-selected-districts-container style="display: none;">
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-sm font-semibold text-secondary-700">Địa điểm đã chọn</span>
+            <button
+              type="button"
+              class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+              data-clear-all-districts
+            >
+              Xóa tất cả
+            </button>
+          </div>
+          <div class="flex flex-wrap gap-2" data-selected-districts-tags>
+            <!-- Tags will be inserted here by JavaScript -->
+          </div>
+        </div>
+
+        <!-- Section Title -->
+        <div class="px-5 py-2 pt-4 border-b border-secondary-100">
+          <h6 class="text-xs font-semibold text-secondary-600 uppercase tracking-wide">Tìm kiếm phổ biến</h6>
+        </div>
+
+        <!-- Main Content: 2-column layout -->
+        <div class="flex">
+          <!-- Left Column: District Grid -->
+          <div class="flex-1 px-5 py-4 border-r border-secondary-100">
+            <div
+              data-district-list-container
+              hx-swap="innerHTML"
+              class=""
+            >
+              <!-- Districts (grid) or search results (list) will be loaded here -->
+            </div>
+          </div>
+
+          <!-- Right Column: Top 5 Most Searched -->
+          <div class="w-[260px] px-4 py-4">
+            <h6 class="text-sm font-semibold text-secondary-700 mb-3">Tìm kiếm nhiều nhất</h6>
+            <div class="space-y-2" data-top-districts>
+              <!-- Top districts will be loaded here -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Loading State -->
+        <div class="px-5 py-6 text-sm text-secondary-500 text-center hidden" data-district-loading>
+          <div class="inline-block animate-spin rounded-full h-5 w-5 border-b-2 border-primary-500"></div>
+          <span class="ml-2">Đang tải quận/huyện...</span>
+        </div>
+
+        <!-- Empty State -->
+       
+      </div>
+
+      <!-- Property Type Dropdown -->
+      <div class="relative w-[200px] ml-3">
+        <button
+          type="button"
+          class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:border-primary-400"
+          data-property-type-trigger
+        >
+          <span class="truncate text-secondary-700 font-medium" data-property-type-display>
+            {(currentFilters.propertyTypes?.length ?? 0) > 0
+              ? `Đã chọn ${currentFilters.propertyTypes?.length} loại`
+              : transactionLabel}
+          </span>
+          <svg class="w-4 h-4 text-secondary-400 shrink-0 transition-transform" data-property-type-arrow fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+          </svg>
+        </button>
+
+        <!-- Property Type Dropdown Panel -->
+        <div
+          class="absolute top-full left-0 mt-2 w-full min-w-[320px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden overflow-hidden"
+          data-property-type-panel
+        >
+          <!-- Header -->
+          <div class="px-4 py-3 border-b border-secondary-100 flex items-center justify-between">
+            <h5 class="text-sm font-semibold text-secondary-800">Loại mua bán</h5>
+            <button
+              type="button"
+              class="text-sm text-primary-600 hover:text-primary-700 font-medium"
+              data-reset-property-types
+            >
+              Đặt lại
+            </button>
+          </div>
+
+          <!-- Scrollable Content -->
+          <div class="overflow-y-auto max-h-[280px] px-4 py-2">
+            {propertyTypes.map((type) => {
+              const isChecked = currentFilters.propertyTypes?.includes(type.id) ?? false;
+              return (
+                <label class="flex items-center justify-between gap-3 py-2.5 px-2 rounded-md hover:bg-secondary-50 cursor-pointer transition-colors group">
+                  <div class="flex items-center gap-3 flex-1">
+                    <span class="text-sm text-secondary-700 group-hover:text-secondary-900">
+                      {type.title}
+                    </span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    class="w-4 h-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+                    value={type.id}
+                    checked={isChecked}
+                    data-property-type-checkbox
+                  />
+                </label>
+              );
+            })}
+          </div>
+
+          <!-- Actions -->
+          <div class="px-4 py-3 border-t border-secondary-100 bg-secondary-50">
+            <button
+              type="button"
+              class="w-full px-4 py-2 bg-primary-600 text-white text-sm font-medium rounded-lg hover:bg-primary-700 transition-colors"
+              data-apply-property-types
+            >
+              Áp dụng
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Price Range Dropdown with Slider -->
+      <div class="w-[200px] ml-3">
+        <PriceRangeSliderDropdown
+          transactionType={transactionType}
+          currentMin={currentMinPrice}
+          currentMax={currentMaxPrice}
+        />
+      </div>
+
+      <!-- Advanced Filters Toggle Button -->
+      <button
+        type="button"
+        class="px-3 py-2.5 border border-secondary-300 rounded-lg bg-white hover:bg-secondary-50 transition-colors shrink-0 ml-3"
+        title="Bộ lọc nâng cao"
+        data-advanced-filter-toggle
+      >
+        <svg class="w-5 h-5 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+        </svg>
+      </button>
+
+      <!-- Search Button -->
+      <button
+        type="button"
+        class="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shrink-0 ml-3"
+        data-search-submit
+      >
+        <span>Tìm kiếm</span>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Advanced Filters Row (hidden by default) -->
+    <div class="hidden pt-3 border-t border-secondary-100 mt-3" data-advanced-filters-row>
+      <div class="flex items-center gap-3 flex-wrap">
+        <!-- Area Filter with Slider -->
+        <div class="w-[200px]">
+          <RangeSliderDropdown
+            type="area"
+            name="area"
+            currentMin={currentFilters.minArea ? Number(currentFilters.minArea) : undefined}
+            currentMax={currentFilters.maxArea ? Number(currentFilters.maxArea) : undefined}
+          />
+        </div>
+
+        <!-- Radius Filter with Dropdown Panel -->
+        <div class="flex-1 min-w-[150px] relative" data-filter-group="radius">
+          <button
+            type="button"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:border-primary-400"
+            data-radius-trigger
+          >
+            <span class="text-secondary-700 font-medium" data-radius-display>Bán kính</span>
+            <svg class="w-4 h-4 text-secondary-400 shrink-0 transition-transform" data-radius-arrow fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Radius Dropdown Panel -->
+          <div
+            class="absolute top-full left-0 mt-2 w-full min-w-[180px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden overflow-hidden"
+            data-radius-panel
+          >
+            <!-- Options -->
+            <div class="py-2">
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-radius-option
+                data-value="5"
+              >
+                5km
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-radius-option
+                data-value="10"
+              >
+                10km
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-radius-option
+                data-value="50"
+              >
+                50km
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-radius-option
+                data-value="100"
+              >
+                100km
+              </button>
+            </div>
+
+            <!-- Reset Button -->
+            <div class="px-3 py-3 border-t border-secondary-100">
+              <button
+                type="button"
+                class="w-full px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
+                data-reset-radius
+              >
+                Đặt lại
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bathrooms Filter with Dropdown Panel -->
+        <div class="flex-1 min-w-[150px] relative" data-filter-group="bathrooms">
+          <button
+            type="button"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:border-primary-400"
+            data-bathrooms-trigger
+          >
+            <span class="text-secondary-700 font-medium" data-bathrooms-display>Phòng tắm</span>
+            <svg class="w-4 h-4 text-secondary-400 shrink-0 transition-transform" data-bathrooms-arrow fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Bathrooms Dropdown Panel -->
+          <div
+            class="absolute top-full left-0 mt-2 w-full min-w-[180px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden overflow-hidden"
+            data-bathrooms-panel
+          >
+            <!-- Options -->
+            <div class="py-2">
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="1"
+              >
+                1 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="2"
+              >
+                2 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="3"
+              >
+                3 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="4"
+              >
+                4 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bathrooms-option
+                data-value="5"
+              >
+                5+ phòng
+              </button>
+            </div>
+
+            <!-- Reset Button -->
+            <div class="px-3 py-3 border-t border-secondary-100">
+              <button
+                type="button"
+                class="w-full px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
+                data-reset-bathrooms
+              >
+                Đặt lại
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Bedrooms Filter with Dropdown Panel -->
+        <div class="flex-1 min-w-[150px] relative" data-filter-group="bedrooms">
+          <button
+            type="button"
+            class="w-full px-4 py-2.5 border border-secondary-300 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-2 hover:border-primary-400 transition-all focus:outline-none focus:border-primary-400"
+            data-bedrooms-trigger
+          >
+            <span class="text-secondary-700 font-medium" data-bedrooms-display>Phòng ngủ</span>
+            <svg class="w-4 h-4 text-secondary-400 shrink-0 transition-transform" data-bedrooms-arrow fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          <!-- Bedrooms Dropdown Panel -->
+          <div
+            class="absolute top-full left-0 mt-2 w-full min-w-[180px] bg-white rounded-lg shadow-xl border border-secondary-100 z-[99999] hidden overflow-hidden"
+            data-bedrooms-panel
+          >
+            <!-- Options -->
+            <div class="py-2">
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="1"
+              >
+                1 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="2"
+              >
+                2 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="3"
+              >
+                3 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="4"
+              >
+                4 phòng
+              </button>
+              <button
+                type="button"
+                class="w-full px-4 py-2.5 text-left text-sm text-secondary-700 hover:bg-secondary-50 transition-colors"
+                data-bedrooms-option
+                data-value="5"
+              >
+                5+ phòng
+              </button>
+            </div>
+
+            <!-- Reset Button -->
+            <div class="px-3 py-3 border-t border-secondary-100">
+              <button
+                type="button"
+                class="w-full px-4 py-2 bg-red-500 text-white text-sm font-medium rounded-lg hover:bg-red-600 transition-colors"
+                data-reset-bedrooms
+              >
+                Đặt lại
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  /**
+   * Horizontal Search Bar Logic
+   */
+
+  // Store handler reference for cleanup (prevent duplicate listeners on re-init)
+  let provinceSelectedHandler: ((event: CustomEvent) => void) | null = null;
+
+  function initHorizontalSearchBar() {
+    const searchBar = document.querySelector('[data-search-bar]');
+    if (!searchBar) {
+      console.warn('[HorizontalSearchBar] Search bar element not found');
+      return;
+    }
+
+    const baseUrl = searchBar.getAttribute('data-base-url') || '/mua-ban';
+
+    // Location dropdown
+    const locationTrigger = searchBar.querySelector('[data-location-trigger]') as HTMLButtonElement;
+    const locationDisplay = searchBar.querySelector('[data-location-display]') as HTMLSpanElement;
+
+    locationTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (typeof (window as any).openProvinceDropdown === 'function') {
+        (window as any).openProvinceDropdown();
+      }
+    });
+
+    // District dropdown elements
+    const districtSearchInput = searchBar.querySelector('[data-district-search-input]') as HTMLInputElement;
+    const districtDropdown = searchBar.querySelector('[data-district-dropdown]') as HTMLDivElement;
+    const districtListContainer = searchBar.querySelector('[data-district-list-container]') as HTMLDivElement;
+    const provinceNameDisplay = searchBar.querySelector('[data-province-name-display]') as HTMLSpanElement;
+    const closeDistrictDropdownBtn = searchBar.querySelector('[data-close-district-dropdown]') as HTMLButtonElement;
+    const districtLoading = searchBar.querySelector('[data-district-loading]') as HTMLDivElement;
+    const districtEmpty = searchBar.querySelector('[data-district-empty]') as HTMLDivElement;
+    const selectedDistrictsContainer = searchBar.querySelector('[data-selected-districts-container]') as HTMLDivElement;
+    const selectedDistrictsTags = searchBar.querySelector('[data-selected-districts-tags]') as HTMLDivElement;
+    const clearAllDistrictsBtn = searchBar.querySelector('[data-clear-all-districts]') as HTMLButtonElement;
+    const topDistrictsContainer = searchBar.parentElement?.querySelector('[data-top-districts]') as HTMLDivElement;
+
+    // District dropdown - close function for dropdown manager
+    const districtDropdownId = `district-${Math.random().toString(36).substr(2, 9)}`;
+
+    function closeDistrictDropdown() {
+      districtDropdown?.classList.add('hidden');
+    }
+
+    // Register with dropdown manager
+    if (typeof (window as any).dropdownManager !== 'undefined') {
+      (window as any).dropdownManager.register(districtDropdownId, closeDistrictDropdown);
+    }
+
+    // Track current province selection - initialize from data attributes (for page with province in URL)
+    const initialProvinceNId = searchBar?.getAttribute('data-current-province-nid');
+    let currentProvinceNId: string | null = (initialProvinceNId && initialProvinceNId.trim()) ? initialProvinceNId : null;
+
+    // Multi-select districts state - initialize from URL addresses param
+    const urlParams = new URLSearchParams(window.location.search);
+    const addressesParam = urlParams.get('addresses');
+    const selectedDistricts: Array<{ slug: string; name: string }> = addressesParam
+      ? addressesParam.split(',').map(slug => ({ slug: slug.trim(), name: slug.trim() }))
+      : [];
+
+    console.log('[HorizontalSearchBar] Init selectedDistricts from URL:', selectedDistricts);
+
+    // Render selected districts tags on page load (if any)
+    // Note: Names will be slugs initially, will be updated when districts are loaded
+    if (selectedDistricts.length > 0) {
+      // Delay to ensure DOM is ready
+      setTimeout(() => {
+        renderSelectedDistrictsTags();
+      }, 100);
+    }
+
+    // Attach checkbox handlers for multi-select
+    function attachDistrictButtonHandlers(container: HTMLElement) {
+      const buttons = container.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+      buttons.forEach(button => {
+        button.addEventListener('click', () => {
+          const slug = button.dataset.slug || '';
+          const name = button.dataset.name || slug;
+          const isCurrentlySelected = button.dataset.selected === 'true';
+
+          if (isCurrentlySelected) {
+            // Deselect: remove from array
+            const index = selectedDistricts.findIndex(d => d.slug === slug);
+            if (index > -1) {
+              selectedDistricts.splice(index, 1);
+            }
+            button.dataset.selected = 'false';
+            // Update styles to unselected state
+            button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+            const icon = button.querySelector('svg');
+            const text = button.querySelector('span');
+            if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+            if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+          } else {
+            // Select: add to array
+            if (!selectedDistricts.some(d => d.slug === slug)) {
+              selectedDistricts.push({ slug, name });
+            }
+            button.dataset.selected = 'true';
+            // Update styles to selected state
+            button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+            const icon = button.querySelector('svg');
+            const text = button.querySelector('span');
+            if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+            if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
+          }
+
+          console.log('[HorizontalSearchBar] Selected districts:', selectedDistricts);
+          renderSelectedDistrictsTags();
+        });
+      });
+    }
+
+    // Render selected districts tags (like screenshot UI)
+    function renderSelectedDistrictsTags() {
+      console.log('[HorizontalSearchBar] renderSelectedDistrictsTags called', {
+        hasContainer: !!selectedDistrictsContainer,
+        hasTags: !!selectedDistrictsTags,
+        selectedDistricts
+      });
+
+      if (!selectedDistrictsTags || !selectedDistrictsContainer) {
+        console.warn('[HorizontalSearchBar] Missing container or tags element');
+        return;
+      }
+
+      if (selectedDistricts.length === 0) {
+        selectedDistrictsContainer.style.display = 'none';
+        return;
+      }
+
+      console.log('[HorizontalSearchBar] Showing selectedDistricts container');
+      selectedDistrictsContainer.style.display = 'block';
+      selectedDistrictsTags.innerHTML = selectedDistricts.map(d => `
+        <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-secondary-700 rounded-lg text-sm border border-secondary-300 hover:border-secondary-400 transition-colors">
+          <svg class="w-3.5 h-3.5 shrink-0 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span>${d.name}</span>
+          <button
+            type="button"
+            class="ml-1 hover:bg-secondary-100 rounded p-0.5 transition-colors"
+            data-remove-district="${d.slug}"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `).join('');
+
+      // Attach remove handlers
+      selectedDistrictsTags.querySelectorAll('[data-remove-district]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const slug = (btn as HTMLElement).dataset.removeDistrict || '';
+          const index = selectedDistricts.findIndex(d => d.slug === slug);
+          if (index > -1) {
+            selectedDistricts.splice(index, 1);
+            renderSelectedDistrictsTags();
+            // Update button state
+            const button = districtListContainer?.querySelector(`[data-slug="${slug}"]`) as HTMLButtonElement;
+            if (button) {
+              button.dataset.selected = 'false';
+              button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+              const icon = button.querySelector('svg');
+              const text = button.querySelector('span');
+              if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+              if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+            }
+          }
+        });
+      });
+    }
+
+    // Clear all districts button
+    clearAllDistrictsBtn?.addEventListener('click', () => {
+      selectedDistricts.length = 0;
+      renderSelectedDistrictsTags();
+      // Update all button states
+      const buttons = districtListContainer?.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+      buttons?.forEach(button => {
+        button.dataset.selected = 'false';
+        button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+        const icon = button.querySelector('svg');
+        const text = button.querySelector('span');
+        if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+        if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+      });
+    });
+
+    // Render top 5 most searched districts (v1 compatible)
+    // NOW DYNAMIC: Fetches data from API based on current province
+    function renderTopDistricts() {
+      if (!topDistrictsContainer) return;
+
+      // If no province selected, show placeholder
+      if (!currentProvinceNId) {
+        topDistrictsContainer.innerHTML = `
+          <div class="text-sm text-secondary-500 text-center py-4">
+            Chọn tỉnh để xem
+          </div>`;
+        return;
+      }
+
+      // Show loading state
+      topDistrictsContainer.innerHTML = `
+        <div class="text-sm text-secondary-500 text-center py-4">
+          <svg class="w-5 h-5 animate-spin mx-auto text-primary-500" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+          </svg>
+        </div>`;
+
+      // Fetch top districts from API (use format=dropdown for button format)
+      const apiUrl = `/api/location/top-searched?province=${encodeURIComponent(currentProvinceNId)}&limit=5&base=${encodeURIComponent(baseUrl)}&format=dropdown`;
+      console.log('[HorizontalSearchBar] Fetching top districts from:', apiUrl);
+
+      fetch(apiUrl)
+        .then(response => response.text())
+        .then(html => {
+          console.log('[HorizontalSearchBar] Top districts HTML received');
+          topDistrictsContainer.innerHTML = html;
+
+          // Attach click handlers to top district items
+          const topDistrictItems = topDistrictsContainer.querySelectorAll('[data-top-district-item]') as NodeListOf<HTMLButtonElement>;
+          console.log('[HorizontalSearchBar] Found top district items:', topDistrictItems.length);
+
+          topDistrictItems.forEach(item => {
+            item.addEventListener('click', () => {
+              const slug = item.dataset.slug || '';
+              const name = item.dataset.name || '';
+
+              console.log('[HorizontalSearchBar] Top district clicked:', { slug, name });
+
+              // Add to selectedDistricts if not already selected
+              if (!selectedDistricts.some(d => d.slug === slug)) {
+                selectedDistricts.push({ slug, name });
+                renderSelectedDistrictsTags();
+
+                // Update button state in main grid if visible
+                const mainButton = districtListContainer?.querySelector(`[data-district-toggle][data-slug="${slug}"]`) as HTMLButtonElement;
+                if (mainButton) {
+                  mainButton.dataset.selected = 'true';
+                  mainButton.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+                  const icon = mainButton.querySelector('svg');
+                  const text = mainButton.querySelector('span');
+                  if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+                  if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
+                }
+              }
+            });
+          });
+        })
+        .catch(error => {
+          console.error('[HorizontalSearchBar] Failed to fetch top districts:', error);
+          topDistrictsContainer.innerHTML = `
+            <div class="text-sm text-red-500 text-center py-4">
+              Lỗi tải dữ liệu
+            </div>`;
+        });
+    }
+
+    let currentProvinceName: string | null = null;
+    let districtsLoaded = false;
+
+    // Remove old listener if exists (prevent duplicates on re-init)
+    if (provinceSelectedHandler) {
+      console.log('[HorizontalSearchBar] Removing old province-selected listener');
+      document.removeEventListener('province-selected', provinceSelectedHandler as EventListener);
+    }
+
+    // Create new handler
+    provinceSelectedHandler = ((e: CustomEvent) => {
+      const { name, nId, slug } = e.detail;
+
+      console.log('[HorizontalSearchBar] Received province-selected event:', { name, nId, slug });
+
+      // Update location display
+      if (locationDisplay) {
+        locationDisplay.textContent = name;
+      }
+
+      // Update province tracking
+      currentProvinceNId = nId;
+      currentProvinceName = name;
+      districtsLoaded = false;
+
+      // CRITICAL FIX: Update data attributes for location search
+      if (searchBar) {
+        searchBar.setAttribute('data-current-province-nid', nId || '');
+        searchBar.setAttribute('data-current-province-slug', slug || '');
+      }
+
+      // Update dropdown header
+      if (provinceNameDisplay) {
+        provinceNameDisplay.textContent = name;
+      }
+
+      // Update header container for province mode
+      if (searchBar) {
+        const dropdownHeader = searchBar.parentElement?.querySelector('[data-district-dropdown] > div:first-child h5') as HTMLElement;
+        if (dropdownHeader) {
+          dropdownHeader.innerHTML = `Quận/Huyện tại <span data-province-name-display>${name}</span>`;
+        }
+      }
+
+      // CRITICAL: Clear selected districts when province changes (don't carry over districts from old province)
+      selectedDistricts.length = 0;
+      console.log('[HorizontalSearchBar] Cleared selectedDistricts on province change');
+
+      // Dispatch province-changed event for other components (e.g., most-searched-locations)
+      console.log('[HorizontalSearchBar] Dispatching province-changed event:', { provinceNId: nId, provinceName: name, provinceSlug: slug, baseUrl });
+      const provinceChangedEvent = new CustomEvent('province-changed', {
+        detail: { provinceNId: nId, provinceName: name, provinceSlug: slug, baseUrl }
+      });
+      document.dispatchEvent(provinceChangedEvent);
+
+      // Load districts via fetch
+      if (districtListContainer && currentProvinceNId) {
+        // Show loading state
+        districtLoading?.classList.remove('hidden');
+        districtEmpty?.classList.add('hidden');
+        districtListContainer.innerHTML = '';
+
+        // Fetch districts with selected districts
+        const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+        const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+        console.log('[HorizontalSearchBar] Loading districts with selected:', selectedSlugs);
+        fetch(url)
+          .then(response => response.text())
+          .then(html => {
+            console.log('[HorizontalSearchBar] Districts API response length:', html.length);
+            console.log('[HorizontalSearchBar] Districts HTML preview:', html.substring(0, 500));
+
+            districtLoading?.classList.add('hidden');
+            districtListContainer.innerHTML = html;
+            districtsLoaded = true;
+
+            // Use grid layout for district buttons (3 columns like screenshot)
+            districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
+            districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
+
+            // Attach button handlers
+            attachDistrictButtonHandlers(districtListContainer);
+
+            // Update selectedDistricts names from loaded buttons (replace slugs with proper names)
+            selectedDistricts.forEach(district => {
+              const button = districtListContainer.querySelector(`[data-district-toggle][data-slug="${district.slug}"]`) as HTMLButtonElement;
+              if (button && button.dataset.name) {
+                district.name = button.dataset.name;
+              }
+            });
+
+            // Re-render tags with proper names
+            renderSelectedDistrictsTags();
+
+            // Render top 5 most searched districts
+            renderTopDistricts();
+
+            // Show dropdown and focus input
+            districtDropdown?.classList.remove('hidden');
+            districtSearchInput?.focus();
+
+            // CRITICAL FIX: Delay check until browser parses HTML into DOM
+            setTimeout(() => {
+              const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
+              console.log('[HorizontalSearchBar] District buttons found (after timeout):', districtButtons?.length);
+
+              if (!districtButtons || districtButtons.length === 0) {
+                console.log('[HorizontalSearchBar] No districts, showing empty state');
+                districtEmpty?.classList.remove('hidden');
+              } else {
+                console.log('[HorizontalSearchBar] Districts found, HIDING empty state');
+                districtEmpty?.classList.add('hidden');
+              }
+            }, 50); // Increased delay to ensure DOM parsing
+          })
+          .catch(error => {
+            console.error('[HorizontalSearchBar] Failed to load districts:', error);
+            districtLoading?.classList.add('hidden');
+            districtEmpty?.classList.remove('hidden');
+            if (districtEmpty) {
+              districtEmpty.textContent = 'Lỗi khi tải quận/huyện';
+            }
+          });
+      }
+    }) as (event: CustomEvent) => void;
+
+    // Add listener
+    console.log('[HorizontalSearchBar] Adding province-selected listener');
+    document.addEventListener('province-selected', provinceSelectedHandler as EventListener);
+
+    // Property Type dropdown
+    const propertyTypeTrigger = searchBar.querySelector('[data-property-type-trigger]') as HTMLButtonElement;
+    const propertyTypePanel = searchBar.querySelector('[data-property-type-panel]') as HTMLDivElement;
+    const propertyTypeDisplay = searchBar.querySelector('[data-property-type-display]') as HTMLSpanElement;
+    const propertyTypeArrow = searchBar.querySelector('[data-property-type-arrow]') as SVGElement;
+    const propertyTypeCheckboxes = searchBar.querySelectorAll('[data-property-type-checkbox]') as NodeListOf<HTMLInputElement>;
+    const resetPropertyTypesBtn = searchBar.querySelector('[data-reset-property-types]') as HTMLButtonElement;
+    const applyPropertyTypesBtn = searchBar.querySelector('[data-apply-property-types]') as HTMLButtonElement;
+
+    if (!propertyTypeTrigger || !propertyTypePanel) {
+      console.warn('[HorizontalSearchBar] Property type elements not found');
+    }
+
+    // Property Type dropdown - close function for dropdown manager
+    const propertyTypeDropdownId = `property-type-${Math.random().toString(36).substr(2, 9)}`;
+    let isPropertyTypeOpen = false;
+
+    function closePropertyTypeDropdown() {
+      isPropertyTypeOpen = false;
+      propertyTypePanel?.classList.add('hidden');
+      propertyTypeArrow?.classList.remove('rotate-180');
+    }
+
+    // Register with dropdown manager
+    if (typeof (window as any).dropdownManager !== 'undefined') {
+      (window as any).dropdownManager.register(propertyTypeDropdownId, closePropertyTypeDropdown);
+    }
+
+    // Toggle dropdown
+    propertyTypeTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isPropertyTypeOpen = !isPropertyTypeOpen;
+
+      if (isPropertyTypeOpen) {
+        // Notify dropdown manager to close other dropdowns
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.open(propertyTypeDropdownId);
+        }
+      } else {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(propertyTypeDropdownId);
+        }
+      }
+
+      propertyTypePanel?.classList.toggle('hidden', !isPropertyTypeOpen);
+      propertyTypeArrow?.classList.toggle('rotate-180', isPropertyTypeOpen);
+    });
+
+    // Update display count
+    function updatePropertyTypeDisplay() {
+      const checkedCount = Array.from(propertyTypeCheckboxes).filter(cb => cb.checked).length;
+      if (propertyTypeDisplay) {
+        propertyTypeDisplay.textContent = checkedCount > 0
+          ? `Đã chọn ${checkedCount} loại`
+          : 'Loại BĐS';
+      }
+    }
+
+    // Update count on checkbox change
+    propertyTypeCheckboxes.forEach(checkbox => {
+      checkbox.addEventListener('change', updatePropertyTypeDisplay);
+    });
+
+    // Reset button
+    resetPropertyTypesBtn?.addEventListener('click', () => {
+      propertyTypeCheckboxes.forEach(cb => cb.checked = false);
+      updatePropertyTypeDisplay();
+    });
+
+    // Apply button - close dropdown and update selected IDs
+    let selectedPropertyTypeIds: string[] = [];
+    applyPropertyTypesBtn?.addEventListener('click', () => {
+      selectedPropertyTypeIds = Array.from(propertyTypeCheckboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+      // Close dropdown
+      isPropertyTypeOpen = false;
+      propertyTypePanel?.classList.add('hidden');
+      propertyTypeArrow?.classList.remove('rotate-180');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(propertyTypeDropdownId);
+      }
+    });
+
+    // Price selection - read from hidden inputs (new PriceRangeDropdown component)
+    const getPriceValues = () => {
+      const priceMinInput = searchBar.querySelector('[name="price-min"]') as HTMLInputElement;
+      const priceMaxInput = searchBar.querySelector('[name="price-max"]') as HTMLInputElement;
+      return {
+        min: priceMinInput?.value || '',
+        max: priceMaxInput?.value || ''
+      };
+    };
+
+    // Advanced Filters Row Toggle
+    const advancedFilterToggle = searchBar?.querySelector('[data-advanced-filter-toggle]') as HTMLButtonElement;
+    // advancedFiltersRow is a sibling of searchBar, not a child, so query from parent or document
+    const container = searchBar?.parentElement;
+    const advancedFiltersRow = container?.querySelector('[data-advanced-filters-row]') as HTMLDivElement;
+
+    // Track advanced filter values (area values come from RangeSliderDropdown hidden input)
+    let selectedRadius = '';
+    let selectedBathrooms = '';
+    let selectedBedrooms = '';
+
+    // Initialize from URL params (reuse urlParams declared above)
+    const bathroomsParam = urlParams.get('bathrooms');
+    const bedroomsParam = urlParams.get('bedrooms');
+    const radiusParam = urlParams.get('radius');
+
+    // Set initial values
+    if (radiusParam) {
+      selectedRadius = radiusParam;
+    }
+    if (bathroomsParam) {
+      selectedBathrooms = bathroomsParam;
+    }
+    if (bedroomsParam) {
+      selectedBedrooms = bedroomsParam;
+    }
+
+    // Toggle advanced filters row
+
+    let isAdvancedFiltersVisible = false;
+    advancedFilterToggle?.addEventListener('click', (e) => {
+      e.stopPropagation();
+
+      // Close all other dropdowns when toggling advanced filters
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.closeAll();
+      }
+
+      isAdvancedFiltersVisible = !isAdvancedFiltersVisible;
+
+      if (advancedFiltersRow) {
+        if (isAdvancedFiltersVisible) {
+          advancedFiltersRow.classList.remove('hidden');
+        } else {
+          advancedFiltersRow.classList.add('hidden');
+        }
+      }
+    });
+
+    // Radius dropdown
+    const radiusTrigger = advancedFiltersRow?.querySelector('[data-radius-trigger]') as HTMLButtonElement;
+    const radiusPanel = advancedFiltersRow?.querySelector('[data-radius-panel]') as HTMLDivElement;
+    const radiusDisplay = advancedFiltersRow?.querySelector('[data-radius-display]') as HTMLSpanElement;
+    const radiusArrow = advancedFiltersRow?.querySelector('[data-radius-arrow]') as SVGElement;
+    const radiusOptions = advancedFiltersRow?.querySelectorAll('[data-radius-option]') as NodeListOf<HTMLButtonElement>;
+    const resetRadiusBtn = advancedFiltersRow?.querySelector('[data-reset-radius]') as HTMLButtonElement;
+
+    // Bathrooms dropdown
+    const bathroomsTrigger = advancedFiltersRow?.querySelector('[data-bathrooms-trigger]') as HTMLButtonElement;
+    const bathroomsPanel = advancedFiltersRow?.querySelector('[data-bathrooms-panel]') as HTMLDivElement;
+    const bathroomsDisplay = advancedFiltersRow?.querySelector('[data-bathrooms-display]') as HTMLSpanElement;
+    const bathroomsArrow = advancedFiltersRow?.querySelector('[data-bathrooms-arrow]') as SVGElement;
+    const bathroomsOptions = advancedFiltersRow?.querySelectorAll('[data-bathrooms-option]') as NodeListOf<HTMLButtonElement>;
+    const resetBathroomsBtn = advancedFiltersRow?.querySelector('[data-reset-bathrooms]') as HTMLButtonElement;
+
+    // Bedrooms dropdown
+    const bedroomsTrigger = advancedFiltersRow?.querySelector('[data-bedrooms-trigger]') as HTMLButtonElement;
+    const bedroomsPanel = advancedFiltersRow?.querySelector('[data-bedrooms-panel]') as HTMLDivElement;
+    const bedroomsDisplay = advancedFiltersRow?.querySelector('[data-bedrooms-display]') as HTMLSpanElement;
+    const bedroomsArrow = advancedFiltersRow?.querySelector('[data-bedrooms-arrow]') as SVGElement;
+    const bedroomsOptions = advancedFiltersRow?.querySelectorAll('[data-bedrooms-option]') as NodeListOf<HTMLButtonElement>;
+    const resetBedroomsBtn = advancedFiltersRow?.querySelector('[data-reset-bedrooms]') as HTMLButtonElement;
+
+    // Dropdown states
+    let isRadiusOpen = false;
+    let isBathroomsOpen = false;
+    let isBedroomsOpen = false;
+
+    // Register dropdowns with dropdown manager
+    const radiusDropdownId = `radius-${Math.random().toString(36).substr(2, 9)}`;
+    const bathroomsDropdownId = `bathrooms-${Math.random().toString(36).substr(2, 9)}`;
+    const bedroomsDropdownId = `bedrooms-${Math.random().toString(36).substr(2, 9)}`;
+
+    if (typeof (window as any).dropdownManager !== 'undefined') {
+      (window as any).dropdownManager.register(radiusDropdownId, () => {
+        isRadiusOpen = false;
+        radiusPanel?.classList.add('hidden');
+        radiusArrow?.classList.remove('rotate-180');
+      });
+      (window as any).dropdownManager.register(bathroomsDropdownId, () => {
+        isBathroomsOpen = false;
+        bathroomsPanel?.classList.add('hidden');
+        bathroomsArrow?.classList.remove('rotate-180');
+      });
+      (window as any).dropdownManager.register(bedroomsDropdownId, () => {
+        isBedroomsOpen = false;
+        bedroomsPanel?.classList.add('hidden');
+        bedroomsArrow?.classList.remove('rotate-180');
+      });
+    }
+
+    // Helper to update display text
+    function updateRadiusDisplay() {
+      if (radiusDisplay) {
+        radiusDisplay.textContent = selectedRadius ? `${selectedRadius} km` : 'Bán kính';
+      }
+    }
+    function updateBathroomsDisplay() {
+      if (bathroomsDisplay) {
+        bathroomsDisplay.textContent = selectedBathrooms ? `${selectedBathrooms} phòng` : 'Phòng tắm';
+      }
+    }
+    function updateBedroomsDisplay() {
+      if (bedroomsDisplay) {
+        bedroomsDisplay.textContent = selectedBedrooms ? `${selectedBedrooms} phòng` : 'Phòng ngủ';
+      }
+    }
+
+    // Initialize display from URL params
+    updateRadiusDisplay();
+    updateBathroomsDisplay();
+    updateBedroomsDisplay();
+
+    // Radius dropdown toggle
+    radiusTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isRadiusOpen = !isRadiusOpen;
+
+      if (isRadiusOpen) {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.open(radiusDropdownId);
+        }
+      } else {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(radiusDropdownId);
+        }
+      }
+
+      radiusPanel?.classList.toggle('hidden', !isRadiusOpen);
+      radiusArrow?.classList.toggle('rotate-180', isRadiusOpen);
+    });
+
+    // Radius option selection
+    radiusOptions?.forEach(option => {
+      option.addEventListener('click', () => {
+        selectedRadius = option.getAttribute('data-value') || '';
+        updateRadiusDisplay();
+        isRadiusOpen = false;
+        radiusPanel?.classList.add('hidden');
+        radiusArrow?.classList.remove('rotate-180');
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(radiusDropdownId);
+        }
+      });
+    });
+
+    // Radius reset
+    resetRadiusBtn?.addEventListener('click', () => {
+      selectedRadius = '';
+      updateRadiusDisplay();
+      isRadiusOpen = false;
+      radiusPanel?.classList.add('hidden');
+      radiusArrow?.classList.remove('rotate-180');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(radiusDropdownId);
+      }
+    });
+
+    // Bathrooms dropdown toggle
+    bathroomsTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isBathroomsOpen = !isBathroomsOpen;
+
+      if (isBathroomsOpen) {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.open(bathroomsDropdownId);
+        }
+      } else {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(bathroomsDropdownId);
+        }
+      }
+
+      bathroomsPanel?.classList.toggle('hidden', !isBathroomsOpen);
+      bathroomsArrow?.classList.toggle('rotate-180', isBathroomsOpen);
+    });
+
+    // Bathrooms option selection
+    bathroomsOptions?.forEach(option => {
+      option.addEventListener('click', () => {
+        selectedBathrooms = option.getAttribute('data-value') || '';
+        updateBathroomsDisplay();
+        isBathroomsOpen = false;
+        bathroomsPanel?.classList.add('hidden');
+        bathroomsArrow?.classList.remove('rotate-180');
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(bathroomsDropdownId);
+        }
+      });
+    });
+
+    // Bathrooms reset
+    resetBathroomsBtn?.addEventListener('click', () => {
+      selectedBathrooms = '';
+      updateBathroomsDisplay();
+      isBathroomsOpen = false;
+      bathroomsPanel?.classList.add('hidden');
+      bathroomsArrow?.classList.remove('rotate-180');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(bathroomsDropdownId);
+      }
+    });
+
+    // Bedrooms dropdown toggle
+    bedroomsTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      isBedroomsOpen = !isBedroomsOpen;
+
+      if (isBedroomsOpen) {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.open(bedroomsDropdownId);
+        }
+      } else {
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(bedroomsDropdownId);
+        }
+      }
+
+      bedroomsPanel?.classList.toggle('hidden', !isBedroomsOpen);
+      bedroomsArrow?.classList.toggle('rotate-180', isBedroomsOpen);
+    });
+
+    // Bedrooms option selection
+    bedroomsOptions?.forEach(option => {
+      option.addEventListener('click', () => {
+        selectedBedrooms = option.getAttribute('data-value') || '';
+        updateBedroomsDisplay();
+        isBedroomsOpen = false;
+        bedroomsPanel?.classList.add('hidden');
+        bedroomsArrow?.classList.remove('rotate-180');
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(bedroomsDropdownId);
+        }
+      });
+    });
+
+    // Bedrooms reset
+    resetBedroomsBtn?.addEventListener('click', () => {
+      selectedBedrooms = '';
+      updateBedroomsDisplay();
+      isBedroomsOpen = false;
+      bedroomsPanel?.classList.add('hidden');
+      bedroomsArrow?.classList.remove('rotate-180');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(bedroomsDropdownId);
+      }
+    });
+
+    // Close dropdowns on outside click
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+
+      // Close main search bar dropdowns if clicking outside
+      if (!searchBar.contains(target)) {
+        if (isPropertyTypeOpen) {
+          propertyTypePanel?.classList.add('hidden');
+          propertyTypeArrow?.classList.remove('rotate-180');
+          isPropertyTypeOpen = false;
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(propertyTypeDropdownId);
+          }
+        }
+
+        // Don't close district dropdown if clicking inside it
+        if (!districtDropdown?.contains(target)) {
+          districtDropdown?.classList.add('hidden');
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(districtDropdownId);
+          }
+        }
+      }
+
+      // Close advanced filter dropdowns if clicking outside the advanced filters row
+      const advancedFiltersContainer = advancedFiltersRow;
+      if (advancedFiltersContainer && !advancedFiltersContainer.contains(target)) {
+        // Close radius dropdown
+        if (isRadiusOpen) {
+          isRadiusOpen = false;
+          radiusPanel?.classList.add('hidden');
+          radiusArrow?.classList.remove('rotate-180');
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(radiusDropdownId);
+          }
+        }
+
+        // Close bathrooms dropdown
+        if (isBathroomsOpen) {
+          isBathroomsOpen = false;
+          bathroomsPanel?.classList.add('hidden');
+          bathroomsArrow?.classList.remove('rotate-180');
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(bathroomsDropdownId);
+          }
+        }
+
+        // Close bedrooms dropdown
+        if (isBedroomsOpen) {
+          isBedroomsOpen = false;
+          bedroomsPanel?.classList.add('hidden');
+          bedroomsArrow?.classList.remove('rotate-180');
+          if (typeof (window as any).dropdownManager !== 'undefined') {
+            (window as any).dropdownManager.close(bedroomsDropdownId);
+          }
+        }
+      }
+    });
+
+    // Load districts when input is focused or clicked
+    function loadDistrictsOnDemand() {
+
+      if (!currentProvinceNId) {
+        return; // No province selected, nothing to show
+      }
+
+      // Notify dropdown manager to close other dropdowns before showing district dropdown
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.open(districtDropdownId);
+      }
+
+      // If districts already loaded, just show dropdown
+      if (districtsLoaded) {
+        districtDropdown?.classList.remove('hidden');
+        // CRITICAL FIX: Hide empty state when opening dropdown with loaded data
+        districtEmpty?.classList.add('hidden');
+        return;
+      }
+
+      // First focus with province but districts not loaded yet - load them
+      districtLoading?.classList.remove('hidden');
+      districtEmpty?.classList.add('hidden');
+      districtListContainer.innerHTML = '';
+      districtDropdown?.classList.remove('hidden');
+
+      const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+      const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+      console.log('[HorizontalSearchBar] Loading districts on focus with selected:', selectedSlugs);
+      fetch(url)
+        .then(response => response.text())
+        .then(html => {
+          districtLoading?.classList.add('hidden');
+          districtListContainer.innerHTML = html;
+          districtsLoaded = true;
+
+          // Use grid layout for district buttons (3 columns like screenshot)
+          districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
+          districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
+
+          // Sync selectedDistricts with selected buttons (populate names)
+          const buttons = districtListContainer.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+          buttons.forEach(button => {
+            const isSelected = button.dataset.selected === 'true';
+            if (isSelected) {
+              const slug = button.dataset.slug || '';
+              const name = button.dataset.name || slug;
+              if (!selectedDistricts.some(d => d.slug === slug)) {
+                selectedDistricts.push({ slug, name });
+              } else {
+                const existing = selectedDistricts.find(d => d.slug === slug);
+                if (existing && existing.name === slug) {
+                  existing.name = name;
+                }
+              }
+            }
+          });
+
+          // Attach button handlers
+          attachDistrictButtonHandlers(districtListContainer);
+
+          // Re-render tags with proper names
+          renderSelectedDistrictsTags();
+
+          // Render top 5 most searched districts
+          renderTopDistricts();
+
+          // Check if any districts were loaded (defer to next tick for DOM parsing)
+          setTimeout(() => {
+            const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
+            if (!districtCheckboxes || districtCheckboxes.length === 0) {
+              districtEmpty?.classList.remove('hidden');
+            } else {
+              districtEmpty?.classList.add('hidden');
+            }
+          }, 0);
+        })
+        .catch(error => {
+          console.error('[HorizontalSearchBar] Failed to load districts on focus:', error);
+          districtLoading?.classList.add('hidden');
+          districtEmpty?.classList.remove('hidden');
+          if (districtEmpty) {
+            districtEmpty.textContent = 'Lỗi khi tải quận/huyện';
+          }
+        });
+    }
+
+    // Attach both focus and click events to ensure dropdown shows
+    districtSearchInput?.addEventListener('focus', loadDistrictsOnDemand);
+    districtSearchInput?.addEventListener('click', loadDistrictsOnDemand);
+
+    // District search/filter functionality with Elasticsearch integration
+    let searchTimeout: number | null = null;
+
+    districtSearchInput?.addEventListener('input', () => {
+      const query = districtSearchInput.value.trim();
+
+      // Clear existing timeout
+      if (searchTimeout) {
+        clearTimeout(searchTimeout);
+      }
+
+      // If empty query, restore districts view
+      if (!query) {
+        districtEmpty?.classList.add('hidden');
+
+        // Restore header for province mode
+        if (currentProvinceName && searchBar) {
+          const dropdownHeader = searchBar.parentElement?.querySelector('[data-district-dropdown] > div:first-child h5') as HTMLElement;
+          if (dropdownHeader) {
+            dropdownHeader.innerHTML = `Quận/Huyện tại <span data-province-name-display>${currentProvinceName}</span>`;
+          }
+        }
+
+        // If province selected, reload and show districts
+        if (currentProvinceNId) {
+          // Reload districts from API
+          districtLoading?.classList.remove('hidden');
+          districtListContainer.innerHTML = '';
+
+          const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+          const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+          console.log('[HorizontalSearchBar] Reloading districts after empty search with selected:', selectedSlugs);
+          fetch(url)
+            .then(response => response.text())
+            .then(html => {
+              districtLoading?.classList.add('hidden');
+              districtListContainer.innerHTML = html;
+              districtsLoaded = true;
+
+              // Use grid layout for district buttons (3 columns like screenshot)
+              districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
+              districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
+
+              // Sync selectedDistricts with selected buttons (populate names)
+              const buttons = districtListContainer.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+              buttons.forEach(button => {
+                const isSelected = button.dataset.selected === 'true';
+                if (isSelected) {
+                  const slug = button.dataset.slug || '';
+                  const name = button.dataset.name || slug;
+                  if (!selectedDistricts.some(d => d.slug === slug)) {
+                    selectedDistricts.push({ slug, name });
+                  } else {
+                    const existing = selectedDistricts.find(d => d.slug === slug);
+                    if (existing && existing.name === slug) {
+                      existing.name = name;
+                    }
+                  }
+                }
+              });
+
+              // Attach button handlers
+              attachDistrictButtonHandlers(districtListContainer);
+
+              // Re-render tags with proper names
+              renderSelectedDistrictsTags();
+
+              // Render top 5 most searched districts
+              renderTopDistricts();
+
+              districtDropdown?.classList.remove('hidden');
+
+              // Check if any districts were loaded (defer to next tick for DOM parsing)
+              setTimeout(() => {
+                const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
+                if (!districtButtons || districtButtons.length === 0) {
+                  districtEmpty?.classList.remove('hidden');
+                } else {
+                  districtEmpty?.classList.add('hidden');
+                }
+              }, 50); // Increased delay to ensure DOM parsing
+            })
+            .catch(error => {
+              console.error('[HorizontalSearchBar] Failed to reload districts:', error);
+              districtLoading?.classList.add('hidden');
+              districtDropdown?.classList.add('hidden');
+            });
+        } else {
+          districtDropdown?.classList.add('hidden');
+        }
+        return;
+      }
+
+      // Debounce search - wait 300ms after user stops typing
+      searchTimeout = window.setTimeout(() => {
+        performLocationSearch(query);
+      }, 300);
+    });
+
+    // Perform location search via Elasticsearch
+    function performLocationSearch(query: string) {
+      if (!query) return;
+
+      // Update header for search mode
+      if (searchBar) {
+        const dropdownHeader = searchBar.parentElement?.querySelector('[data-district-dropdown] > div:first-child h5') as HTMLElement;
+        if (dropdownHeader) {
+          dropdownHeader.innerHTML = `Kết quả tìm kiếm "<span class="text-primary-600">${query}</span>"`;
+        }
+      }
+
+      // Show loading
+      districtLoading?.classList.remove('hidden');
+      districtEmpty?.classList.add('hidden');
+      districtListContainer.innerHTML = '';
+      districtDropdown?.classList.remove('hidden');
+
+      // Call location search API with province context
+      const provinceNId = searchBar?.getAttribute('data-current-province-nid') || '';
+      const provinceSlug = searchBar?.getAttribute('data-current-province-slug') || '';
+
+
+      let searchUrl = `/api/location/search?q=${encodeURIComponent(query)}&base=${baseUrl}`;
+      if (provinceNId && provinceSlug) {
+        searchUrl += `&city_id=${encodeURIComponent(provinceNId)}&city_slug=${encodeURIComponent(provinceSlug)}`;
+      } else {
+      }
+
+      fetch(searchUrl)
+        .then(response => response.text())
+        .then(html => {
+          districtLoading?.classList.add('hidden');
+
+          // Replace district list with search results
+          districtListContainer.innerHTML = html;
+
+          // Use flex column layout for search results
+          districtListContainer.classList.remove('grid', 'grid-cols-3', 'gap-x-6', 'gap-y-2');
+          districtListContainer.classList.add('flex', 'flex-col');
+
+          // Check if any results (defer to next tick for DOM parsing)
+          setTimeout(() => {
+            const resultButtons = districtListContainer?.querySelectorAll('button, a');
+            if (!resultButtons || resultButtons.length === 0) {
+              districtEmpty?.classList.remove('hidden');
+              districtEmpty.textContent = `Không tìm thấy "${query}"`;
+            } else {
+              districtEmpty?.classList.add('hidden');
+
+              // Add click handlers for search result buttons
+              resultButtons.forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                  const href = btn.getAttribute('data-href') || btn.getAttribute('href');
+                  if (href) {
+                    e.preventDefault();
+                    window.location.href = href;
+                  }
+                });
+              });
+            }
+          }, 0);
+        })
+        .catch(error => {
+          console.error('[HorizontalSearchBar] Location search failed:', error);
+          districtLoading?.classList.add('hidden');
+          districtEmpty?.classList.remove('hidden');
+          districtEmpty.textContent = 'Lỗi khi tìm kiếm địa điểm';
+        });
+    }
+
+    // Close district dropdown
+    closeDistrictDropdownBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      districtDropdown?.classList.add('hidden');
+      if (typeof (window as any).dropdownManager !== 'undefined') {
+        (window as any).dropdownManager.close(districtDropdownId);
+      }
+    });
+
+    // Close dropdown on Escape key
+    districtSearchInput?.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        districtDropdown?.classList.add('hidden');
+        districtSearchInput.blur();
+        if (typeof (window as any).dropdownManager !== 'undefined') {
+          (window as any).dropdownManager.close(districtDropdownId);
+        }
+      }
+    });
+
+    // Search submit
+    const searchSubmit = searchBar.querySelector('[data-search-submit]') as HTMLButtonElement;
+
+    searchSubmit?.addEventListener('click', () => {
+      // Read property types directly from checkboxes (don't rely on "Áp dụng" button)
+      selectedPropertyTypeIds = Array.from(propertyTypeCheckboxes)
+        .filter(cb => cb.checked)
+        .map(cb => cb.value);
+
+      console.log('[HorizontalSearchBar] Search clicked, property types:', selectedPropertyTypeIds);
+
+      // Build search URL with filters (v1 compatible format)
+      const params = new URLSearchParams();
+
+      const keyword = districtSearchInput?.value.trim();
+      if (keyword) params.set('keyword', keyword);
+
+      // Get area values from RangeSliderDropdown hidden input
+      const areaInput = container?.querySelector('[name="area"]') as HTMLInputElement;
+      if (areaInput?.value) {
+        const [minArea, maxArea] = areaInput.value.split('-');
+        if (minArea) params.set('dtnn', minArea);
+        if (maxArea) params.set('dtcn', maxArea);
+      }
+
+      // Add other advanced filters
+      if (selectedRadius) params.set('radius', selectedRadius);
+      if (selectedBathrooms) params.set('bathrooms', selectedBathrooms);
+      if (selectedBedrooms) params.set('bedrooms', selectedBedrooms);
+
+      // Build URL: /[transaction]/[province]/[price-slug]?[other-params]
+      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
+
+      // Get price values first
+      const prices = getPriceValues();
+
+      // Add province slug if selected
+      const provinceSlug = searchBar?.getAttribute('data-current-province-slug');
+      if (provinceSlug && provinceSlug.trim()) {
+        urlParts.push(provinceSlug);
+      } else if (prices.min || prices.max) {
+        // If no province but has price, add "toan-quoc"
+        urlParts.push('toan-quoc');
+      }
+
+      // Convert price to slug (v1 compatible)
+      if (prices.min || prices.max) {
+        const minTrieu = prices.min ? Number(prices.min) : 0;
+        const maxTrieu = prices.max ? Number(prices.max) : 0;
+        const priceSlug = buildPriceSlug(minTrieu, maxTrieu);
+        if (priceSlug) {
+          urlParts.push(priceSlug);
+        }
+      }
+
+      let targetUrl = '/' + urlParts.join('/');
+
+      // Build query string manually to avoid encoding commas (v1 compatible)
+      const queryParts: string[] = [];
+
+      // Add property_types WITHOUT encoding (v1 uses plain commas)
+      if (selectedPropertyTypeIds.length > 0) {
+        queryParts.push(`property_types=${selectedPropertyTypeIds.join(',')}`);
+      }
+
+      // Add addresses param WITHOUT encoding (v1 uses plain commas)
+      // Only add if districts are actually selected in UI
+      if (selectedDistricts.length > 0) {
+        const districtSlugs = selectedDistricts.map(d => d.slug).join(',');
+        queryParts.push(`addresses=${districtSlugs}`);
+      }
+
+      // Add URLSearchParams parts (other params can be encoded normally)
+      const standardParams = params.toString();
+      if (standardParams) {
+        queryParts.push(standardParams);
+      }
+
+      if (queryParts.length > 0) {
+        targetUrl = `${targetUrl}?${queryParts.join('&')}`;
+      }
+
+      window.location.href = targetUrl;
+    });
+
+    // Helper: Build price slug from min/max in millions
+    function buildPriceSlug(minTrieu: number, maxTrieu: number): string {
+      if (minTrieu === 0 && maxTrieu === 0) return '';
+
+      if (!minTrieu && maxTrieu) {
+        return `gia-duoi-${convertTrieuToPriceSlug(maxTrieu)}`;
+      }
+
+      if (minTrieu && (!maxTrieu || maxTrieu >= 60000)) {
+        return `gia-tren-${convertTrieuToPriceSlug(minTrieu)}`;
+      }
+
+      if (minTrieu && maxTrieu && minTrieu < maxTrieu) {
+        return `gia-tu-${convertTrieuToPriceSlug(minTrieu)}-den-${convertTrieuToPriceSlug(maxTrieu)}`;
+      }
+
+      return '';
+    }
+
+    // Helper: Convert millions to price slug part
+    function convertTrieuToPriceSlug(trieu: number): string {
+      if (trieu >= 1000) {
+        const ty = trieu / 1000;
+        const formatted = ty % 1 === 0 ? ty.toString() : ty.toFixed(1);
+        return `${formatted}-ty`;
+      }
+      return `${trieu.toFixed(0)}-trieu`;
+    }
+
+    // Enter key to search
+    districtSearchInput?.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        searchSubmit?.click();
+      }
+    });
+
+    // Auto-search when preset buttons clicked (price/area)
+    // Wait for dropdowns to initialize, then attach listeners
+    setTimeout(() => {
+      // Price preset buttons
+      const pricePresetButtons = container?.querySelectorAll('[data-preset-button]') as NodeListOf<HTMLButtonElement>;
+      pricePresetButtons.forEach(btn => {
+        btn.addEventListener('click', () => {
+          console.log('[HorizontalSearchBar] Price preset clicked, auto-triggering search');
+          // Small delay to let slider update first
+          setTimeout(() => {
+            searchSubmit?.click();
+          }, 100);
+        });
+      });
+
+      // Area preset buttons (quick picks in area dropdown)
+      const areaDropdown = container?.querySelector('[data-type="area"]');
+      const areaPresetButtons = areaDropdown?.querySelectorAll('.quick-pick') as NodeListOf<HTMLButtonElement>;
+      areaPresetButtons?.forEach(btn => {
+        btn.addEventListener('click', () => {
+          console.log('[HorizontalSearchBar] Area preset clicked, auto-triggering search');
+          setTimeout(() => {
+            searchSubmit?.click();
+          }, 100);
+        });
+      });
+    }, 500);
+  }
+
+  // Initialize on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initHorizontalSearchBar);
+  } else {
+    initHorizontalSearchBar();
+  }
+
+  // Run on Astro View Transitions
+  document.addEventListener('astro:page-load', initHorizontalSearchBar);
+</script>
+
+<style>
+  .horizontal-search-bar {
+    backdrop-filter: blur(10px);
+    /* Ensure dropdowns can escape container */
+    isolation: auto;
+  }
+
+  /* Ensure dropdown panels are above all content */
+  .horizontal-search-bar [data-district-dropdown],
+  .horizontal-search-bar [data-property-type-panel],
+  .horizontal-search-bar [data-radius-panel],
+  .horizontal-search-bar [data-bathrooms-panel],
+  .horizontal-search-bar [data-bedrooms-panel],
+  .province-dropdown-panel {
+    position: absolute;
+    z-index: 99999 !important;
+  }
+
+  [data-advanced-filter-panel]:not(.hidden) {
+    animation: slideDownFadeIn 0.2s ease-out;
+  }
+
+  @keyframes slideDownFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @media (max-width: 1024px) {
+    .horizontal-search-bar .flex-wrap {
+      gap: 0.5rem;
+    }
+  }
+</style>

@@ -1,0 +1,64 @@
+---
+/**
+ * Location Chips Component
+ * Display selected locations as removable chips
+ */
+
+interface SelectedLocation {
+  nId: string;
+  name: string;
+  slug: string;
+  type: 'province' | 'district';
+}
+
+interface Props {
+  /** Selected locations */
+  selectedLocations: SelectedLocation[];
+  /** Base URL for navigation (e.g., /mua-ban) */
+  baseUrl: string;
+  /** Current addresses param */
+  addressesParam?: string;
+}
+
+const { selectedLocations, baseUrl, addressesParam = '' } = Astro.props;
+
+// Build remove URL for each location
+function buildRemoveUrl(slugToRemove: string): string {
+  const slugs = addressesParam.split(',').filter(s => s.trim() && s !== slugToRemove);
+
+  if (slugs.length === 0) {
+    // No locations left, go to base URL
+    return baseUrl;
+  }
+
+  // First location goes to path, rest to addresses param
+  const firstSlug = slugs[0];
+  const restSlugs = slugs.slice(1);
+
+  let url = `${baseUrl}/${firstSlug}`;
+  if (restSlugs.length > 0) {
+    url += `?addresses=${restSlugs.join(',')}`;
+  }
+
+  return url;
+}
+---
+
+{selectedLocations.length > 0 && (
+  <div class="flex flex-wrap gap-2 mt-3">
+    {selectedLocations.map(location => (
+      <div class="inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full text-sm">
+        <span class="font-medium">{location.name}</span>
+        <a
+          href={buildRemoveUrl(location.slug)}
+          class="hover:bg-orange-200 rounded-full p-0.5 transition-colors"
+          title={`Xóa ${location.name}`}
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </a>
+      </div>
+    ))}
+  </div>
+)}

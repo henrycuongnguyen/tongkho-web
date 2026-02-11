@@ -1,0 +1,303 @@
+---
+/**
+ * Location Autocomplete Component with Multi-Select (HTMX + localStorage)
+ * Supports multiple location selection with chips display
+ */
+
+interface Props {
+  /** Placeholder text */
+  placeholder?: string;
+  /** Base transaction URL (e.g., /mua-ban) */
+  baseUrl?: string;
+  /** Input name for form submission */
+  name?: string;
+  /** Selected locations (from URL resolution) */
+  selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
+}
+
+const {
+  placeholder = 'Tìm tỉnh, quận, phường, dự án...',
+  baseUrl = '/mua-ban',
+  name = 'location',
+  selectedLocations = [],
+} = Astro.props;
+
+const searchUrl = `/api/location/search?base=${encodeURIComponent(baseUrl)}`;
+---
+
+<div class="location-autocomplete-multi" data-base-url={baseUrl}>
+  <!-- Search Input -->
+  <div class="relative">
+    <input
+      type="text"
+      name={name}
+      id="location-search-input"
+      placeholder={placeholder}
+      autocomplete="off"
+      class="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+      hx-get={searchUrl}
+      hx-trigger="keyup changed delay:300ms"
+      hx-target="#location-results"
+      hx-swap="innerHTML"
+      hx-indicator="#location-spinner"
+      hx-include="this"
+    />
+
+    <!-- Loading Spinner -->
+    <div id="location-spinner" class="htmx-indicator absolute right-3 top-1/2 -translate-y-1/2">
+      <svg class="w-5 h-5 text-slate-400 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+    </div>
+
+    <!-- Results Dropdown -->
+    <div
+      id="location-results"
+      class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-auto empty:hidden"
+    ></div>
+  </div>
+
+  <!-- Selected Locations Chips -->
+  <div id="location-chips-container" class="flex flex-wrap gap-2 mt-3 empty:hidden">
+    {selectedLocations.map(loc => (
+      <div class="location-chip inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full text-sm" data-slug={loc.slug}>
+        <span class="font-medium">{loc.name}</span>
+        <button
+          type="button"
+          class="chip-remove hover:bg-orange-200 rounded-full p-0.5 transition-colors"
+          title={`Xóa ${loc.name}`}
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+    ))}
+  </div>
+
+  <!-- Search Button -->
+  <button
+    type="button"
+    id="location-search-btn"
+    class="w-full mt-3 px-4 py-2.5 bg-orange-500 hover:bg-orange-600 text-white font-medium rounded-lg transition-colors"
+  >
+    Tìm kiếm
+  </button>
+</div>
+
+<script define:vars={{ baseUrl, selectedLocations }}>
+  const MAX_LOCATIONS = 10;
+  const STORAGE_PREFIX = 'selected-addresses';
+
+  // Initialize location autocomplete - runs on page load + Astro View Transitions
+  function initLocationAutocomplete() {
+    const container = document.querySelector('.location-autocomplete-multi');
+    if (!container) return;
+
+    // Skip if already initialized
+    if (container.dataset.initialized) return;
+    container.dataset.initialized = 'true';
+
+    // Server-side selected locations (from props)
+    const initialLocations = selectedLocations || [];
+
+    // Initialize tab ID for localStorage isolation
+    let tabId = sessionStorage.getItem('tab-instance-id');
+    if (!tabId) {
+      tabId = `${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      sessionStorage.setItem('tab-instance-id', tabId);
+    }
+    const STORAGE_KEY = `${STORAGE_PREFIX}-${tabId}`;
+
+    // Get/set stored locations
+    function getStoredLocations() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      } catch (e) {
+        return [];
+      }
+    }
+
+    function setStoredLocations(locations) {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(locations || []));
+    }
+
+    // Initialize with server-side selected locations
+    if (initialLocations && initialLocations.length > 0) {
+      setStoredLocations(initialLocations);
+    }
+
+    // Render chips
+    function renderChips() {
+      const chipsContainer = document.getElementById('location-chips-container');
+      if (!chipsContainer) return;
+
+      const locations = getStoredLocations();
+      chipsContainer.innerHTML = locations.map(loc => `
+        <div class="location-chip inline-flex items-center gap-2 px-3 py-1.5 bg-orange-100 text-orange-800 rounded-full text-sm" data-slug="${loc.slug}">
+          <span class="font-medium">${loc.name}</span>
+          <button
+            type="button"
+            class="chip-remove hover:bg-orange-200 rounded-full p-0.5 transition-colors"
+            title="Xóa ${loc.name}"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `).join('');
+
+      // Attach remove handlers
+      chipsContainer.querySelectorAll('.chip-remove').forEach(btn => {
+        btn.addEventListener('click', function(e) {
+          e.preventDefault();
+          const chip = this.closest('.location-chip');
+          const slug = chip?.dataset.slug;
+          if (slug) removeLocation(slug);
+        });
+      });
+    }
+
+    // Add location
+    function addLocation(slug, name, type) {
+      const locations = getStoredLocations();
+
+      // Check duplicate
+      if (locations.some(loc => loc.slug === slug)) {
+        return;
+      }
+
+      // Max limit
+      if (locations.length >= MAX_LOCATIONS) {
+        alert(`Chỉ có thể chọn tối đa ${MAX_LOCATIONS} địa điểm`);
+        return;
+      }
+
+      locations.push({ slug, name, type });
+      setStoredLocations(locations);
+      renderChips();
+    }
+
+    // Remove location
+    function removeLocation(slug) {
+      const locations = getStoredLocations().filter(loc => loc.slug !== slug);
+      setStoredLocations(locations);
+      renderChips();
+    }
+
+    // Build navigation URL
+    function buildNavigationUrl() {
+      const locations = getStoredLocations();
+      if (locations.length === 0) {
+        return baseUrl;
+      }
+
+      // First location → path, rest → addresses param
+      const firstSlug = locations[0].slug;
+      const restSlugs = locations.slice(1).map(loc => loc.slug);
+
+      let url = `${baseUrl}/${firstSlug}`;
+      if (restSlugs.length > 0) {
+        url += `?addresses=${restSlugs.join(',')}`;
+      }
+
+      return url;
+    }
+
+    // Inject query into HTMX request
+    const htmxConfigHandler = function(evt) {
+      const input = evt.detail.elt;
+      if (input && input.id === 'location-search-input') {
+        evt.detail.parameters.q = input.value;
+      }
+    };
+    document.addEventListener('htmx:configRequest', htmxConfigHandler);
+
+    // Handle result item click (add to selection)
+    const resultClickHandler = function(evt) {
+      const item = evt.target.closest('.location-result-item');
+      if (item) {
+        evt.preventDefault();
+        const slug = item.dataset.slug;
+        const name = item.dataset.name;
+        const type = item.dataset.type;
+
+        if (slug && name && type) {
+          addLocation(slug, name, type);
+
+          // Clear search input and results
+          const input = document.getElementById('location-search-input');
+          const results = document.getElementById('location-results');
+          if (input) input.value = '';
+          if (results) results.innerHTML = '';
+        }
+      }
+    };
+    document.addEventListener('click', resultClickHandler);
+
+    // Handle search button click
+    const searchBtn = document.getElementById('location-search-btn');
+    const searchBtnHandler = function() {
+      const url = buildNavigationUrl();
+      window.location.href = url;
+    };
+    if (searchBtn) {
+      searchBtn.addEventListener('click', searchBtnHandler);
+    }
+
+    // Close dropdown on click outside
+    const outsideClickHandler = function(evt) {
+      const clickedContainer = evt.target.closest('.location-autocomplete-multi');
+      if (!clickedContainer) {
+        const results = document.getElementById('location-results');
+        if (results) results.innerHTML = '';
+      }
+    };
+    document.addEventListener('click', outsideClickHandler);
+
+    // Close on Escape key
+    const escapeKeyHandler = function(evt) {
+      if (evt.key === 'Escape') {
+        const results = document.getElementById('location-results');
+        if (results) results.innerHTML = '';
+      }
+    };
+    document.addEventListener('keydown', escapeKeyHandler);
+
+    // Initial render
+    renderChips();
+
+    // Cleanup on before-swap (View Transition about to happen)
+    document.addEventListener('astro:before-swap', () => {
+      container.removeAttribute('data-initialized');
+      document.removeEventListener('htmx:configRequest', htmxConfigHandler);
+      document.removeEventListener('click', resultClickHandler);
+      document.removeEventListener('click', outsideClickHandler);
+      document.removeEventListener('keydown', escapeKeyHandler);
+      if (searchBtn) {
+        searchBtn.removeEventListener('click', searchBtnHandler);
+      }
+    }, { once: true });
+  }
+
+  // Run on initial load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLocationAutocomplete);
+  } else {
+    initLocationAutocomplete();
+  }
+
+  // Run on Astro View Transitions
+  document.addEventListener('astro:page-load', initLocationAutocomplete);
+</script>
+
+<style>
+  .htmx-indicator {
+    display: none;
+  }
+  .htmx-request .htmx-indicator {
+    display: block;
+  }
+</style>

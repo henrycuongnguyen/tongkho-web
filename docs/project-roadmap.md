@@ -1,14 +1,94 @@
 # Project Roadmap & Development Status
 
-## Current Status: Phase 2 In Progress, Phase 1 Complete
+## Current Status: Phase 2 Complete, Phase 3 (Dynamic Pages & SEO) In Progress
 
-**Version:** 2.1.0
-**Last Updated:** 2026-02-07
-**Overall Progress:** Foundation + Menu System Complete (100%), Dynamic Pages In Progress (50%)
+**Version:** 2.3.0
+**Last Updated:** 2026-02-11
+**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Dynamic Pages In Progress (50%)
+**Latest Features:** Share popup integration on listing cards, sidebar location filter cards (SSR), province filtering, V1-compatible navigation
+**Recent Feature:** Share functionality (popup with Facebook/Zalo/Twitter/Copy Link) integrated on property cards; 182 tests passing
 
 ---
 
 ## Recently Completed
+
+### Share & Compare Functionality on Listing Cards (✅ PHASES 1-2 COMPLETE)
+**Branch:** listing72ui
+**Plan:** plans/260211-0829-fix-listing-share-compare/
+**Completion Progress:** 50% (2 of 4 phases complete)
+
+| Phase | Status | Details |
+|---|---|---|
+| Phase 1: Share Popup Integration | ✅ Complete | Facebook, Zalo, Twitter, Copy Link buttons ✓ |
+| Phase 2: Compare Service | ✅ Complete | Client-side compare manager, localStorage, validation ✓ |
+| Phase 3: Floating Compare Bar | 🔵 In Progress | Sticky compare bar component |
+| Phase 4: Compare Page | 🔵 Pending | /tienich/so-sanh comparison page |
+
+**Delivery Time (Phase 1+2):** <1 day (efficient)
+**Business Impact:** Users can share listings + compare multi-property with localStorage sync
+**Quality:** 211/211 tests passing (29 new for compare-manager), 9/10 code review, 0 critical issues
+**Files Modified:** 4 (property-card, listing-card, base-layout, global.css)
+**Files Created:** 1 (compare-manager.ts)
+
+**Features Implemented:**
+- ✅ Share popup opens on button click
+- ✅ Facebook, Zalo, Twitter, Copy Link share buttons
+- ✅ Compare button toggles property selection
+- ✅ localStorage-based item persistence
+- ✅ Max 2 properties validation
+- ✅ Same transaction type enforcement
+- ✅ Custom compareListChanged event dispatch
+- ✅ Cross-tab storage sync
+- ✅ Toast notifications (add/remove/error)
+- ✅ Event propagation handling (card navigation preserved)
+- ✅ Mobile responsive buttons
+
+**Completion Metadata:**
+- Phase 1 Completed: 2026-02-11 08:59
+- Phase 2 Completed: 2026-02-11 09:26
+- Phase 2 Tests: 211/211 passed (29 new)
+- Phase 2 Code Review: 7/10 → 9/10 (3 issues fixed)
+
+---
+
+### Sidebar Location Filter Cards (SSR) (✅ COMPLETE)
+**Branch:** listing72ui
+**Plan:** plans/260210-1109-sidebar-location-filters/
+**Completed:** 2026-02-10 (Same day)
+
+| Phase | Status | Details |
+|---|---|---|
+| Phase 1: SSR Location Filter Card | ✅ Complete | Data fetching, expand/collapse, active states ✓ |
+| Phase 2: Sidebar Integration | ✅ Complete | Positioned correctly, no layout breaks ✓ |
+| Phase 3: URL Building & V1 Compatibility | ✅ Complete | V1 format validated, query params preserved ✓ |
+| Phase 4: Testing & Validation | ✅ Complete | E2E tested, all success criteria met ✓ |
+
+**Delivery Time:** 1 day (excellent velocity)
+**Business Impact:** Users can filter real estate listings by location (province) with instant navigation
+**Performance:** SSR with <70ms response time, <50ms DB queries, zero client-side API calls
+**Quality:** 8.5/10 code review, all high-priority issues fixed, comprehensive E2E testing
+
+**Features Implemented:**
+- ✅ Server-side province data fetching at build time
+- ✅ Property count aggregation per province (V1 materialized table)
+- ✅ Transaction-aware URLs (mua-ban, cho-thue, du-an context)
+- ✅ Expand/collapse for 10+ items with smooth scroll
+- ✅ Active state highlighting on current province
+- ✅ Query parameter preservation (price, area filters stay intact)
+- ✅ Clear filter button when on province page
+- ✅ Graceful error handling with fallback states
+
+**New Service Added:**
+- `services/location/location-service.ts` - Location hierarchy and province queries
+- `services/location/types.ts` - Province, District, LocationHierarchy types
+
+**Documentation Updates:**
+- ✅ Codebase summary: Added location service & component details
+- ✅ System architecture: Added SSR pattern documentation
+- ✅ Code standards: Added SSR component guidelines
+- ✅ Component patterns: Server vs client-side best practices
+
+---
 
 ### SSG Menu with Database Integration (✅ COMPLETE)
 **Branch:** buildmenu62
@@ -297,13 +377,23 @@ Phase 1 (Foundation) ✅
 ## Known Issues & Technical Debt
 
 ### Current Issues
-| Issue | Severity | Priority | Notes |
-|---|---|---|---|
-| Mock data only | Medium | High | Need backend Phase 3 |
-| No real search | Medium | High | Search UI is visual only |
-| Mobile menu interactions | Low | Medium | Needs testing/polish |
-| Image optimization | Low | Medium | Add WebP, lazy loading |
-| Analytics missing | Low | Low | Planned post-launch |
+| Issue | Severity | Priority | Status | Notes |
+|---|---|---|---|---|
+| Mock data only | Medium | High | Open | Need backend Phase 3 |
+| No real search | Medium | High | Open | Search UI is visual only |
+| Mobile menu interactions | Low | Medium | Open | Needs testing/polish |
+| Image optimization | Low | Medium | Open | Add WebP, lazy loading |
+| Analytics missing | Low | Low | Open | Planned post-launch |
+
+### Recently Resolved Issues
+| Issue | Fix | Details |
+|---|---|---|
+| Infinite reload on clear filters | Same-URL check | Added check before navigation in listing-filter.astro (line 304-336) - prevents reload if already on base URL |
+| HTMX district panel reloading | load once trigger | Changed hx-trigger from "load" to "load once" in location-selector.astro (line 87) - loads only once on page load |
+| Province reset navigation loop | Same-URL check | Added URL comparison check before navigating to baseUrl in location-selector.astro (line 194-196) |
+| Sort dropdown unnecessary reloads | Same-URL check | Added URL validation in onchange handler in [...slug].astro (line 118) - prevents reload when selecting same sort option |
+
+**Pattern:** All fixes implement same-URL navigation check. Always compare `window.location.pathname + window.location.search` against target URL before calling `window.location.href`.
 
 ### Technical Debt
 - [ ] Add unit tests (utilities, formatters)
@@ -395,6 +485,10 @@ Before moving to Phase 2:
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.3.1 | 2026-02-11 | Compare service complete (Phase 2); localStorage manager, validation, events; 211/211 tests (29 new); 9/10 code review |
+| 2.2.1 | 2026-02-11 | Share functionality complete; Facebook/Zalo/Twitter/Copy Link integrated on property cards; 182/182 tests passing |
+| 2.3 | 2026-02-10 | Sidebar location filters launched (SSR); 4 phases completed, V1 compatibility verified, 8.5/10 code quality |
+| 2.2 | 2026-02-08 | Docs: Infinite loading fixes documented; added client-side navigation safety pattern, HTMX load once best practice, resolved 4 issues in filters/location/sort |
 | 2.0 | 2026-02-07 | Scout: Renamed Phase 1→Menu System (complete), Phase 2→Dynamic Pages (in progress with pre-built components), added service layer patterns, updated timeline |
 | 1.1 | 2026-02-06 | SSG menu integration complete; Phase 1 milestone met |
 | 1.0 | 2026-01-28 | Initial roadmap; Foundation MVP complete |

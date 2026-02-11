@@ -1,0 +1,270 @@
+---
+/**
+ * Price History Section
+ * Displays price trend chart below listing pagination
+ * Matches V1 design: grid layout with price boxes
+ */
+import type { PriceHistoryChartData, PriceHistoryAnalysis } from '@/services/price-history-service';
+
+interface Props {
+  twoYear: PriceHistoryChartData | null;
+  fiveYear: PriceHistoryChartData | null;
+  analyzedData: PriceHistoryAnalysis | null;
+  chartTitle?: string;
+  chartUnit?: string;
+}
+
+const {
+  twoYear,
+  fiveYear,
+  analyzedData,
+  chartTitle = 'Biến động giá khu vực',
+  chartUnit = 'tr/m²',
+} = Astro.props;
+
+// Prepare chart data for client-side
+const chartData = JSON.stringify({
+  twoYear,
+  fiveYear,
+  chartUnit,
+});
+
+// Default to 2-year view, fallback to 5-year if 2-year not available
+const defaultPeriod = twoYear ? '2year' : '5year';
+const defaultData = twoYear || fiveYear;
+
+// Extract analyzed data for display (V1 pattern)
+const commonPriceValue = analyzedData?.commonPriceValue?.replace('tr/m²', '').trim();
+const commonPriceLabel = analyzedData?.commonPriceLabel;
+const changedPercentValue = analyzedData?.changedPercentValue?.replace('%', '').trim();
+const changedPercentLabel = analyzedData?.changedPercentLabel;
+const changedPercentStatus = analyzedData?.changedPercentStatus;
+const percentDistanceFromMaxValue = analyzedData?.percentDistanceFromMaxValue;
+const percentDistanceFromMaxLabel = analyzedData?.percentDistanceFromMaxLabel;
+const isUp = changedPercentStatus && changedPercentStatus > 0;
+
+// Check if we have any data to show
+const hasAnalyzedData = commonPriceValue || changedPercentValue || percentDistanceFromMaxValue;
+---
+
+<section
+  class="price-history mt-8 bg-white rounded-xl shadow-sm border border-slate-100 p-6"
+  id="price-history-section"
+  data-chart={chartData}
+  data-default-period={defaultPeriod}
+>
+  <!-- Price Boxes Grid (V1 pattern) -->
+  {hasAnalyzedData && (
+    <div class="price-wrapper grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      <!-- Box 1: Giá phổ biến -->
+      {commonPriceValue && (
+        <div class="price-box border border-gray-200 rounded-lg p-4 bg-white hover:shadow-lg transition-shadow text-center">
+          <div class="price-box-title flex items-center justify-center gap-1 mb-3">
+            <span class="price-number text-2xl font-bold text-slate-900">{commonPriceValue}</span>
+            <span class="price-unit text-lg text-slate-600">{chartUnit}</span>
+          </div>
+          <div class="price-box-content text-sm text-slate-600" set:html={commonPriceLabel || 'Giá phổ biến khu vực'} />
+        </div>
+      )}
+
+      <!-- Box 2: % Thay đổi -->
+      {changedPercentValue && (
+        <div class="price-box border border-gray-200 rounded-lg p-4 bg-white hover:shadow-lg transition-shadow text-center">
+          <div class="price-box-title flex items-center justify-center gap-2 mb-3">
+            {isUp ? (
+              <svg class="w-7 h-7 text-green-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M7 17L17 7M17 7H7M17 7V17" />
+              </svg>
+            ) : (
+              <svg class="w-7 h-7 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <path d="M7 7L17 17M17 17H7M17 17V7" />
+              </svg>
+            )}
+            <span class:list={['price-number text-2xl font-bold', isUp ? 'text-green-600' : 'text-red-600']}>
+              {changedPercentValue}%
+            </span>
+          </div>
+          <div class="price-box-content text-sm text-slate-600" set:html={changedPercentLabel || 'Thay đổi trong 2 năm'} />
+        </div>
+      )}
+
+      <!-- Box 3: % So với đỉnh (V1 star icons pattern) -->
+      {percentDistanceFromMaxValue && (
+        <div class="price-box border border-gray-200 rounded-lg p-4 bg-white hover:shadow-lg transition-shadow text-center">
+          <div class="price-box-title flex items-center justify-center gap-1 mb-3">
+            <svg class="w-6 h-6 text-teal-300" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <svg class="w-7 h-7 text-teal-500 -translate-y-1" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+            <svg class="w-6 h-6 text-teal-300" viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
+            </svg>
+          </div>
+          <div class="price-box-content text-sm text-slate-600" set:html={percentDistanceFromMaxLabel || 'Khoảng cách so với giá đỉnh'} />
+        </div>
+      )}
+
+      
+    </div>
+  )}
+
+  <!-- Period Toggle -->
+  <div class="flex items-center justify-between gap-4 mb-4">
+    <h3 class="text-lg font-semibold text-slate-800">{chartTitle}</h3>
+    <div class="flex gap-2" id="price-history-period-selector">
+      <button
+        data-period="2year"
+        class:list={[
+          'period-btn px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+          defaultPeriod === '2year'
+            ? 'bg-orange-500 text-white'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+          !twoYear && 'opacity-50 cursor-not-allowed',
+        ]}
+        disabled={!twoYear}
+      >
+        2 Năm
+      </button>
+      <button
+        data-period="5year"
+        class:list={[
+          'period-btn px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+          defaultPeriod === '5year'
+            ? 'bg-orange-500 text-white'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+          !fiveYear && 'opacity-50 cursor-not-allowed',
+        ]}
+        disabled={!fiveYear}
+      >
+        5 Năm
+      </button>
+    </div>
+  </div>
+
+  <!-- Chart -->
+  <div class="relative h-64 sm:h-80">
+    <canvas id="price-history-canvas"></canvas>
+  </div>
+
+  <!-- Disclaimer -->
+  <p class="text-xs text-slate-400 mt-4 italic text-center">
+    * Dữ liệu tham khảo dựa trên biến động thị trường khu vực. Giá thực tế có thể khác.
+  </p>
+</section>
+
+<!-- Chart.js -->
+<script is:inline src="/js/chart.umd.min.js"></script>
+
+<script is:inline>
+(function() {
+  var container = document.getElementById('price-history-section');
+  if (!container) return;
+
+  var chartDataStr = container.getAttribute('data-chart');
+  var defaultPeriod = container.getAttribute('data-default-period') || '2year';
+
+  if (!chartDataStr) return;
+
+  var chartConfig = JSON.parse(chartDataStr);
+  var canvas = document.getElementById('price-history-canvas');
+  var trendEl = document.getElementById('price-history-trend');
+  var periodSelector = document.getElementById('price-history-period-selector');
+
+  if (!canvas) return;
+
+  var currentData = defaultPeriod === '2year' ? chartConfig.twoYear : chartConfig.fiveYear;
+  if (!currentData) return;
+
+  var chart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: currentData.labels,
+      datasets: [{
+        label: 'Giá (' + chartConfig.chartUnit + ')',
+        data: currentData.data,
+        borderColor: '#F97316',
+        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#F97316',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            label: function(context) {
+              return context.parsed.y.toFixed(2) + ' ' + chartConfig.chartUnit;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { maxTicksLimit: 8, color: '#9CA3AF' }
+        },
+        y: {
+          grid: { color: 'rgba(156, 163, 175, 0.2)' },
+          ticks: {
+            callback: function(value) { return value + ' ' + chartConfig.chartUnit; },
+            color: '#9CA3AF'
+          }
+        }
+      }
+    }
+  });
+
+  function updateTrend(data) {
+    if (!trendEl || !data) return;
+    var trend = data.trendDirection;
+    trendEl.textContent = trend === 'up' ? 'Tăng' : trend === 'down' ? 'Giảm' : 'Ổn định';
+  }
+
+  if (!periodSelector) return;
+
+  var buttons = periodSelector.querySelectorAll('.period-btn');
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (btn.disabled) return;
+
+      var period = btn.getAttribute('data-period');
+      var newData = period === '2year' ? chartConfig.twoYear : chartConfig.fiveYear;
+
+      if (!newData) return;
+
+      // Update button styles
+      buttons.forEach(function(b) {
+        b.classList.remove('bg-orange-500', 'text-white');
+        b.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+      });
+      btn.classList.remove('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+      btn.classList.add('bg-orange-500', 'text-white');
+
+      // Update chart
+      chart.data.labels = newData.labels;
+      chart.data.datasets[0].data = newData.data;
+      chart.update('active');
+
+      // Update trend
+      updateTrend(newData);
+    });
+  });
+})();
+</script>

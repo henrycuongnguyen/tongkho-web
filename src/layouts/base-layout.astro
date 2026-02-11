@@ -3,6 +3,8 @@ import { ClientRouter } from 'astro:transitions';
 import '@/styles/global.css';
 import ScrollToTopButton from '@/components/scroll-to-top-button.astro';
 import JsonLdSchema from '@/components/seo/json-ld-schema.astro';
+import FloatingCompareBar from '@/components/shared/floating-compare-bar.astro';
+import ShareModal from '@/components/ui/share-modal.astro';
 
 export interface Props {
   title: string;
@@ -66,6 +68,63 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 
+    <!-- HTMX for SSR interactions (minimal JS) -->
+    <script src="https://unpkg.com/htmx.org@2.0.4" integrity="sha384-HGfztofotfshcF7+8n44JQL2oJmowVChPTg48S+jvZoztPfvwD79OC/LTtG6dMp+" crossorigin="anonymous"></script>
+
+    <!-- Global Dropdown Manager (must load before other scripts) -->
+    <script is:inline>
+      /**
+       * Global Dropdown Manager
+       * Ensures only one dropdown is open at a time
+       */
+      class DropdownManager {
+        constructor() {
+          this.dropdowns = new Map();
+          this.currentOpenId = null;
+        }
+
+        register(id, closeCallback) {
+          this.dropdowns.set(id, {
+            id,
+            close: closeCallback,
+          });
+        }
+
+        unregister(id) {
+          this.dropdowns.delete(id);
+        }
+
+        open(id) {
+          // Close currently open dropdown if it's different
+          if (this.currentOpenId && this.currentOpenId !== id) {
+            const current = this.dropdowns.get(this.currentOpenId);
+            if (current) {
+              current.close();
+            }
+          }
+          this.currentOpenId = id;
+        }
+
+        close(id) {
+          if (this.currentOpenId === id) {
+            this.currentOpenId = null;
+          }
+        }
+
+        closeAll() {
+          this.dropdowns.forEach((dropdown) => {
+            dropdown.close();
+          });
+          this.currentOpenId = null;
+        }
+      }
+
+      // Create singleton instance and export to global scope
+      if (typeof window !== 'undefined') {
+        window.dropdownManager = new DropdownManager();
+      }
+    </script>
+
     <!-- JSON-LD Structured Data for SEO -->
     <JsonLdSchema pageType={pageType} breadcrumbs={breadcrumbs} />
 
@@ -92,5 +151,26 @@ const fullTitle = title === siteName ? title : `${title} | ${siteName}`;
   <body class="min-h-screen flex flex-col">
     <slot />
     <ScrollToTopButton />
+
+    <!-- Floating Compare Bar (Global) -->
+    <FloatingCompareBar />
+
+    <!-- Share Modal (Global) -->
+    <ShareModal url="" title="" />
+
+    <!-- Compare Manager Script -->
+    <script>
+      import CompareManager from '@/scripts/compare-manager';
+
+      // Initialize on DOM ready
+      document.addEventListener('DOMContentLoaded', () => {
+        CompareManager.init();
+      });
+
+      // Re-initialize after HTMX swaps (for dynamic content)
+      document.body.addEventListener('htmx:afterSwap', () => {
+        CompareManager.init();
+      });
+    </script>
   </body>
 </html>

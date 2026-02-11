@@ -27,11 +27,40 @@ Guide to maintaining code quality, consistency, and best practices across the To
 
 - **TypeScript strict mode required** - No implicit `any`, all parameters typed
 - **Astro/React components** - Descriptive names, one per file, under 150 LOC
-- **DRY & Composition** - Check existing components before creating new ones
+- **DRY & Composition** - Check existing components before creating new ones (e.g., `ShareButtons` for all share needs)
 - **Vietnamese localization** - Use `formatPrice()`, `formatDate()`, `generateSlug()` utilities
 - **Responsive design** - Mobile-first with Tailwind breakpoints
 - **Database** - Drizzle ORM, typed queries, explicit column selection
 - **Styling** - Tailwind-first, custom CSS only when necessary
+- **Navigation Safety** - Always check current URL before navigating to prevent infinite reload loops
+- **Event Propagation** - Use `onclick="event.stopPropagation()"` to prevent parent link navigation in interactive components (share buttons, compare, favorites)
+
+### Client-Side Navigation Pattern
+
+**ALWAYS** check if target URL differs from current URL before navigating. This prevents infinite reload loops in filters, dropdowns, and reset buttons.
+
+```javascript
+// ✅ CORRECT - Check before navigating
+const currentUrl = window.location.pathname + window.location.search;
+const targetUrl = '/mua-ban'; // or buildUrl(filters)
+
+if (currentUrl !== targetUrl) {
+  window.location.href = targetUrl;  // Navigate only if different
+} else {
+  // Already on target URL - handle UI state locally
+  updateUIState();  // Reset button states, clear form inputs, etc.
+}
+```
+
+```javascript
+// ❌ WRONG - Infinite reload if already on target URL
+window.location.href = baseUrl;  // Always navigates, even if already there
+```
+
+**Applied In:**
+- `src/components/listing/listing-filter.astro` - Clear filters button
+- `src/components/listing/sidebar/location-selector.astro` - Province reset
+- `src/pages/[...slug].astro` - Sort dropdown option selection
 
 ### File Size Limits
 
@@ -42,11 +71,65 @@ Guide to maintaining code quality, consistency, and best practices across the To
 | Data file | 300 |
 | Page layout | 100 |
 | Type definitions | 100 |
+| Shared UI (like ShareButtons) | 300 |
+
+### Reusable UI Components
+
+**ShareButtons (components/ui/share-buttons.astro)**
+- Use for all share functionality across cards, articles, detail pages
+- Props: `url`, `title`, `variant` (inline/popup), `size` (sm/md/lg), `showLabel`
+- Integration: Wrap with `onclick="event.stopPropagation()"` in cards to prevent link navigation
+- Platforms: Facebook, Zalo, Twitter/X, Copy Link (clipboard)
+
+### Client-Side Script Patterns
+
+**Compare Manager (scripts/compare-manager.ts)**
+- Singleton pattern for localStorage-based state management
+- Exports `CompareManager` with methods: `init()`, `add()`, `remove()`, `toggle()`, `getItems()`, `clear()`
+- Use `.btn-compare` CSS class for button binding
+- Data attributes required: `data-estate-id`, `data-transaction-type`, `data-url`, `data-image`, `data-title`
+- XSS Prevention: Sanitize all data attributes via `sanitize()` utility before use
+- Event Delegation: Single listener on `document.body` to handle HTMX dynamic content swaps
+- Toast Notifications: Use `showToast(message, type)` for user feedback (Vietnamese messages)
+- Validation: Enforce max 2 items & same transaction type requirement
+
+**Pattern for Client-Side Scripts:**
+```typescript
+// Singleton pattern with IIFE (Immediately Invoked Function Expression)
+const ManagerName = (() => {
+  // Private variables & helper functions
+  const init = () => {
+    // Setup: event listeners, DOM queries, initialization
+    if ((document.body as any).__listenerAttached) return; // Prevent duplicates
+    document.body.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      // Handle delegation logic
+    });
+    (document.body as any).__listenerAttached = true;
+  };
+
+  // Public API
+  return { init, methodA, methodB };
+})();
+
+// Global export for accessibility
+if (typeof window !== 'undefined') {
+  (window as any).ManagerName = ManagerName;
+}
+export default ManagerName;
+```
+
+**Integration in Astro Layouts:**
+1. Import script in `base-layout.astro`
+2. Initialize on `DOMContentLoaded` event
+3. Re-initialize after HTMX swaps: `document.body.addEventListener('htmx:afterSwap', () => ManagerName.init())`
+4. Define CSS classes & data attributes in `global.css` for styling
 
 ---
 
 ## Document Version
 
-- **Version:** 2.0
-- **Last Updated:** 2026-02-07
+- **Version:** 2.3
+- **Last Updated:** 2026-02-11
 - **Structure:** Modular (split into 3 files for maintainability)
+- **Latest Change:** Added compare-manager.ts client-side script pattern (singleton IIFE, event delegation, XSS protection, toast notifications)

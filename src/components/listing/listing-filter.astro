@@ -1,0 +1,469 @@
+---
+/**
+ * Listing Filter Component - Horizontal Layout
+ * All filters in horizontal sticky bar at top of page
+ */
+import LocationSelector from './sidebar/location-selector.astro';
+import PropertyTypeDropdown from './sidebar/property-type-dropdown.astro';
+import PriceRangeDropdown from "@components/ui/price-range-dropdown.astro";
+import RangeSliderDropdown from "@components/ui/range-slider-dropdown.astro";
+import type { Province } from '@/services/location/types';
+
+interface PropertyType {
+  id: number;
+  title: string;
+  slug: string;
+  vietnamese?: string | null;
+}
+
+interface Props {
+  /** Current transaction type (1=sale, 2=rent, 3=project) */
+  transactionType: number;
+  /** Available property types for this transaction */
+  propertyTypes: PropertyType[];
+  /** List of all provinces */
+  provinces?: Province[];
+  /** Current province slug from URL */
+  currentProvince?: string;
+  /** Current district slugs from URL (multi-select support) */
+  currentDistricts?: string[];
+  /** Current filter values from URL */
+  currentFilters: {
+    propertyTypes?: number[];
+    minPrice?: string;
+    maxPrice?: string;
+    minArea?: string;
+    maxArea?: string;
+    bedrooms?: string;
+    bathrooms?: string;
+  };
+  /** Current URL path */
+  currentPath: string;
+  /** Selected location (single location only, max 1 item) */
+  selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
+}
+
+const { transactionType, propertyTypes, provinces = [], currentProvince, currentDistricts = [], currentFilters, currentPath, selectedLocations = [] } = Astro.props;
+
+// Transaction type to base URL mapping
+const TRANSACTION_BASE_URLS: Record<number, string> = {
+  1: '/mua-ban',
+  2: '/cho-thue',
+  3: '/du-an',
+};
+
+const baseUrl = TRANSACTION_BASE_URLS[transactionType] || '/mua-ban';
+
+// Room options
+const ROOM_OPTIONS = ['1', '2', '3', '4', '5+'];
+
+const isPropertyTypeActive = (id: number) =>
+  currentFilters.propertyTypes?.includes(id) ?? false;
+---
+
+<div class="bg-white border-b border-secondary-200 shadow-sm sticky top-0 z-50 backdrop-filter backdrop-blur-sm" data-listing-filter data-base-url={baseUrl} data-current-path={currentPath}>
+  <div class="container-custom py-4">
+    <div class="flex flex-wrap items-center gap-3 lg:flex-nowrap">
+      <!-- Location Selector -->
+      <div class="flex-1 min-w-[200px]">
+        <LocationSelector
+          provinces={provinces}
+          baseUrl={baseUrl}
+          currentProvince={currentProvince}
+          currentDistricts={currentDistricts}
+          selectedLocations={selectedLocations}
+        />
+      </div>
+
+      <!-- Property Types Dropdown -->
+      <div class="flex-1 min-w-[180px]">
+        <PropertyTypeDropdown
+          propertyTypes={propertyTypes}
+          selectedTypeIds={currentFilters.propertyTypes}
+          baseUrl={baseUrl}
+        />
+      </div>
+
+      <!-- Price Range -->
+      <div class="flex-1 min-w-[180px]">
+        <PriceRangeDropdown
+          transactionType={transactionType}
+          currentMin={currentFilters.minPrice ? (Number(currentFilters.minPrice) / 1_000_000).toString() : undefined}
+          currentMax={currentFilters.maxPrice ? (Number(currentFilters.maxPrice) / 1_000_000).toString() : undefined}
+        />
+      </div>
+
+      <!-- Area Range -->
+      <div class="flex-1 min-w-[180px]">
+        <RangeSliderDropdown
+          type="area"
+          name="area"
+          currentMin={currentFilters.minArea ? Number(currentFilters.minArea) : undefined}
+          currentMax={currentFilters.maxArea ? Number(currentFilters.maxArea) : undefined}
+        />
+      </div>
+
+      <!-- Advanced Filters + Actions -->
+      <div class="flex items-center gap-2 shrink-0">
+        <!-- Advanced Filters Dropdown -->
+        <div class="relative" data-advanced-dropdown>
+          <button
+            type="button"
+            class="px-3 py-2.5 border border-secondary-300 rounded-lg bg-white hover:bg-secondary-50 transition-colors"
+            title="Bộ lọc nâng cao"
+            data-advanced-trigger
+          >
+            <svg class="w-5 h-5 text-secondary-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+            </svg>
+          </button>
+
+          <div class="absolute top-full right-0 mt-2 w-80 bg-white rounded-lg shadow-xl border border-secondary-100 p-4 z-[9999] hidden" data-advanced-panel>
+            <div class="grid grid-cols-2 gap-4">
+              <!-- Bedrooms -->
+              <div>
+                <h3 class="text-xs font-medium text-secondary-700 mb-2">Phòng ngủ</h3>
+                <div class="flex flex-wrap gap-1">
+                  {ROOM_OPTIONS.map((option) => {
+                    const isActive = currentFilters.bedrooms === option;
+                    return (
+                      <button
+                        type="button"
+                        class:list={[
+                          'room-btn px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer',
+                          isActive
+                            ? 'bg-primary-500 text-white border-primary-500'
+                            : 'bg-white text-secondary-600 border-secondary-200 hover:border-primary-300',
+                        ]}
+                        data-room-type="bedrooms"
+                        data-value={option}
+                        data-active={isActive ? 'true' : 'false'}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <!-- Bathrooms -->
+              <div>
+                <h3 class="text-xs font-medium text-secondary-700 mb-2">Phòng tắm</h3>
+                <div class="flex flex-wrap gap-1">
+                  {ROOM_OPTIONS.map((option) => {
+                    const isActive = currentFilters.bathrooms === option;
+                    return (
+                      <button
+                        type="button"
+                        class:list={[
+                          'room-btn px-2.5 py-1 text-xs rounded border transition-colors cursor-pointer',
+                          isActive
+                            ? 'bg-primary-500 text-white border-primary-500'
+                            : 'bg-white text-secondary-600 border-secondary-200 hover:border-primary-300',
+                        ]}
+                        data-room-type="bathrooms"
+                        data-value={option}
+                        data-active={isActive ? 'true' : 'false'}
+                      >
+                        {option}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Search Button -->
+        <button
+          type="button"
+          class="px-6 py-2.5 bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-lg transition-colors flex items-center gap-2 shrink-0"
+          data-apply-filters
+        >
+          <span>Tìm kiếm</span>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+          </svg>
+        </button>
+
+        <!-- Clear Filters -->
+        {(currentFilters.propertyTypes?.length || currentFilters.minPrice || currentFilters.maxPrice ||
+          currentFilters.minArea || currentFilters.maxArea || currentFilters.bedrooms || currentFilters.bathrooms) && (
+          <button
+            type="button"
+            class="px-3 py-2 text-secondary-600 hover:text-secondary-800 text-xs border border-secondary-200 rounded-lg transition-colors h-[38px]"
+            data-clear-filters
+            title="Xóa bộ lọc"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll('[data-listing-filter]').forEach((container) => {
+    const baseUrl = container.getAttribute('data-base-url') || '/mua-ban';
+    const currentPath = container.getAttribute('data-current-path') || baseUrl;
+
+    // Track selected values
+    let selectedPropertyTypes: string[] = [];
+    let selectedPrice = '';
+    let selectedArea = '';
+    let selectedBedrooms = '';
+    let selectedBathrooms = '';
+
+    // Initialize from URL params
+    const urlParams = new URLSearchParams(window.location.search);
+    const propertyTypesParam = urlParams.get('property_types');
+    if (propertyTypesParam) {
+      selectedPropertyTypes = propertyTypesParam.split(',').filter(Boolean);
+    }
+
+    // Helper function to build and navigate to URL with current filters
+    function navigateWithFilters() {
+      // Get current property types from checkboxes (in case user selected but didn't click "Áp dụng")
+      console.log('[listing-filter] navigateWithFilters called');
+      console.log('[listing-filter] Querying checkboxes from container:', container);
+
+      const allCheckboxes = container.querySelectorAll('[data-property-type-checkbox]') as NodeListOf<HTMLInputElement>;
+      console.log('[listing-filter] Found all checkboxes:', allCheckboxes.length);
+
+      const propertyTypeCheckboxes = container.querySelectorAll('[data-property-type-checkbox]:checked') as NodeListOf<HTMLInputElement>;
+      console.log('[listing-filter] Found checked checkboxes:', propertyTypeCheckboxes.length);
+
+      if (propertyTypeCheckboxes.length > 0) {
+        selectedPropertyTypes = Array.from(propertyTypeCheckboxes).map(cb => cb.value);
+        console.log('[listing-filter] Read property types from checkboxes:', selectedPropertyTypes);
+      } else {
+        console.log('[listing-filter] No checked checkboxes found, using current state:', selectedPropertyTypes);
+      }
+
+      // Get current price/area values from inputs if available
+      const priceMinInput = container.querySelector('[name="price-min"]') as HTMLInputElement;
+      const priceMaxInput = container.querySelector('[name="price-max"]') as HTMLInputElement;
+      const areaInput = container.querySelector('[name="area"]') as HTMLInputElement;
+
+      const priceMin = priceMinInput?.value || '';
+      const priceMax = priceMaxInput?.value || '';
+      const currentPrice = (priceMin || priceMax) ? `${priceMin}-${priceMax}` : '';
+      const currentArea = areaInput?.value || '';
+
+      // Extract location slug from current path
+      const pathParts = currentPath.split('/').filter(Boolean);
+      let locationSlug = pathParts.length > 1 ? pathParts[1] : null;
+
+      // Build URL parts
+      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
+
+      // Calculate price slug
+      let priceSlug = '';
+      if (currentPrice) {
+        const [minP, maxP] = currentPrice.split('-');
+        const minPriceTrieu = minP ? parseFloat(minP) : 0;
+        const maxPriceTrieu = maxP ? parseFloat(maxP) : 0;
+
+        if (minPriceTrieu || maxPriceTrieu) {
+          priceSlug = buildPriceSlug(minPriceTrieu, maxPriceTrieu);
+        }
+      }
+
+      // Add location
+      if (locationSlug && locationSlug !== 'toan-quoc') {
+        urlParts.push(locationSlug);
+      } else if (priceSlug) {
+        urlParts.push('toan-quoc');
+      }
+
+      // Add price slug
+      if (priceSlug) {
+        urlParts.push(priceSlug);
+      }
+
+      let targetUrl = '/' + urlParts.join('/');
+
+      // Build query string manually to preserve commas without encoding (v1 compatible)
+      const queryParts: string[] = [];
+
+      // Get current addresses param (preserve selected districts)
+      const currentParams = new URLSearchParams(window.location.search);
+      const addressesParam = currentParams.get('addresses');
+      if (addressesParam) {
+        // Don't encode - v1 uses plain commas
+        queryParts.push(`addresses=${addressesParam}`);
+      }
+
+      // Add property_types WITHOUT encoding (v1 uses plain commas)
+      if (selectedPropertyTypes.length) {
+        queryParts.push(`property_types=${selectedPropertyTypes.join(',')}`);
+      }
+
+      // Add other query params (can be encoded normally)
+      const params = new URLSearchParams();
+
+      if (currentArea) {
+        const [minA, maxA] = currentArea.split('-');
+        if (minA) params.set('dtnn', minA);
+        if (maxA) params.set('dtcn', maxA);
+      }
+
+      if (selectedBedrooms) params.set('bedrooms', selectedBedrooms);
+      if (selectedBathrooms) params.set('bathrooms', selectedBathrooms);
+
+      const standardParams = params.toString();
+      if (standardParams) {
+        queryParts.push(standardParams);
+      }
+
+      if (queryParts.length > 0) {
+        targetUrl += '?' + queryParts.join('&');
+      }
+
+      window.location.href = targetUrl;
+    }
+
+    // Listen for property type checkbox changes (updates state without clicking "Áp dụng")
+    container.addEventListener('property-types-changed', ((e: CustomEvent) => {
+      console.log('[listing-filter] Received property-types-changed event:', e.detail);
+      selectedPropertyTypes = e.detail.selectedIds.map(String);
+      console.log('[listing-filter] Updated selectedPropertyTypes (without apply):', selectedPropertyTypes);
+    }) as EventListener);
+
+    // Listen for property type dropdown apply event - navigate immediately
+    container.addEventListener('apply-property-types', ((e: CustomEvent) => {
+      console.log('[listing-filter] Received apply-property-types event:', e.detail);
+      selectedPropertyTypes = e.detail.selectedIds.map(String);
+      console.log('[listing-filter] Updated selectedPropertyTypes:', selectedPropertyTypes);
+      // Navigate immediately when "Áp dụng" is clicked
+      navigateWithFilters();
+    }) as EventListener);
+
+    console.log('[listing-filter] Event listeners attached to container:', container);
+
+    // Advanced dropdown toggle
+    const advancedTrigger = container.querySelector('[data-advanced-trigger]');
+    const advancedPanel = container.querySelector('[data-advanced-panel]');
+
+    advancedTrigger?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      advancedPanel?.classList.toggle('hidden');
+    });
+
+    // Close advanced dropdown on outside click
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      const dropdown = container.querySelector('[data-advanced-dropdown]');
+      if (dropdown && !dropdown.contains(target)) {
+        advancedPanel?.classList.add('hidden');
+      }
+    });
+
+    // Room buttons
+    const roomBtns = container.querySelectorAll('.room-btn') as NodeListOf<HTMLButtonElement>;
+    roomBtns.forEach((btn) => {
+      const roomType = btn.dataset.roomType;
+      const value = btn.dataset.value || '';
+
+      if (btn.dataset.active === 'true') {
+        if (roomType === 'bedrooms') selectedBedrooms = value;
+        if (roomType === 'bathrooms') selectedBathrooms = value;
+      }
+
+      btn.addEventListener('click', () => {
+        const isActive = btn.dataset.active === 'true';
+
+        container.querySelectorAll(`.room-btn[data-room-type="${roomType}"]`).forEach((b) => {
+          (b as HTMLButtonElement).dataset.active = 'false';
+          b.classList.remove('bg-primary-500', 'text-white', 'border-primary-500');
+          b.classList.add('bg-white', 'text-secondary-600', 'border-secondary-200');
+        });
+
+        if (!isActive) {
+          btn.dataset.active = 'true';
+          btn.classList.add('bg-primary-500', 'text-white', 'border-primary-500');
+          btn.classList.remove('bg-white', 'text-secondary-600', 'border-secondary-200');
+
+          if (roomType === 'bedrooms') selectedBedrooms = value;
+          if (roomType === 'bathrooms') selectedBathrooms = value;
+        } else {
+          if (roomType === 'bedrooms') selectedBedrooms = '';
+          if (roomType === 'bathrooms') selectedBathrooms = '';
+        }
+      });
+    });
+
+    // Apply filters button - uses same navigation logic
+    const applyBtn = container.querySelector('[data-apply-filters]');
+    applyBtn?.addEventListener('click', () => {
+      // Read property types directly from checkboxes (don't rely on events)
+      const propertyTypeCheckboxes = document.querySelectorAll('[data-property-type-checkbox]:checked') as NodeListOf<HTMLInputElement>;
+      selectedPropertyTypes = Array.from(propertyTypeCheckboxes).map(cb => cb.value);
+
+      console.log('[listing-filter] Search button clicked, reading checkboxes directly:', selectedPropertyTypes);
+
+      navigateWithFilters();
+    });
+
+    // Helper functions
+    function buildPriceSlug(minTrieu: number, maxTrieu: number): string {
+      if (minTrieu === 0 && maxTrieu === 0) return 'gia-thuong-luong';
+
+      if (!minTrieu && maxTrieu) {
+        return `gia-duoi-${convertTrieuToPriceSlug(maxTrieu)}`;
+      }
+
+      if (minTrieu && (!maxTrieu || maxTrieu >= 60000)) {
+        return `gia-tren-${convertTrieuToPriceSlug(minTrieu)}`;
+      }
+
+      if (minTrieu && maxTrieu && minTrieu < maxTrieu) {
+        return `gia-tu-${convertTrieuToPriceSlug(minTrieu)}-den-${convertTrieuToPriceSlug(maxTrieu)}`;
+      }
+
+      return '';
+    }
+
+    function convertTrieuToPriceSlug(trieu: number): string {
+      if (trieu >= 1000) {
+        const ty = trieu / 1000;
+        const formatted = ty % 1 === 0 ? ty.toString() : ty.toFixed(1);
+        return `${formatted}-ty`;
+      }
+      return `${trieu.toFixed(0)}-trieu`;
+    }
+
+    // Clear filters button
+    const clearBtn = container.querySelector('[data-clear-filters]');
+    clearBtn?.addEventListener('click', () => {
+      const currentUrl = window.location.pathname + window.location.search;
+      const targetUrl = currentPath;
+
+      if (currentUrl !== targetUrl) {
+        window.location.href = targetUrl;
+      }
+    });
+  });
+</script>
+
+<style>
+  /* Ensure smooth dropdown animations */
+  [data-advanced-panel] {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>

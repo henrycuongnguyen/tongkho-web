@@ -1,0 +1,183 @@
+---
+/**
+ * Listing Breadcrumb with Schema.org Structured Data
+ * Dynamic breadcrumb based on URL filters
+ */
+import type { PropertySearchFilters } from '@/services/elasticsearch/types';
+
+interface BreadcrumbItem {
+  text: string;
+  url: string;  // Empty for current page
+}
+
+interface Props {
+  filters: PropertySearchFilters;
+  provinceName?: string;  // Pass from parent if resolved
+  propertyTypeName?: string;  // Pass from parent if resolved
+  /** Selected locations (for multi-location breadcrumb) */
+  selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
+}
+
+const { filters, provinceName, propertyTypeName, selectedLocations = [] } = Astro.props;
+
+// Transaction type labels and slugs
+const TRANSACTION_TYPES: Record<number, { label: string; slug: string }> = {
+  1: { label: 'Mua Bán', slug: 'mua-ban' },
+  2: { label: 'Cho Thuê', slug: 'cho-thue' },
+  3: { label: 'Dự Án', slug: 'du-an' }
+};
+
+/**
+ * Build breadcrumb items based on filters (v1 compatible with hierarchy)
+ */
+function buildBreadcrumbs(): BreadcrumbItem[] {
+  const items: BreadcrumbItem[] = [
+    { text: 'Trang chủ', url: '/' }
+  ];
+
+  const txType = TRANSACTION_TYPES[filters.transactionType] || TRANSACTION_TYPES[1];
+  const baseUrl = `/${txType.slug}`;
+
+  // Transaction type
+  items.push({
+    text: txType.label,
+    url: provinceName || propertyTypeName || selectedLocations.length > 0 ? baseUrl : ''
+  });
+
+  // Property type (if single selection)
+  if (propertyTypeName) {
+    items.push({
+      text: propertyTypeName,
+      url: provinceName || selectedLocations.length > 0 ? `${baseUrl}?property_types=${filters.propertyTypes?.[0]}` : ''
+    });
+  }
+
+  // Location hierarchy: Province → District → Ward (v1 compatible)
+  if (selectedLocations.length > 0) {
+    // Find province and districts from selectedLocations
+    const provinces = selectedLocations.filter(loc => loc.type === 'province');
+    const districts = selectedLocations.filter(loc => loc.type === 'district');
+
+    // If multi-location, only show first province and districts
+    if (provinces.length > 0) {
+      const province = provinces[0];
+      items.push({
+        text: province.name,
+        url: districts.length > 0 ? `${baseUrl}/${province.slug}` : ''
+      });
+    }
+
+    // Show all districts in hierarchy
+    districts.forEach((district, index) => {
+      items.push({
+        text: district.name,
+        url: index < districts.length - 1 ? `${baseUrl}/${district.slug}` : ''
+      });
+    });
+  } else if (provinceName) {
+    // Fallback to simple province display
+    items.push({
+      text: provinceName,
+      url: ''
+    });
+  }
+
+  // Price range
+  if (filters.minPrice || filters.maxPrice) {
+    const priceText = formatPriceRange(filters.minPrice, filters.maxPrice);
+    if (priceText) {
+      items.push({ text: priceText, url: '' });
+    }
+  }
+
+  return items;
+}
+
+/**
+ * Format price range for display
+ */
+function formatPriceRange(min?: number, max?: number): string {
+  if (!min && !max) return '';
+  if (min === 0 && max === 0) return 'Giá thương lượng';
+
+  const fmt = (p: number) => {
+    if (p >= 1_000_000_000) {
+      const ty = p / 1_000_000_000;
+      return `${ty % 1 === 0 ? ty : ty.toFixed(1)} tỷ`;
+    }
+    return `${p / 1_000_000} triệu`;
+  };
+
+  if (min && !max) return `Giá từ ${fmt(min)}`;
+  if (!min && max) return `Giá dưới ${fmt(max)}`;
+  return `Giá từ ${fmt(min!)} đến ${fmt(max!)}`;
+}
+
+const breadcrumbs = buildBreadcrumbs();
+
+// Schema.org BreadcrumbList
+const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://tongkhobds.com';
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": breadcrumbs.map((item, index) => ({
+    "@type": "ListItem",
+    "position": index + 1,
+    "name": item.text,
+    ...(item.url ? { "item": `${siteUrl}${item.url}` } : {})
+  }))
+};
+---
+
+<!-- Schema.org Structured Data -->
+<script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+
+<!-- Breadcrumb Navigation -->
+<nav class="mt-6 mb-4" aria-label="Breadcrumb">
+  <ol
+    class="flex flex-wrap items-center gap-2 text-sm"
+    itemscope
+    itemtype="https://schema.org/BreadcrumbList"
+  >
+    {breadcrumbs.map((item, index) => (
+      <li
+        class="flex items-center"
+        itemprop="itemListElement"
+        itemscope
+        itemtype="https://schema.org/ListItem"
+      >
+        {item.url ? (
+          <a
+            href={item.url}
+            class="text-slate-600 hover:text-orange-500 transition-colors"
+            itemprop="item"
+          >
+            <span itemprop="name">{item.text}</span>
+          </a>
+        ) : (
+          <span class="text-slate-900 font-medium" itemprop="name">
+            {item.text}
+          </span>
+        )}
+        <meta itemprop="position" content={String(index + 1)} />
+
+        {/* Separator (not for last item) */}
+        {index < breadcrumbs.length - 1 && (
+          <svg
+            class="w-4 h-4 mx-2 text-slate-400"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M9 5l7 7-7 7"
+            />
+          </svg>
+        )}
+      </li>
+    ))}
+  </ol>
+</nav>

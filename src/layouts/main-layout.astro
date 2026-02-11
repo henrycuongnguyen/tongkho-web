@@ -2,7 +2,7 @@
 import BaseLayout from './base-layout.astro';
 import Header from '@components/header/header.astro';
 import Footer from '@components/footer/footer.astro';
-import AuthModal from '@components/auth/auth-modal.astro';
+// import AuthModal from '@components/auth/auth-modal.astro'; // Removed - auth feature disabled
 
 export interface Props {
   title: string;
@@ -22,5 +22,5 @@ const { title, description, image, canonicalUrl } = Astro.props;
   <Footer />
 
   <!-- Auth Modal (Signin/Signup) -->
-  <AuthModal />
+  <!-- <AuthModal /> --> <!-- Removed - auth feature disabled -->
 </BaseLayout>

@@ -36,6 +36,12 @@ Enable property seekers in Vietnam to discover, compare, and understand the real
 - **Dynamic property detail pages** with image gallery, info section, contact sidebar
 - Price history chart visualization
 - Related properties recommendations
+- **Zero Results Fallback** with 3-tier intelligent filter relaxation (v1 parity)
+  - Level 1: Keep location, remove filters
+  - Level 2: Expand to city level, remove all filters
+  - Level 3: Nationwide search
+- Fallback analytics tracking (GA4)
+- LRU caching (5-min TTL, 100 entries max)
 
 #### 3. Project Showcase
 - Real estate project listings with developer info
@@ -81,6 +87,8 @@ Enable property seekers in Vietnam to discover, compare, and understand the real
 | Vietnamese localization (dates, numbers, prices) | Complete | High |
 | SEO optimization (sitemap, meta tags) | Complete | High |
 | Static HTML output (zero JS required) | Complete | High |
+| Zero results fallback with suggestions | Complete | High |
+| Fallback analytics tracking | Complete | Medium |
 
 ---
 
@@ -358,18 +366,22 @@ parent_id: FK to self (NULL for root)
 - ✅ **Database Integration:** Drizzle ORM with PostgreSQL, menu-service with 1-hour caching
 - ✅ **Search UI:** Multi-tab filters (city, type, price, area, keyword)
 - ✅ **Vietnamese Localization:** Date formatting, currency notation (tỷ/triệu), slug generation
-- ✅ **SEO:** Dynamic sitemap, robots.txt, semantic HTML, structured data schemas
-- ✅ **Performance:** <2 second load time, zero JavaScript, 96.3% cache hit rate
+- ✅ **SEO:** Dynamic sitemap, robots.txt, semantic HTML, structured data schemas, listing page metadata
+- ✅ **Search Experience:** Zero results fallback with 3-tier filter relaxation, analytics tracking, LRU caching
+- ✅ **Performance:** <2 second load time, zero JavaScript, 96.3% cache hit rate, 80% fallback cache hit rate
 
 ### Current Phase: Phase 2 Complete, Phase 3 In Progress
 
-**Phase 2 Completion (Feb 6):**
+**Phase 2 Completion (Feb 10):**
 - Database-driven menu system with hierarchical folder support
 - Build-time menu generation (1-hour TTL caching)
 - 27 dynamic news category pages
 - Recursive folder transformation for nested navigation
+- Sidebar location filter cards (SSR) with property counts
+- SEO metadata integration (ElasticSearch + PostgreSQL fallback)
 
 **Phase 3 Progress (In Progress):**
+- Zero results fallback & suggestions (3-tier relaxation strategy) - **Feb 11**
 - Dynamic property detail pages with image gallery
 - News article detail pages with share buttons
 - Per-page meta tags and OG tag generation
@@ -392,5 +404,7 @@ parent_id: FK to self (NULL for root)
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.2 | 2026-02-11 | Docs: Added zero results fallback feature, 3-tier relaxation strategy, analytics tracking, LRU cache, functional requirements updated |
+| 2.1 | 2026-02-10 | Docs: Added sidebar location filters (SSR), SEO metadata integration, Phase 3 in progress status |
 | 2.0 | 2026-02-07 | Scout: Updated with 32 components, 35 pages, 61 files, 15K+ LOC, Phase 2 complete status |
 | 1.0 | 2026-01-28 | Initial project documentation |

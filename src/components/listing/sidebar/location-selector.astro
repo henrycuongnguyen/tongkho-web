@@ -1,0 +1,609 @@
+---
+/**
+ * Location Selector Component
+ * Two-column: Province dropdown (left) + District list (right)
+ * Plus search autocomplete below
+ * Now with beautiful modal for province selection!
+ */
+import LocationAutocomplete from '../location-autocomplete.astro';
+import ProvinceModal from './province-selector-modal.astro';
+import type { Province } from '@/services/location/types';
+
+interface Props {
+  /** List of all provinces */
+  provinces: Province[];
+  /** Base URL for navigation (e.g., /mua-ban) */
+  baseUrl: string;
+  /** Current selected province slug (optional) */
+  currentProvince?: string;
+  /** Current selected district slugs (optional, supports multi-select) */
+  currentDistricts?: string[];
+  /** Selected locations (supports multi-location) */
+  selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
+}
+
+const { provinces, baseUrl, currentProvince, currentDistricts = [], selectedLocations = [] } = Astro.props;
+
+// Find current province nId for fetching districts
+const selectedProvince = currentProvince
+  ? provinces.find(p => p.slug === currentProvince)
+  : null;
+
+// Get featured provinces (top 5 with images, ordered by display_order)
+const featuredProvinces = provinces.filter(p => p.cityImageWeb || p.cityImage).slice(0, 5);
+---
+
+<div
+  class="location-selector"
+  data-location-selector
+  data-base-url={baseUrl}
+  data-current-province={currentProvince || ''}
+  data-current-province-nid={selectedProvince?.nId || ''}
+  data-current-province-name={selectedProvince?.name || ''}
+>
+  <!-- Province Button -->
+  <div class="relative mb-3">
+    <button
+      type="button"
+      class="w-full px-3 py-2.5 border border-secondary-200 rounded-lg bg-white text-sm text-left flex items-center justify-between gap-1 hover:border-primary-300 hover:border-2 transition-all"
+      data-province-modal-trigger
+    >
+      <span class="truncate text-secondary-700" data-province-display>
+        {selectedProvince ? selectedProvince.name : 'Chọn tỉnh'}
+      </span>
+      <svg class="w-4 h-4 text-secondary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+      </svg>
+    </button>
+
+    <!-- Province Modal -->
+    <ProvinceModal
+      provinces={provinces}
+      featuredProvinces={featuredProvinces}
+      baseUrl={baseUrl}
+      currentProvince={currentProvince}
+    />
+  </div>
+
+  <!-- Selected Districts (Tags) -->
+  <div class="mb-3" data-selected-districts-container style="display: none;">
+    <div class="flex items-center justify-between mb-2">
+      <span class="text-sm font-medium text-secondary-700">Địa điểm đã chọn</span>
+      <button
+        type="button"
+        class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+        data-clear-all-districts
+      >
+        Xóa tất cả
+      </button>
+    </div>
+    <div class="flex flex-wrap gap-2" data-selected-districts-tags>
+      <!-- Tags will be inserted here by JavaScript -->
+    </div>
+  </div>
+
+  <!-- Search Input with District Dropdown -->
+  <div class="relative">
+    <input
+      type="text"
+      placeholder="Tìm kiếm quận/huyện..."
+      class="w-full px-4 py-2.5 pr-10 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-transparent"
+      data-district-search-input
+      autocomplete="off"
+    />
+
+    <!-- Search Icon -->
+    <div class="absolute right-3 top-1/2 -translate-y-1/2">
+      <svg class="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+    </div>
+
+    <!-- District Dropdown (shown on focus) -->
+    <div
+      id="district-dropdown"
+      class="absolute z-50 w-full mt-1 bg-white border border-slate-200 rounded-lg shadow-lg max-h-80 overflow-auto hidden"
+      data-district-dropdown
+    >
+      <!-- Header -->
+      <div class="px-4 py-3 border-b border-slate-200 bg-slate-50">
+        <div class="flex items-center justify-between">
+          <h5 class="font-semibold text-sm text-slate-800">
+            Tìm kiếm phổ biến
+          </h5>
+          <button
+            type="button"
+            class="text-xs text-primary-600 hover:text-primary-700 font-medium"
+            data-search-all-province
+          >
+            <span data-search-button-text>Tìm toàn tỉnh</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- District List (3-column grid) -->
+      <div
+        class="p-3 grid grid-cols-3 gap-2"
+        data-district-list-container
+        hx-get={selectedProvince ? `/api/location/districts?province=${selectedProvince.nId}&base=${baseUrl}&mode=checkboxes&selected=${currentDistricts.join(',')}` : undefined}
+        hx-trigger="load once, loadDistricts"
+        hx-swap="innerHTML"
+      >
+        {selectedProvince ? (
+          <div class="p-4 text-center text-slate-500 text-sm">
+            <svg class="w-5 h-5 animate-spin mx-auto mb-2 text-primary-500" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+            </svg>
+            Đang tải...
+          </div>
+        ) : (
+          <div class="p-4 text-center text-slate-500 text-sm">
+            Vui lòng chọn tỉnh trước
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  console.log('[LocationSelector] Script loaded!');
+
+  /**
+   * Initialize location selector - runs on page load and after View Transitions
+   * Now uses modal instead of dropdown for province selection
+   */
+  function initLocationSelectors() {
+    console.log('[LocationSelector] initLocationSelectors called');
+    const containers = document.querySelectorAll('[data-location-selector]');
+    console.log('[LocationSelector] Found containers:', containers.length);
+    containers.forEach(initContainer);
+  }
+
+  function initContainer(container: Element) {
+    console.log('[LocationSelector] initContainer called');
+
+    // Skip if already initialized (prevent duplicate listeners)
+    if (container.getAttribute('data-initialized')) {
+      console.log('[LocationSelector] Already initialized, skipping');
+      return;
+    }
+    container.setAttribute('data-initialized', 'true');
+
+    const baseUrl = container.getAttribute('data-base-url') || '/mua-ban';
+    let currentProvinceNId = container.getAttribute('data-current-province-nid') || '';
+    let currentProvinceName = container.getAttribute('data-current-province-name') || '';
+
+    // Multi-select state: { slug: string, name: string }[]
+    // Initialize from URL addresses param
+    const urlParams = new URLSearchParams(window.location.search);
+    const addressesParam = urlParams.get('addresses');
+    const selectedDistricts: Array<{ slug: string; name: string }> = addressesParam
+      ? addressesParam.split(',').map(slug => ({ slug: slug.trim(), name: slug.trim() }))
+      : [];
+
+    const provinceModalTrigger = container.querySelector('[data-province-modal-trigger]') as HTMLButtonElement;
+    const districtSearchInput = container.querySelector('[data-district-search-input]') as HTMLInputElement;
+    const districtDropdown = container.querySelector('[data-district-dropdown]') as HTMLDivElement;
+    const districtListContainer = container.querySelector('[data-district-list-container]') as HTMLDivElement;
+
+    console.log('[LocationSelector] Debug:', {
+      currentProvinceNId,
+      addressesParam,
+      selectedDistricts,
+      hasDistrictContainer: !!districtListContainer
+    });
+
+    // Update HTMX attribute with current URL addresses param (fix static template issue)
+    if (districtListContainer && currentProvinceNId && addressesParam) {
+      const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+      const url = `/api/location/districts?province=${encodeURIComponent(currentProvinceNId)}&base=${encodeURIComponent(baseUrl)}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+
+      console.log('[LocationSelector] Init: Loading districts with selected:', selectedSlugs);
+
+      // Directly fetch and update (bypass HTMX "load once" limitation)
+      fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          districtListContainer.innerHTML = html;
+          console.log('[LocationSelector] Init: Districts loaded, calling attachDistrictButtonHandlers');
+
+          // Attach button handlers and sync selectedDistricts after a short delay
+          setTimeout(() => {
+            attachDistrictButtonHandlers();
+            renderSelectedDistrictsTags();
+            console.log('[LocationSelector] District buttons synced, selectedDistricts:', selectedDistricts);
+          }, 50);
+        })
+        .catch(err => console.error('[LocationSelector] Failed to load districts:', err));
+    }
+    const provinceDisplay = container.querySelector('[data-province-display]') as HTMLSpanElement;
+    const provinceNameDisplay = container.querySelector('[data-province-name-display]') as HTMLSpanElement;
+    const searchAllProvinceBtn = container.querySelector('[data-search-all-province]') as HTMLButtonElement;
+    const selectedDistrictsContainer = container.querySelector('[data-selected-districts-container]') as HTMLDivElement;
+    const selectedDistrictsTags = container.querySelector('[data-selected-districts-tags]') as HTMLDivElement;
+    const clearAllDistrictsBtn = container.querySelector('[data-clear-all-districts]') as HTMLButtonElement;
+    const searchButtonText = container.querySelector('[data-search-button-text]') as HTMLSpanElement;
+
+    // Early return if required elements missing
+    if (!provinceModalTrigger) {
+      console.warn('[location-selector] Missing province modal trigger');
+      return;
+    }
+
+    // Update search button text based on selection
+    function updateSearchButtonText() {
+      if (!searchButtonText) return;
+
+      if (selectedDistricts.length > 0) {
+        searchButtonText.textContent = 'Tìm kiếm';
+      } else {
+        searchButtonText.textContent = 'Tìm toàn tỉnh';
+      }
+    }
+
+    // Render selected districts tags
+    function renderSelectedDistrictsTags() {
+      console.log('[LocationSelector] renderSelectedDistrictsTags called', {
+        hasContainer: !!selectedDistrictsContainer,
+        hasTags: !!selectedDistrictsTags,
+        selectedDistricts
+      });
+
+      if (!selectedDistrictsTags || !selectedDistrictsContainer) {
+        console.warn('[LocationSelector] Missing container or tags element');
+        return;
+      }
+
+      if (selectedDistricts.length === 0) {
+        selectedDistrictsContainer.style.display = 'none';
+        updateSearchButtonText();
+        return;
+      }
+
+      console.log('[LocationSelector] Showing selectedDistricts container');
+      selectedDistrictsContainer.style.display = 'block';
+      updateSearchButtonText();
+      selectedDistrictsTags.innerHTML = selectedDistricts.map(d => `
+        <div class="flex items-center gap-1.5 px-2.5 py-1.5 bg-white text-secondary-700 rounded-lg text-sm border border-secondary-300 hover:border-secondary-400 transition-colors">
+          <svg class="w-3.5 h-3.5 shrink-0 text-secondary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span>${d.name}</span>
+          <button
+            type="button"
+            class="ml-1 hover:bg-secondary-100 rounded p-0.5 transition-colors"
+            data-remove-district="${d.slug}"
+          >
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      `).join('');
+
+      // Attach remove handlers
+      selectedDistrictsTags.querySelectorAll('[data-remove-district]').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const slug = (btn as HTMLElement).dataset.removeDistrict || '';
+          const index = selectedDistricts.findIndex(d => d.slug === slug);
+          if (index > -1) {
+            selectedDistricts.splice(index, 1);
+            renderSelectedDistrictsTags();
+            updateButtonsState();
+          }
+        });
+      });
+    }
+
+    // Update button styles to match selectedDistricts
+    function updateButtonsState() {
+      const buttons = districtListContainer?.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+      buttons.forEach(button => {
+        const slug = button.dataset.slug || '';
+        const isSelected = selectedDistricts.some(d => d.slug === slug);
+        button.dataset.selected = isSelected ? 'true' : 'false';
+
+        if (isSelected) {
+          // Selected state
+          button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+          const icon = button.querySelector('svg');
+          const text = button.querySelector('span');
+          if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+          if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
+        } else {
+          // Unselected state
+          button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+          const icon = button.querySelector('svg');
+          const text = button.querySelector('span');
+          if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+          if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+        }
+      });
+    }
+
+    // Attach button click handlers for district selection (replaces checkbox logic)
+    function attachDistrictButtonHandlers() {
+      const buttons = districtListContainer.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+
+      console.log('[LocationSelector] attachDistrictButtonHandlers called', {
+        buttonsFound: buttons.length,
+        containerExists: !!districtListContainer
+      });
+
+      buttons.forEach(button => {
+        // Sync selectedDistricts with initially selected buttons
+        const isSelected = button.dataset.selected === 'true';
+        if (isSelected) {
+          const slug = button.dataset.slug || '';
+          const name = button.dataset.name || slug;
+          if (!selectedDistricts.some(d => d.slug === slug)) {
+            selectedDistricts.push({ slug, name });
+          }
+        }
+
+        // Add click handler to toggle selection
+        button.addEventListener('click', () => {
+          console.log('[LocationSelector] District button clicked!');
+          const slug = button.dataset.slug || '';
+          const name = button.dataset.name || slug;
+          const isCurrentlySelected = button.dataset.selected === 'true';
+
+          if (isCurrentlySelected) {
+            // Deselect: remove from array
+            const index = selectedDistricts.findIndex(d => d.slug === slug);
+            if (index > -1) {
+              selectedDistricts.splice(index, 1);
+            }
+            button.dataset.selected = 'false';
+            // Update styles to unselected state
+            button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+            const icon = button.querySelector('svg');
+            const text = button.querySelector('span');
+            if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+            if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+          } else {
+            // Select: add to array
+            if (!selectedDistricts.some(d => d.slug === slug)) {
+              selectedDistricts.push({ slug, name });
+            }
+            button.dataset.selected = 'true';
+            // Update styles to selected state
+            button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+            const icon = button.querySelector('svg');
+            const text = button.querySelector('span');
+            if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+            if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
+          }
+
+          renderSelectedDistrictsTags();
+        });
+      });
+    }
+
+    // If province already selected on page load, attach handlers after HTMX loads districts
+    if (currentProvinceNId && districtListContainer) {
+      console.log('[LocationSelector] Setting up HTMX afterSwap listener');
+      districtListContainer.addEventListener('htmx:afterSwap', () => {
+        console.log('[LocationSelector] HTMX afterSwap fired, calling attachDistrictButtonHandlers');
+        attachDistrictButtonHandlers();
+      }, { once: true });
+    }
+
+    // Toggle province modal on click
+    provinceModalTrigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const panel = document.querySelector('[data-province-dropdown-panel]');
+      if (!panel) {
+        console.error('[location-selector] Province panel not found');
+        return;
+      }
+
+      const isHidden = panel.classList.contains('hidden');
+
+      if (isHidden) {
+        if (typeof (window as any).openProvinceDropdown === 'function') {
+          (window as any).openProvinceDropdown();
+        } else {
+          console.error('[location-selector] openProvinceDropdown function not found');
+        }
+      } else {
+        if (typeof (window as any).closeProvinceDropdown === 'function') {
+          (window as any).closeProvinceDropdown();
+        } else {
+          console.error('[location-selector] closeProvinceDropdown function not found');
+        }
+      }
+    });
+
+    // Show district dropdown on focus
+    districtSearchInput?.addEventListener('focus', () => {
+      if (currentProvinceNId) {
+        districtDropdown?.classList.remove('hidden');
+      } else {
+        console.warn('[location-selector] No province selected, cannot show districts');
+      }
+    });
+
+    // Search districts on input (now works with checkbox labels)
+    districtSearchInput?.addEventListener('input', (e) => {
+      const query = (e.target as HTMLInputElement).value.toLowerCase();
+      const districtLabels = districtListContainer?.querySelectorAll('label');
+
+      districtLabels?.forEach(label => {
+        const text = label.textContent?.toLowerCase() || '';
+        if (text.includes(query)) {
+          label.classList.remove('hidden');
+        } else {
+          label.classList.add('hidden');
+        }
+      });
+    });
+
+    // "Tìm toàn tỉnh" button - includes all selected districts (v1 compatible)
+    searchAllProvinceBtn?.addEventListener('click', () => {
+      const provinceSlug = container.getAttribute('data-current-province') || '';
+      if (!provinceSlug) return;
+
+      // Get current URL params to preserve other filters
+      const currentParams = new URLSearchParams(window.location.search);
+
+      // Extract price slug from current URL path (arg3)
+      const pathParts = window.location.pathname.split('/').filter(Boolean);
+      let priceSlug = '';
+      // Price slug is arg3 (index 2): /[transaction]/[location]/[price-slug]
+      if (pathParts.length >= 3 && pathParts[2].startsWith('gia-')) {
+        priceSlug = pathParts[2];
+      }
+
+      // Build URL path: /[transaction]/[province]/[price-slug?]
+      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
+      urlParts.push(provinceSlug);
+      if (priceSlug) {
+        urlParts.push(priceSlug);
+      }
+
+      let targetUrl = '/' + urlParts.join('/');
+
+      // Build query string manually to avoid encoding commas (v1 compatible)
+      const queryParts: string[] = [];
+
+      // Add addresses param if districts selected (v1 uses plain commas)
+      if (selectedDistricts.length > 0) {
+        const districtSlugs = selectedDistricts.map(d => d.slug).join(',');
+        queryParts.push(`addresses=${districtSlugs}`);
+      }
+
+      // Add property_types WITHOUT encoding (v1 uses plain commas)
+      const propertyTypesParam = currentParams.get('property_types');
+      if (propertyTypesParam) {
+        queryParts.push(`property_types=${propertyTypesParam}`);
+      }
+
+      // Preserve other current params (bedrooms, bathrooms, dtnn, dtcn, etc.)
+      // Skip 'addresses' and 'property_types' as we're handling them above
+      currentParams.forEach((value, key) => {
+        if (key !== 'addresses' && key !== 'property_types') {
+          queryParts.push(`${key}=${value}`);
+        }
+      });
+
+      if (queryParts.length > 0) {
+        targetUrl = `${targetUrl}?${queryParts.join('&')}`;
+      }
+
+      window.location.href = targetUrl;
+    });
+
+    // Clear all districts button
+    clearAllDistrictsBtn?.addEventListener('click', () => {
+      selectedDistricts.length = 0; // Clear array
+      renderSelectedDistrictsTags();
+      updateButtonsState();
+    });
+
+    // Close dropdown on click outside
+    document.addEventListener('click', (e) => {
+      const target = e.target as HTMLElement;
+      if (!container.contains(target)) {
+        districtDropdown?.classList.add('hidden');
+      }
+    });
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        districtDropdown?.classList.add('hidden');
+      }
+    });
+
+    // Listen for province selection
+    console.log('[LocationSelector] Adding province-selected listener');
+    document.addEventListener('province-selected', ((e: CustomEvent) => {
+      console.log('[LocationSelector] Received province-selected event:', e.detail);
+      const { slug, name, nId } = e.detail;
+
+      // Update state
+      currentProvinceNId = nId;
+      currentProvinceName = name;
+      container.setAttribute('data-current-province', slug);
+      container.setAttribute('data-current-province-nid', nId);
+      container.setAttribute('data-current-province-name', name);
+
+      // CRITICAL: Clear selected districts when province changes (don't carry over districts from old province)
+      selectedDistricts.length = 0;
+      renderSelectedDistrictsTags();
+
+      // Dispatch province-changed event for other components (e.g., most-searched-locations)
+      console.log('[LocationSelector] Dispatching province-changed event:', { provinceNId: nId, provinceName: name, provinceSlug: slug, baseUrl });
+      const provinceChangedEvent = new CustomEvent('province-changed', {
+        detail: { provinceNId: nId, provinceName: name, provinceSlug: slug, baseUrl }
+      });
+      document.dispatchEvent(provinceChangedEvent);
+      console.log('[LocationSelector] Event dispatched');
+
+      // Update both province displays
+      if (provinceDisplay) {
+        provinceDisplay.textContent = name;
+      }
+      if (provinceNameDisplay) {
+        provinceNameDisplay.textContent = name;
+      }
+
+      // Load districts (with checkbox mode)
+      if (districtListContainer && nId) {
+        const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
+        const url = `/api/location/districts?province=${encodeURIComponent(nId)}&base=${encodeURIComponent(baseUrl)}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
+        districtListContainer.setAttribute('hx-get', url);
+
+        // Listen for HTMX swap completion (one-time listener)
+        const handleSwap = () => {
+          console.log('[LocationSelector] Province selected: handleSwap called, calling attachDistrictButtonHandlers');
+          attachDistrictButtonHandlers();
+
+          // Show dropdown after districts are loaded
+          districtDropdown?.classList.remove('hidden');
+
+          // Focus input
+          if (districtSearchInput) {
+            districtSearchInput.value = '';
+            setTimeout(() => districtSearchInput.focus(), 100);
+          }
+        };
+
+        districtListContainer.addEventListener('htmx:afterSwap', handleSwap, { once: true });
+
+        // Trigger custom HTMX event to load districts
+        if (typeof (window as any).htmx !== 'undefined') {
+          (window as any).htmx.process(districtListContainer);
+          (window as any).htmx.trigger(districtListContainer, 'loadDistricts');
+        }
+      }
+    }) as EventListener);
+
+    // Cleanup on before-swap (View Transition about to happen)
+    document.addEventListener('astro:before-swap', () => {
+      container.removeAttribute('data-initialized');
+    }, { once: true });
+  }
+
+  // Initialize on page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initLocationSelectors);
+  } else {
+    initLocationSelectors();
+  }
+
+  // Run on Astro View Transitions
+  document.addEventListener('astro:page-load', initLocationSelectors);
+</script>
+
+<style>
+  [data-district-panel] {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(var(--color-secondary-300)) transparent;
+  }
+</style>

@@ -7,7 +7,7 @@ tongkho-web/
 ├── src/
 │   ├── components/
 │   │   ├── cards/
-│   │   │   └── property-card.astro          # Property listing card (110 LOC)
+│   │   │   └── property-card.astro          # Property listing card w/ ShareButtons (110 LOC) [Phase 1]
 │   │   ├── footer/
 │   │   │   └── footer.astro                 # Footer with links (173 LOC)
 │   │   ├── header/
@@ -18,6 +18,26 @@ tongkho-web/
 │   │   │   └── about-achievement-stat-card.astro
 │   │   ├── auth/
 │   │   │   └── auth-modal.astro             # Full authentication modal
+│   │   ├── listing/                         # Listing page & search components
+│   │   │   ├── horizontal-search-bar.astro  # Search form for listing pages
+│   │   │   ├── listing-breadcrumb.astro     # Breadcrumb navigation
+│   │   │   ├── listing-filter.astro         # Filter panel (desktop)
+│   │   │   ├── listing-grid.astro           # Property results grid
+│   │   │   ├── listing-pagination.astro     # Pagination controls
+│   │   │   ├── listing-property-card.astro  # ES property card w/ ShareButtons [Phase 1]
+│   │   │   ├── location-chips.astro         # Selected location tags
+│   │   │   ├── location-autocomplete.astro  # Location search input
+│   │   │   └── sidebar/
+│   │   │       ├── sidebar-wrapper.astro    # Sidebar container
+│   │   │       ├── location-filter-card.astro # [NEW] SSR location filter with property counts
+│   │   │       ├── price-range-filter-card.astro
+│   │   │       ├── area-range-filter-card.astro
+│   │   │       ├── dynamic-sidebar-filters.astro # Context-aware filters
+│   │   │       ├── location-selector.astro
+│   │   │       ├── property-type-dropdown.astro
+│   │   │       ├── province-selector-modal.astro
+│   │   │       ├── featured-project-banner.astro
+│   │   │       └── quick-contact-banner.astro
 │   │   ├── home/
 │   │   │   ├── hero-section.astro           # Hero banner
 │   │   │   ├── hero-search.astro            # Search form (Astro)
@@ -65,8 +85,16 @@ tongkho-web/
 │   │       ├── 0000_peaceful_payback.sql    # Base schema migration
 │   │       ├── 0001_add_menu_indexes.sql    # Menu performance indexes
 │   │       └── README-MENU-INDEXES.md       # Migration documentation
+│   ├── scripts/
+│   │   └── compare-manager.ts               # Compare/wishlist localStorage manager (212 LOC) [Phase 2]
 │   ├── services/
-│   │   └── menu-service.ts                  # Menu generation service (384 LOC) [Phase 4]
+│   │   ├── menu-service.ts                  # Menu generation service (384 LOC) [Phase 4]
+│   │   ├── seo/
+│   │   │   ├── types.ts                     # SEO metadata type definitions (140 LOC) [Phase 5]
+│   │   │   ├── seo-metadata-service.ts      # Main orchestration service (226 LOC) [Phase 5]
+│   │   │   └── seo-metadata-db-service.ts   # PostgreSQL fallback service (142 LOC) [Phase 5]
+│   │   └── elasticsearch/
+│   │       └── seo-metadata-search-service.ts # ElasticSearch SEO service (152 LOC) [Phase 5]
 │   ├── layouts/
 │   │   ├── base-layout.astro                # HTML base template (65 LOC)
 │   │   └── main-layout.astro                # Header + main + footer (35 LOC)
@@ -98,8 +126,8 @@ tongkho-web/
 └── README.md                                # Project documentation
 ```
 
-**Total:** ~15,085 lines of code across 61 files
-- Components: 32 files (5197 LOC) across 9 categories (About, Auth, Cards, Footer, Header, Home, News, Property, SEO, UI)
+**Total:** ~15,500 lines of code across 63 files
+- Components: 42+ files (5500+ LOC) across 12 categories (About, Auth, Cards, Footer, Header, Home, Listing, News, Property, SEO, UI)
 - Pages: 8 route files + 27 dynamic folder pages (1425 LOC)
 - Database: 8 files (6139 LOC) - schemas, migrations, indexes
 - Services: 4 files (1026 LOC) - menu, elasticsearch, postgres services
@@ -247,6 +275,79 @@ interface SearchFilters {
 
 ## Key Modules
 
+### Location Service (location/location-service.ts) [NEW - Phase 2]
+**Purpose:** Server-side location hierarchy and property count queries for listing pages
+
+**Key Functions:**
+- `getAllProvincesWithCount(limit, useNewAddresses)` – Fetch top 20 provinces with property counts from V1 materialized table
+- `getAllProvinces(useNewAddresses)` – Legacy function to fetch provinces with district counts
+- `getDistrictsByProvinces(provinceNIds)` – Batch fetch districts grouped by province
+- `buildLocationHierarchy()` – Build complete hierarchy (cached for build-time generation)
+- `getProvinceBySlug(slug)` – Resolve single province from slug
+- `getDistrictBySlug(provinceNId, districtSlug)` – Resolve district with province context
+- `resolveLocationSlugs(slugs)` – Batch resolve multiple location slugs (province/district)
+- `clearLocationCache()` – Manual cache invalidation (testing)
+
+**Features:**
+- V1-compatible data source: `locations_with_count_property` materialized table for performance
+- Property counts aggregated per province (materialized in database)
+- In-memory hierarchy caching for SSR components
+- Support for new vs legacy addresses via `mergedintoid` filtering
+- Type-safe Province/District/LocationHierarchy interfaces
+- Graceful error handling with empty fallback arrays
+- Display order support for featured city ranking
+
+**Data Structure:**
+```typescript
+interface Province {
+  id: number;
+  nId: string;                    // V1 city_id
+  name: string;                   // "Hà Nội"
+  slug: string;                   // "ha-noi"
+  districtCount: number;
+  propertyCount?: number;         // Aggregated from locations_with_count_property
+  cityImage?: string;             // Optional city thumbnail
+  cityImageWeb?: string;          // Web version image
+  cityLatlng?: string;            // Lat/lng JSON
+  displayOrder?: number;          // For featured ranking
+}
+```
+
+**Usage:** Called by location-filter-card.astro (SSR), location dropdown, and location search components
+
+### Location Filter Card Component [NEW - Phase 2]
+**File:** `components/listing/sidebar/location-filter-card.astro`
+
+**Purpose:** Server-rendered sidebar widget showing top 20 provinces with property counts and expand/collapse functionality
+
+**Features:**
+- **Server-Side Rendering:** Fetches province data at build time via `getAllProvincesWithCount()`
+- **Property Counts:** Displays property count per province (formatted as "1K", "500", etc.)
+- **Transaction Type Awareness:** Parses URL to determine transaction context (mua-ban, cho-thue, du-an)
+- **Active State Highlighting:** Visual indicator for currently selected province
+- **Expand/Collapse:** Shows 10 items by default, expands to full list (20) on demand
+- **Query Parameter Preservation:** Maintains search filters (price, area, etc.) when navigating provinces
+- **Clear Filter Button:** Shows when on province page, returns to base transaction URL
+- **Smooth Scroll:** Scrolls to card top on collapse for UX
+
+**URL Pattern:**
+```
+/{transactionType}/{provinceSlug}?minPrice=500&maxPrice=1000&...
+/mua-ban/ha-noi?minPrice=500&maxPrice=1000
+/cho-thue/can-tho
+/mua-ban  # Base (no province selected)
+```
+
+**Error Handling:**
+- Graceful fallback if database unavailable
+- Empty state message if no provinces found
+- Client-side expand/collapse works independently of server data
+
+**Client-Side Script:**
+- `initLocationFilterCard()` - Attach expand/collapse listeners
+- Runs on page load and after View Transitions (astro:after-swap)
+- Uses data attributes for DOM queries (prevent collisions with other components)
+
 ### Menu Service (menu-service.ts) [Phase 4]
 **Purpose:** Database-driven navigation menu generation for SSG builds with hierarchical folder support
 
@@ -325,6 +426,54 @@ interface StaticOption {
 - `mockLocations[]` – 5-8 location cards
 
 **Usage:** Renders property/project/news grids on homepage
+
+### Compare Manager (compare-manager.ts) [NEW - Phase 2]
+**File:** `src/scripts/compare-manager.ts`
+
+**Purpose:** Client-side property comparison system using localStorage (max 2 items, same transaction type validation)
+
+**Key Functions:**
+- `init()` – Initialize on DOM load, sync button active states with localStorage
+- `add(item)` – Add property to comparison list with validation
+- `remove(estateId)` – Remove property from list
+- `toggle(element)` – Toggle property in/out of list (main interaction)
+- `getItems()` – Retrieve all compared properties
+- `clear()` – Remove all items
+
+**Features:**
+- **Max 2 Items:** Validation enforces comparison limit; toast error if exceeded
+- **Same Transaction Type:** Enforces sale/rent matching; prevents mixing transaction types
+- **Toast Notifications:** Success/error messages in Vietnamese
+- **XSS Protection:** Data attribute sanitization via `sanitize()` utility
+- **Event Delegation:** Single body listener (prevents memory leaks with HTMX)
+- **Cross-Tab Sync:** localStorage events enable sync across browser tabs
+- **Graceful Degradation:** Fallback if localStorage unavailable (private browsing)
+
+**Data Structure:**
+```typescript
+interface CompareItem {
+  estateId: string;       // Property ID
+  transactionType: string; // "1" (sale) or "2" (rent)
+  url: string;            // Property detail link
+  image: string;          // Thumbnail URL
+  title: string;          // Property name
+}
+```
+
+**Utilities:**
+- `sanitize(value)` – XSS prevention via textContent → innerHTML
+- `normalizeTransactionType(value)` – Handles multiple formats (1/2, sale/rent, Vietnamese)
+- `showToast(message, type)` – Simple toast with auto-dismiss (3s)
+
+**Integration Points:**
+- property-card.astro: `.btn-compare` button with data attributes
+- listing-property-card.astro: `.btn-compare` button with data attributes
+- base-layout.astro: Script initialization on DOMContentLoaded & htmx:afterSwap
+- global.css: `.btn-compare.active` styling (blue highlight)
+
+**localStorage Key:** `compare_items` (JSON stringified array)
+
+**Usage:** Bind click handler to `.btn-compare` buttons; manager automatically syncs UI state with storage
 
 ### Formatting Utilities (format.ts)
 **Purpose:** Vietnamese localization & text formatting
@@ -405,6 +554,80 @@ npm run astro    # Astro CLI commands
 
 **Usage:** Import like `import { formatPrice } from '@utils/format'`
 
+### SEO Metadata Service (seo-metadata-service.ts) [Phase 5]
+**Purpose:** Server-side SEO metadata orchestration for listing pages. Fetches and renders dynamic title & content from database.
+
+**Architecture:** ElasticSearch → PostgreSQL → Default fallback
+
+**Key Functions:**
+- `getSeoMetadata(slug)` – Main orchestration function, returns formatted SeoMetadata object
+  - Parses slug to extract 3-part URL format (transaction/location/price)
+  - Tries ElasticSearch first, falls back to PostgreSQL if not found
+  - Uses default SEO metadata as final fallback
+  - Applies price context if 3-part URL detected
+  - Ensures return is never null (empty object if all sources fail)
+- `parseSlug(slug)` – Extract base slug & price slug from URL path
+  - Handles: '/mua-ban/ha-noi' → baseSlug, '/mua-ban/ha-noi/gia-tu-1-ty-den-2-ty' → baseSlug + priceSlug
+- `formatSeoMetadata(result, priceSlug)` – Format raw DB result + apply price context
+- `applyPriceContext(metadata, priceSlug)` – Replace {price} placeholder with actual range
+  - Examples: 'gia-tu-1-ty-den-2-ty' → 'giá từ 1 tỷ đến 2 tỷ'
+  - Matches 10+ price slug patterns (range, under, over, in tỷ/triệu)
+- `replaceImageUrls(content)` – Convert relative URLs to absolute for CDN
+  - `/uploads/image.jpg` → `{PUBLIC_IMAGE_SERVER_URL}/uploads/image.jpg`
+
+**Features:**
+- Graceful degradation on service failures (logs warnings, continues)
+- Dynamic title rendering from database (H1 headings)
+- SEO content below listings (contentBelow field)
+- Price context injection for template-based metadata
+- Image URL CDN integration
+- Environment-based image server URL (PUBLIC_IMAGE_SERVER_URL)
+
+**Data Flow (Listing Page):**
+1. URL arrives: `/mua-ban/ha-noi/gia-tu-1-ty-den-2-ty?filters...`
+2. `getSeoMetadata(pathname)` called during SSR
+3. Fetches metadata from ES → DB → Default
+4. Renders as:
+   - Page title (H1) from `titleWeb` or `title`
+   - Content above (if exists, before results grid)
+   - Content below (if exists & properties found, after pagination)
+5. Meta tags from `metaDescription`, `ogTitle`, etc.
+
+**Integration Points:**
+- Called in `[...slug].astro:229` during page rendering
+- Result passed to layout as title & description
+- `contentBelow` rendered at line 346 with prose styling
+
+### SEO Metadata Search Service (seo-metadata-search-service.ts) [Phase 5]
+**Purpose:** ElasticSearch integration for SEO metadata queries
+
+**Key Functions:**
+- `searchSeoMetadata(options)` – Query seo_meta_data ES index
+  - Returns SeoMetadataResult or null if not found
+  - Validates slug, sanitizes for injection attacks
+  - Filters by `is_active: true`
+
+**Features:**
+- Slug sanitization (only allow a-z, 0-9, -, /, _)
+- Exact slug matching via ES `term` query
+- Returns 30+ fields from _source
+- Graceful error handling with null return
+
+### SEO Metadata DB Service (seo-metadata-db-service.ts) [Phase 5]
+**Purpose:** PostgreSQL fallback for SEO metadata (via seo_meta_data table)
+
+**Key Functions:**
+- `getSeoMetadataFromDb(slug)` – Query by slug, filters `isActive=true`
+- `getDefaultSeoMetadata()` – Fetch default SEO (slug='/default/')
+- `seoMetadataExists(slug)` – Lightweight existence check
+- `mapDbRecordToResult(record)` – Convert DB record to typed result
+
+**Features:**
+- Drizzle ORM integration
+- Case-insensitive field mapping (camelCase + snake_case)
+- Database error isolation (never throws, logs & returns null)
+- Default fallback support
+
 ---
 
 ## Dependencies Summary
@@ -448,5 +671,8 @@ npm run astro    # Astro CLI commands
 | 1.1 | 2026-02-06 | Phase 1 complete: Added menu service layer, database schema (propertyType, folder), Drizzle ORM integration |
 | 1.2 | 2026-02-06 | Phase 2 complete: Added menu-data.ts, build-time menu generation with fallback support |
 | 1.3 | 2026-02-06 | Phase 3 complete: Extracted static-data.ts for filter options; database-driven header navigation |
+| 1.4 | 2026-02-11 | Phase 5 complete: SEO metadata integration (ES→DB→Default flow, price context injection, dynamic content rendering) |
 | 1.4 | 2026-02-06 | Phase 4 complete: Hierarchical news folders, dynamic folder pages (27 total), recursive data structures |
+| 2.2 | 2026-02-11 | Phase 2 compare service: Created compare-manager.ts (localStorage-based, max 2 items, transaction type validation, toast notifications, XSS protection). Updated property cards with compare buttons. All 211 tests passing |
+| 2.1 | 2026-02-11 | Phase 1 share functionality: Integrated ShareButtons component (popup variant) into property-card.astro and listing-property-card.astro; Share button row added to action buttons |
 | 2.0 | 2026-02-07 | Scout report: Added 32 components (8 new sections), 8 page routes, dynamic detail pages, authentication modal, SEO schemas, image gallery, news system, price history chart. Total ~3,500 LOC |

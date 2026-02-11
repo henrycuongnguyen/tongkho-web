@@ -1,0 +1,536 @@
+---
+/**
+ * Dynamic Listing Route
+ * Handles: /mua-ban, /cho-thue, /du-an with filters
+ * URL pattern: /{transaction}/{location}/{price}?filters
+ */
+import ListingWithSidebarLayout from '@/layouts/listing-with-sidebar-layout.astro';
+import ListingBreadcrumb from '@/components/listing/listing-breadcrumb.astro';
+import HorizontalSearchBar from '@/components/listing/horizontal-search-bar.astro';
+import ListingGrid from '@/components/listing/listing-grid.astro';
+import ListingPagination from '@/components/listing/listing-pagination.astro';
+import SidebarWrapper from '@/components/listing/sidebar/sidebar-wrapper.astro';
+import { searchProperties } from '@/services/elasticsearch/property-search-service';
+import { resolveLocationSlugs, getAllProvincesWithCount, getDistrictsByProvinceNId } from '@/services/location/location-service';
+import { fetchPropertyTypesByTransaction } from '@/services/menu-service';
+import { getFeaturedProjects } from '@/services/featured-project-service';
+import { getSideBlock } from '@/services/get-side-block-service';
+import { parseListingUrl, getPageTitle, getPageDescription } from '@/utils/listing-url-parser';
+import type { PropertySearchFilters } from '@/services/elasticsearch/types';
+import { getSeoMetadata } from '@/services/seo/seo-metadata-service';
+import type { SeoMetadata } from '@/services/seo/types';
+import { filterRelaxationService } from '@/services/search-relaxation/filter-relaxation-service';
+import type { LocationContext, RelaxationLevel } from '@/services/search-relaxation/types';
+import { trackZeroResults, trackFallbackSuccess } from '@/services/analytics/fallback-analytics';
+import { fallbackCache } from '@/services/cache/fallback-cache';
+import { getPriceHistoryForLocation } from '@/services/price-history-service';
+import PriceHistorySection from '@/components/listing/price-history-section.astro';
+
+// Valid transaction slugs
+const VALID_TRANSACTIONS = ['mua-ban', 'cho-thue', 'du-an'];
+
+// Get URL params
+const { slug } = Astro.params;
+const url = new URL(Astro.request.url);
+const slugParts = slug?.split('/').filter(Boolean) || [];
+
+// Exit early if no slug parts
+if (slugParts.length === 0) {
+  return Astro.redirect('/404');
+}
+
+// Check if first segment is a valid transaction type OR a property type slug (v1 format)
+let isPropertyTypeUrl = false;
+let propertyTypeFromFirstSegment: any = null;
+
+if (!VALID_TRANSACTIONS.includes(slugParts[0])) {
+  // First segment is NOT a transaction type, check if it's a property type slug
+  // We need to check all property types from all transactions
+  const allPropertyTypes = await Promise.all([
+    fetchPropertyTypesByTransaction(1), // mua-ban
+    fetchPropertyTypesByTransaction(2), // cho-thue
+    fetchPropertyTypesByTransaction(3), // du-an
+  ]);
+
+  // Flatten and search
+  const flatPropertyTypes = allPropertyTypes.flat();
+  propertyTypeFromFirstSegment = flatPropertyTypes.find(pt => pt.slug === slugParts[0]);
+
+  if (propertyTypeFromFirstSegment) {
+    // This is a v1-style property type URL (e.g., /ban-can-ho-chung-cu)
+    isPropertyTypeUrl = true;
+    // Inject transaction type at the beginning for parser
+    slugParts.unshift(
+      propertyTypeFromFirstSegment.transactionType === 1 ? 'mua-ban' :
+      propertyTypeFromFirstSegment.transactionType === 2 ? 'cho-thue' : 'du-an'
+    );
+  } else {
+    // Not a valid transaction type OR property type slug
+    return Astro.redirect('/404');
+  }
+}
+
+// Parse URL to filters (slugParts now guaranteed to have valid transaction type at index 0)
+const filters: PropertySearchFilters = parseListingUrl(slugParts, url.searchParams);
+
+// Get property types for resolving slug
+const propertyTypes = await fetchPropertyTypesByTransaction(filters.transactionType);
+
+// Check if segment 1 is a property type slug instead of location (for /mua-ban/ban-can-ho URLs)
+const segment1 = slugParts.length > 1 ? slugParts[1] : null;
+let propertyTypeFromSlug: typeof propertyTypes[0] | undefined;
+
+if (isPropertyTypeUrl && propertyTypeFromFirstSegment) {
+  // Already identified property type from first segment
+  propertyTypeFromSlug = propertyTypeFromFirstSegment;
+  filters.propertyTypes = [propertyTypeFromFirstSegment.id];
+} else if (segment1) {
+  // Try to find property type by slug in segment 1
+  propertyTypeFromSlug = propertyTypes.find(pt => pt.slug === segment1);
+
+  if (propertyTypeFromSlug) {
+    // Segment 1 is property type, not location
+    filters.propertyTypes = [propertyTypeFromSlug.id];
+
+    // Clear location slug from parser (it was misidentified)
+    // @ts-expect-error - temp storage cleanup
+    if (filters._locationSlugs?.includes(segment1)) {
+      // @ts-expect-error
+      filters._locationSlugs = filters._locationSlugs.filter((s: string) => s !== segment1);
+    }
+  }
+}
+
+// Resolve location slugs - primary from path + additional from addresses query param (v1 compatible)
+// @ts-expect-error - temp storage from parser
+const locationSlugs = filters._locationSlugs || [];
+// @ts-expect-error - temp storage from parser
+const additionalLocationSlugs = filters._additionalLocationSlugs || [];
+
+// Merge all location slugs for batch resolution
+const allLocationSlugs = [...locationSlugs, ...additionalLocationSlugs];
+
+const resolvedLocations = allLocationSlugs.length > 0
+  ? await resolveLocationSlugs(allLocationSlugs)
+  : [];
+
+
+// Primary location is the first one (from URL path)
+const selectedLocation = resolvedLocations[0] || null;
+
+// Resolve district slugs from query param (multi-select support)
+// @ts-expect-error - temp storage from parser
+const districtSlugs = filters._districtSlugs || [];
+const resolvedDistricts = districtSlugs.length > 0
+  ? await resolveLocationSlugs(districtSlugs)
+  : [];
+
+// Set district filter (always use district_id for ES compatibility)
+// Priority: explicit district slugs > resolved locations (multi-location support)
+if (resolvedDistricts.length > 0) {
+  // Explicit district selection via query param (multi-select)
+  filters.districtIds = resolvedDistricts.map(d => d.nId).filter(Boolean) as string[];
+} else if (resolvedLocations.length > 0) {
+  // Collect districts from resolved locations (v1 compatible multi-location logic)
+  const districtNIds = new Set<string>();
+  const hasDistrictsInLocations = resolvedLocations.some(l => l.type === 'district');
+
+  for (const location of resolvedLocations) {
+    if (location.type === 'district') {
+      // Add district directly
+      districtNIds.add(location.nId);
+    } else if (location.type === 'province' && !hasDistrictsInLocations) {
+      // ONLY expand province to all districts if NO specific districts are provided
+      // (i.e., only province in path, no addresses param with districts)
+      const districts = await getDistrictsByProvinceNId(location.nId);
+      districts.forEach(d => {
+        if (d.nId) districtNIds.add(d.nId);
+      });
+    }
+  }
+
+  filters.districtIds = Array.from(districtNIds);
+}
+
+// Extract center coordinates for radius search (from primary location)
+if (filters.radius && selectedLocation?.lat && selectedLocation?.lon) {
+  filters.centerLat = selectedLocation.lat;
+  filters.centerLon = selectedLocation.lon;
+}
+
+// Store selected location for UI display (single location only)
+const selectedLocations = selectedLocation ? [selectedLocation] : [];
+
+// Store selected districts for UI display (multi-select support)
+const selectedDistrictsList = resolvedDistricts.length > 0 ? resolvedDistricts : [];
+
+// @ts-expect-error - cleanup temp storage
+delete filters._locationSlugs;
+// @ts-expect-error - cleanup temp storage
+delete filters._additionalLocationSlugs;
+// @ts-expect-error - cleanup temp storage
+delete filters._districtSlugs;
+
+// Get provinces with property counts and images (V1-compatible)
+// Default to old addresses (useNew=false) to match v1 behavior
+const provinces = await getAllProvincesWithCount(undefined, false);
+
+// Extract province and district slugs from selected locations
+let currentProvinceSlug = '';
+let currentDistrictSlugs: string[] = [];
+
+if (resolvedDistricts.length > 0) {
+  // Multi-district selection from query param
+  currentDistrictSlugs = resolvedDistricts.map(d => d.slug);
+  // Get province from first district
+  if (resolvedDistricts[0].provinceId) {
+    const parentProvince = provinces.find(p => p.nId === resolvedDistricts[0].provinceId);
+    currentProvinceSlug = parentProvince?.slug || '';
+  }
+} else if (selectedLocation) {
+  if (selectedLocation.type === 'province') {
+    // User selected province directly
+    currentProvinceSlug = selectedLocation.slug;
+  } else if (selectedLocation.type === 'district') {
+    // User selected single district from URL path
+    currentDistrictSlugs = [selectedLocation.slug];
+    if (selectedLocation.provinceId) {
+      // Find province by nId to get slug
+      const parentProvince = provinces.find(p => p.nId === selectedLocation.provinceId);
+      currentProvinceSlug = parentProvince?.slug || '';
+    }
+  }
+}
+
+// Resolve property type name for breadcrumb (prioritize slug-based detection)
+// Use vietnamese field for Vietnamese text, fallback to title if not available
+const propertyTypeName = propertyTypeFromSlug?.vietnamese || propertyTypeFromSlug?.title || (
+  filters.propertyTypes?.length === 1
+    ? (propertyTypes.find(pt => pt.id === filters.propertyTypes![0])?.vietnamese ||
+       propertyTypes.find(pt => pt.id === filters.propertyTypes![0])?.title || '')
+    : ''
+);
+
+// Build pattern for sidebar location filter (same logic as LocationFilterCard)
+let sideBlockPattern: string | null = null;
+const isTransactionUrl = VALID_TRANSACTIONS.includes(slug?.split('/')[0] || '');
+const shouldHideForTransactionOnly = isTransactionUrl && !selectedLocation;
+
+if (!shouldHideForTransactionOnly) {
+  // Build pattern from property type and location
+  const propertyTypeSlug = propertyTypeFromSlug?.slug || slugParts[0];
+  const locationSlug = selectedLocation?.slug;
+
+  if (locationSlug) {
+    sideBlockPattern = `${propertyTypeSlug}/${locationSlug}`;
+  } else {
+    sideBlockPattern = propertyTypeSlug || 'mua-ban';
+  }
+}
+
+
+// Fetch SEO metadata for current path
+const currentPath = url.pathname;
+let seoMetadata: SeoMetadata | null = null;
+
+try {
+  seoMetadata = await getSeoMetadata(currentPath);
+} catch (error) {
+  console.error('[ListingPage] Failed to fetch SEO metadata:', error);
+  // Continue without SEO metadata (graceful degradation)
+}
+
+// Parallel queries - fetch properties, featured projects, and sidebar data simultaneously (SSG optimization)
+const [searchResult, featuredProjects, sideBlocks] = await Promise.all([
+  searchProperties(filters),
+  getFeaturedProjects(5),
+  sideBlockPattern ? getSideBlock({ pattern: sideBlockPattern }).catch(err => {
+    console.error('[Page] Failed to load side blocks:', err);
+    return [];
+  }) : Promise.resolve([]),
+]);
+let { hits: properties, total, took } = searchResult;
+
+// ZERO RESULTS FALLBACK: Cascading 3-tier relaxation strategy (v1 parity)
+let isFallback = false;
+let relaxationMetadata: RelaxationLevel | null = null;
+
+if (properties.length === 0) {
+  console.log('[Fallback] Original search returned 0 results, attempting fallback...');
+
+  // Track zero results event for analytics
+  try {
+    trackZeroResults(filters);
+  } catch (error) {
+    console.error('[Analytics] Failed to track zero results:', error);
+  }
+
+  // Check cache first to avoid redundant ES queries
+  const cached = fallbackCache.get(filters);
+  if (cached) {
+    console.log(`[Fallback] Using cached Level ${cached.level} results (${cached.results.hits.length} hits)`);
+    isFallback = true;
+    relaxationMetadata = { level: cached.level, description: 'Kết quả gợi ý', removedFilters: [], relaxedParams: filters };
+    properties = cached.results.hits;
+    total = cached.results.total;
+    took = cached.results.took;
+  }
+
+  // If no cached results, perform fallback search
+  if (!isFallback) {
+    // Build location context for Level 2 expansion
+  const locationContext: LocationContext = {
+    currentProvince: selectedLocation && (selectedLocation.type === 'province' || selectedLocation.type === 'district')
+      ? {
+          nId: selectedLocation.provinceId || selectedLocation.nId,
+          slug: selectedLocation.slug,
+          name: selectedLocation.name,
+        }
+      : undefined,
+    currentDistrict: selectedLocation && selectedLocation.type === 'district'
+      ? {
+          nId: selectedLocation.nId,
+          slug: selectedLocation.slug,
+          name: selectedLocation.name,
+          provinceNId: selectedLocation.provinceId!,
+        }
+      : undefined,
+  };
+
+  // Try Level 1: Remove filters, keep location
+  if (filterRelaxationService.canRelax(filters, 1)) {
+    console.log('[Fallback] Attempting Level 1 relaxation (remove filters, keep location)...');
+    const relaxation = filterRelaxationService.relaxLevel1(filters);
+    const fallbackResult = await searchProperties(relaxation.relaxedParams);
+
+    if (fallbackResult.hits.length > 0) {
+      isFallback = true;
+      relaxationMetadata = relaxation;
+      properties = fallbackResult.hits;
+      total = fallbackResult.total;
+      took = fallbackResult.took;
+      console.log(`[Fallback] Level 1 found ${fallbackResult.hits.length} results`);
+    }
+  }
+
+  // Try Level 2: Expand to city if Level 1 failed
+  if (!isFallback && filterRelaxationService.canRelaxLevel2(filters, locationContext)) {
+    console.log('[Fallback] Level 1 failed, attempting Level 2 (expand to city)...');
+    const relaxation = filterRelaxationService.relaxLevel2(filters, locationContext);
+    const fallbackResult = await searchProperties(relaxation.relaxedParams);
+
+    if (fallbackResult.hits.length > 0) {
+      isFallback = true;
+      relaxationMetadata = relaxation;
+      properties = fallbackResult.hits;
+      total = fallbackResult.total;
+      took = fallbackResult.took;
+      console.log(`[Fallback] Level 2 found ${fallbackResult.hits.length} results`);
+    }
+  }
+
+  // Try Level 3: Go nationwide if Level 2 failed
+  if (!isFallback && filterRelaxationService.canRelaxLevel3(filters)) {
+    console.log('[Fallback] Level 2 failed, attempting Level 3 (nationwide)...');
+    const relaxation = filterRelaxationService.relaxLevel3(filters);
+    const fallbackResult = await searchProperties(relaxation.relaxedParams);
+
+    if (fallbackResult.hits.length > 0) {
+      isFallback = true;
+      relaxationMetadata = relaxation;
+      properties = fallbackResult.hits;
+      total = fallbackResult.total;
+      took = fallbackResult.took;
+      console.log(`[Fallback] Level 3 found ${fallbackResult.hits.length} results`);
+    }
+  }
+
+    // Note: Don't fallback to featured projects - they're projects, not properties
+    // If all relaxation levels fail, properties stays empty
+    if (!isFallback) {
+      console.log('[Fallback] All relaxation levels exhausted, showing zero results');
+    }
+
+    // Cache successful fallback results
+    if (isFallback && relaxationMetadata && properties.length > 0) {
+      try {
+        fallbackCache.set(filters, { hits: properties, total, took }, relaxationMetadata.level);
+        trackFallbackSuccess(relaxationMetadata.level, properties.length, filters);
+      } catch (error) {
+        console.error('[Cache/Analytics] Failed to cache or track fallback:', error);
+      }
+    }
+  }
+}
+
+// Build metadata - prioritize SEO metadata over generated title
+const pageTitle = seoMetadata?.titleWeb || seoMetadata?.title || getPageTitle(filters);
+const description = getPageDescription(filters, total);
+
+// Pagination info
+const currentPage = filters.page || 1;
+const pageSize = filters.pageSize || 24;
+const totalPages = Math.ceil(total / pageSize);
+
+// Helper: Build sort URL preserving current filters
+function buildSortUrl(sortOption: string): string {
+  const params = new URLSearchParams(url.searchParams);
+  params.set('sort', sortOption);
+  params.delete('page'); // Reset to page 1 when changing sort
+  const query = params.toString();
+  return query ? `${url.pathname}?${query}` : url.pathname;
+}
+
+// Fetch price history when district is selected (based on district + property type, not price filter)
+const hasDistrictContext = selectedLocation?.type === 'district' || resolvedDistricts.length > 0;
+
+let priceHistoryData: Awaited<ReturnType<typeof getPriceHistoryForLocation>> = null;
+
+if (hasDistrictContext) {
+  // Get district slug for price history lookup
+  const districtSlug = resolvedDistricts[0]?.slug || selectedLocation?.slug;
+  // Get property type slug for price history lookup
+  const propertySlug = propertyTypeFromSlug?.slug || slugParts[0] || 'mua-ban';
+
+  if (districtSlug) {
+    try {
+      priceHistoryData = await getPriceHistoryForLocation({
+        district: districtSlug,
+        slug: propertySlug,
+      });
+
+      // Replace English property type names in chartTitle with Vietnamese
+      if (priceHistoryData && propertyTypeName) {
+        const englishPropertyTypes = [
+          'Apartment', 'Villa', 'Townhouse', 'Land', 'House',
+          'Office', 'Shop', 'Warehouse', 'Hotel', 'Resort'
+        ];
+
+        let updatedTitle = priceHistoryData.chartTitle;
+        for (const englishType of englishPropertyTypes) {
+          const regex = new RegExp(englishType, 'gi');
+          updatedTitle = updatedTitle.replace(regex, propertyTypeName);
+        }
+        priceHistoryData.chartTitle = updatedTitle;
+      }
+    } catch (error) {
+      console.error('[ListingPage] Failed to fetch price history:', error);
+    }
+  }
+}
+
+// Build price trend data for sidebar card
+const priceTrendData = priceHistoryData ? {
+  changePercent: priceHistoryData.analyzedData?.changedPercentValue,
+  trendDirection: (priceHistoryData.twoYear?.trendDirection || priceHistoryData.fiveYear?.trendDirection) as 'up' | 'down' | 'stable' | undefined,
+  propertyType: propertyTypeName || 'BĐS',
+  location: selectedLocation?.name || 'khu vực này',
+} : null;
+---
+
+<ListingWithSidebarLayout title={pageTitle} description={description}>
+  <!-- Horizontal Search Bar -->
+  <HorizontalSearchBar
+    transactionType={filters.transactionType}
+    propertyTypes={propertyTypes.map(pt => ({
+      id: pt.id,
+      title: pt.vietnamese || pt.title || '',
+      slug: pt.slug || '',
+      vietnamese: pt.vietnamese
+    }))}
+    provinces={provinces}
+    currentProvince={currentProvinceSlug}
+    currentDistricts={currentDistrictSlugs}
+    currentFilters={{
+      propertyTypes: filters.propertyTypes,
+      minPrice: filters.minPrice?.toString(),
+      maxPrice: filters.maxPrice?.toString(),
+      keyword: filters.keyword,
+      minArea: filters.minArea?.toString(),
+      maxArea: filters.maxArea?.toString(),
+      radius: filters.radius?.toString(),
+      bedrooms: filters.bedrooms?.toString(),
+      bathrooms: filters.bathrooms?.toString(),
+    }}
+    currentPath={url.pathname}
+  />
+
+  <!-- Breadcrumb -->
+  <ListingBreadcrumb
+    filters={filters}
+    selectedLocations={selectedLocations}
+    propertyTypeName={propertyTypeName}
+  />
+
+  <!-- Results Header -->
+  <div class="py-4 mb-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-xl font-semibold text-slate-900">
+          {pageTitle.replace(' - Tongkho BĐS', '')}
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Tìm thấy <span class="font-medium text-slate-700">{total.toLocaleString('vi-VN')}</span> kết quả
+        </p>
+      </div>
+
+      <!-- Sort Dropdown -->
+      <div class="flex items-center gap-2">
+        <label for="sort" class="text-sm text-slate-600">Sắp xếp:</label>
+        <select
+          id="sort"
+          class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          onchange="if (window.location.pathname + window.location.search !== this.value) window.location.href = this.value"
+        >
+          <option value={buildSortUrl('newest')} selected={filters.sort === 'newest'}>Mới nhất</option>
+          <option value={buildSortUrl('oldest')} selected={filters.sort === 'oldest'}>Cũ nhất</option>
+          <option value={buildSortUrl('price_asc')} selected={filters.sort === 'price_asc'}>Giá thấp đến cao</option>
+          <option value={buildSortUrl('price_desc')} selected={filters.sort === 'price_desc'}>Giá cao đến thấp</option>
+          <option value={buildSortUrl('area_asc')} selected={filters.sort === 'area_asc'}>Diện tích nhỏ đến lớn</option>
+          <option value={buildSortUrl('area_desc')} selected={filters.sort === 'area_desc'}>Diện tích lớn đến nhỏ</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <!-- Property Grid -->
+  <ListingGrid
+    properties={properties}
+    isFallback={isFallback}
+    relaxationMetadata={relaxationMetadata}
+  />
+
+  <!-- Pagination -->
+  {totalPages > 1 && (
+    <ListingPagination
+      currentPage={currentPage}
+      totalPages={totalPages}
+      baseUrl={url.pathname}
+      totalResults={total}
+      pageSize={pageSize}
+    />
+  )}
+
+  <!-- Price History Section (only when price filter active and data available) -->
+  {priceHistoryData && (priceHistoryData.twoYear || priceHistoryData.fiveYear) && (
+    <PriceHistorySection
+      twoYear={priceHistoryData.twoYear}
+      fiveYear={priceHistoryData.fiveYear}
+      analyzedData={priceHistoryData.analyzedData}
+      chartTitle={priceHistoryData.chartTitle}
+      chartUnit={priceHistoryData.chartUnit}
+    />
+  )}
+
+  <!-- SEO Content Below (only if properties exist and content available) -->
+  {properties.length > 0 && seoMetadata?.contentBelow && (
+    <div class="mt-20 prose prose-slate max-w-none">
+      <div set:html={seoMetadata.contentBelow} />
+    </div>
+  )}
+
+  <!-- Sidebar -->
+  <Fragment slot="sidebar">
+    <SidebarWrapper filters={filters} featuredProjects={featuredProjects} sideBlocks={sideBlocks} priceTrend={priceTrendData} />
+  </Fragment>
+</ListingWithSidebarLayout>

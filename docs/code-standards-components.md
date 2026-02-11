@@ -438,6 +438,256 @@ For external URLs (future CDN integration):
 
 ---
 
+## HTMX Integration Patterns
+
+When using HTMX for dynamic content loading, follow these best practices:
+
+### Trigger Patterns
+
+**Load Only Once (Static Content)**
+```html
+<!-- ✅ CORRECT - Load districts on page load, then stop -->
+<div
+  data-district-panel
+  hx-get="/api/location/districts?province=1"
+  hx-trigger="load once"
+  hx-swap="innerHTML"
+>
+  Loading...
+</div>
+```
+
+**Load Repeatedly (Dynamic Content)**
+```html
+<!-- ✅ CORRECT - Refresh on user action -->
+<div
+  data-notifications
+  hx-get="/api/notifications"
+  hx-trigger="click, every 5s"
+  hx-swap="innerHTML"
+>
+  Notifications
+</div>
+```
+
+### Anti-Pattern: Infinite Requests
+```html
+<!-- ❌ WRONG - Loads every page load, can cause infinite requests -->
+<div
+  hx-get="/api/districts"
+  hx-trigger="load"
+>
+  Never use bare "load" for static content
+</div>
+```
+
+**When to use `load once`:**
+- Initial page load content (districts for selected province)
+- Hierarchical data that changes only on user action
+- API calls that should execute only once during component lifetime
+
+**Reference:** See `src/components/listing/sidebar/location-selector.astro` (line 87) for correct pattern.
+
+---
+
+## Server-Side Rendering (SSR) Component Patterns [NEW]
+
+### When to Use SSR Components
+
+SSR components fetch data at build time (not runtime) to populate static HTML with fresh database content. Use when:
+
+1. **Data is stable within build window** – Property counts, menu items, listings don't change mid-build
+2. **Zero client-side API calls needed** – All data embedded in HTML
+3. **SEO-relevant content** – Data should be in source HTML (crawlable)
+4. **No real-time updates** – Data doesn't change between builds
+
+### Pattern Example: Location Filter Card
+
+**File:** `components/listing/sidebar/location-filter-card.astro`
+
+```astro
+---
+/**
+ * Location Filter Card - Server-rendered province list with property counts
+ *
+ * ✅ SSR Benefits:
+ *    - Fresh data at every build
+ *    - Property counts aggregated from DB
+ *    - Zero JavaScript for core functionality
+ *    - SEO: All links crawlable
+ */
+
+// 1. Parse context from Astro.url (no props needed)
+const url = Astro.url;
+const currentProvince = url.pathname.split('/')[2];
+
+// 2. Async server function - runs at build time only
+import { getAllProvincesWithCount } from '@/services/location/location-service';
+let provinces: Province[] = [];
+try {
+  provinces = await getAllProvincesWithCount(20);
+} catch (error) {
+  console.error('Failed to load provinces:', error);
+}
+
+// 3. Helper functions (pure, no side effects)
+function buildProvinceUrl(slug: string): string {
+  const searchParams = url.searchParams.toString();
+  return `/${transactionType}/${slug}${searchParams ? `?${searchParams}` : ''}`;
+}
+---
+
+<!-- 4. Render static links (no hydration) -->
+<div class="filter-card">
+  {provinces.map((prov) => (
+    <a
+      href={buildProvinceUrl(prov.slug)}
+      class:list={[
+        'province-link',
+        currentProvince === prov.slug && 'active'
+      ]}
+    >
+      <span>{prov.name}</span>
+      <span>({prov.propertyCount})</span>
+    </a>
+  ))}
+</div>
+
+<!-- 5. Optional: Client-side enhancement (expand/collapse) -->
+<script>
+  function initExpand() {
+    const btn = document.querySelector('[data-expand]');
+    btn?.addEventListener('click', () => {
+      // Minimal JS for interactivity
+    });
+  }
+  initExpand();
+  document.addEventListener('astro:after-swap', initExpand);
+</script>
+```
+
+### Structure: Three Phases
+
+| Phase | When | What Runs | Example |
+|-------|------|-----------|---------|
+| **Server** | Build time | Async functions, DB queries | `getAllProvincesWithCount()` |
+| **Render** | Build → HTML | JSX/HTML template, loops | Province links, property counts |
+| **Client** | Runtime (optional) | Event listeners, interactivity | Expand/collapse buttons |
+
+### Key Rules
+
+1. **Async functions only in frontmatter:**
+   ```astro
+   ---
+   // ✅ OK - Build time
+   const data = await db.query(...);
+   ---
+   ```
+
+2. **Avoid props for data already in context:**
+   ```astro
+   <!-- ✅ Parse from URL instead -->
+   const slug = new URL(Astro.url).pathname.split('/')[2];
+
+   <!-- ❌ Don't pass as prop if context available -->
+   <!-- <Component province={slug} /> -->
+   ```
+
+3. **Error handling with fallbacks:**
+   ```typescript
+   // ✅ Graceful degradation
+   let data = [];
+   try {
+     data = await fetchData();
+   } catch (error) {
+     console.error('Failed to load:', error);
+     // Component renders empty/fallback state
+   }
+   ```
+
+4. **Query parameter preservation:**
+   ```typescript
+   // ✅ Maintain filter state when navigating
+   const searchParams = url.searchParams.toString();
+   const href = `/path?${searchParams}`;
+   ```
+
+5. **Minimal optional client script:**
+   ```astro
+   <script>
+     // Only if interactivity needed (expand/collapse, toggle, etc.)
+     // Never for navigation or data loading
+   </script>
+   ```
+
+### Service Layer Pattern
+
+Create typed, reusable service functions:
+
+```typescript
+// services/location/location-service.ts
+export async function getAllProvincesWithCount(
+  limit?: number,
+  useNewAddresses = true
+): Promise<Province[]> {
+  // Type-safe query
+  const rows = await db
+    .select({
+      id: locations.id,
+      name: locations.title,
+      slug: locations.slug,
+      propertyCount: locations.propertyCount,
+    })
+    .from(locations)
+    .limit(limit);
+
+  return rows;
+}
+```
+
+Component usage is clean:
+```astro
+---
+import { getAllProvincesWithCount } from '@/services/location/location-service';
+const provinces = await getAllProvincesWithCount(20);
+---
+```
+
+### When NOT to Use SSR Components
+
+- ❌ Real-time data (prices, availability changing every minute)
+- ❌ User-specific data (requires authentication)
+- ❌ High-frequency updates needed mid-build
+- → Use client-side React + API instead
+
+### When to Use Client Components Instead
+
+```astro
+---
+// ❌ This needs client-side fetching
+// const realtimeData = await fetch('/api/...');  // Never works at build time
+---
+
+<!-- ✅ Use client-side React instead -->
+<RealtimeSearch client:load />
+```
+
+```typescript
+// components/RealtimeSearch.tsx
+export function RealtimeSearch() {
+  const [data, setData] = useState([]);
+
+  useEffect(() => {
+    // This runs in browser
+    fetch('/api/search').then(r => r.json()).then(setData);
+  }, []);
+
+  return <div>{/* Render data */}</div>;
+}
+```
+
+---
+
 ## Performance Checklist
 
 - Use `<picture>` elements for responsive images
@@ -446,11 +696,14 @@ For external URLs (future CDN integration):
 - Preload critical fonts (Inter, Be Vietnam Pro)
 - Never use `<script>` tags (defeats static generation)
 - Use CSS containment for large grids (`contain: layout`)
+- For HTMX, use `hx-trigger="load once"` to prevent repeated requests
+- **[NEW]** SSR components: Fetch at build time, embed in HTML, minimize runtime JS
 
 ---
 
 ## Document Version
 
-- **Version:** 2.0
-- **Last Updated:** 2026-02-07
+- **Version:** 2.2
+- **Last Updated:** 2026-02-10
 - **Parent:** [Code Standards & Conventions](./code-standards.md)
+- **Latest Change:** Added SSR component patterns and guidelines

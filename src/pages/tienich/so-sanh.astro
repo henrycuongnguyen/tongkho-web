@@ -1,0 +1,237 @@
+---
+/**
+ * Compare Properties Page
+ * /tienich/so-sanh
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+---
+
+<MainLayout title="So sánh bất động sản | TongkhoBDS">
+  <div class="container mx-auto px-4 py-6">
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-slate-500 mb-6">
+      <a href="/" class="hover:text-orange-500">Trang chủ</a>
+      <span class="mx-2">/</span>
+      <a href="/tienich" class="hover:text-orange-500">Tiện ích</a>
+      <span class="mx-2">/</span>
+      <span class="text-slate-700">So sánh bất động sản</span>
+    </nav>
+
+    <h1 class="text-2xl font-bold text-slate-800 mb-6">So sánh bất động sản</h1>
+
+    <!-- Loading State -->
+    <div id="compare-loading" class="flex justify-center items-center py-16">
+      <div class="animate-spin rounded-full h-12 w-12 border-4 border-orange-500 border-t-transparent"></div>
+    </div>
+
+    <!-- Empty State -->
+    <div id="compare-empty" class="hidden text-center py-16">
+      <svg class="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+      </svg>
+      <p class="text-slate-600 mb-4">Chưa có bất động sản nào để so sánh</p>
+      <a href="/mua-ban" class="inline-block px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600">
+        Tìm kiếm BĐS
+      </a>
+    </div>
+
+    <!-- Error State -->
+    <div id="compare-error" class="hidden text-center py-16">
+      <svg class="w-16 h-16 text-red-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      </svg>
+      <p class="text-slate-600 mb-2 font-semibold">Không thể tải dữ liệu so sánh</p>
+      <p class="text-slate-500 text-sm mb-4">Đã xảy ra lỗi khi kết nối đến máy chủ</p>
+      <button
+        id="compare-retry"
+        class="inline-block px-6 py-2 bg-orange-500 text-white rounded-lg hover:bg-orange-600"
+      >
+        Thử lại
+      </button>
+    </div>
+
+    <!-- Comparison Content -->
+    <div id="compare-content" class="hidden">
+      <!-- Property Headers -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6" id="compare-headers">
+        <!-- Rendered by script -->
+      </div>
+
+      <!-- Comparison Table -->
+      <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+        <table class="w-full">
+          <tbody id="compare-table">
+            <!-- Rendered by script -->
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</MainLayout>
+
+<script>
+  const STORAGE_KEY = 'compare_items';
+  const API_BASE = 'https://quanly.tongkhobds.com/api_customer';
+
+  const loadingEl = document.getElementById('compare-loading');
+  const emptyEl = document.getElementById('compare-empty');
+  const errorEl = document.getElementById('compare-error');
+  const retryBtn = document.getElementById('compare-retry');
+  const contentEl = document.getElementById('compare-content');
+  const headersEl = document.getElementById('compare-headers');
+  const tableEl = document.getElementById('compare-table');
+
+  interface CompareItem {
+    estateId: string;
+    title: string;
+    image?: string;
+    url: string;
+  }
+
+  interface PropertyData {
+    id: string;
+    title: string;
+    main_image?: string;
+    district?: string;
+    city?: string;
+    [key: string]: any;
+  }
+
+  interface CompareField {
+    key: string;
+    label: string;
+  }
+
+  interface CompareApiResponse {
+    status: number;
+    message?: string;
+    data: {
+      real_estates: PropertyData[];
+      compare_fields: CompareField[];
+    };
+  }
+
+  function getItems(): CompareItem[] {
+    try {
+      return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+    } catch {
+      return [];
+    }
+  }
+
+  async function fetchCompareData(id1: string, id2?: string): Promise<CompareApiResponse['data']> {
+    const params = new URLSearchParams({ id_1: id1 });
+    if (id2) params.append('id_2', id2);
+
+    const response = await fetch(`${API_BASE}/compare_real_estate.json?${params}`);
+    if (!response.ok) throw new Error('API error');
+
+    const data: CompareApiResponse = await response.json();
+    if (data.status !== 1) throw new Error(data.message || 'API error');
+
+    return data.data;
+  }
+
+  function renderHeader(property: PropertyData): string {
+    const UPLOADS_BASE = 'https://quanly.tongkhobds.com';
+    const image = property.main_image?.startsWith('http')
+      ? property.main_image
+      : `${UPLOADS_BASE}${property.main_image || '/images/placeholder-property.jpg'}`;
+
+    return `
+      <div class="bg-white rounded-lg shadow-sm p-4">
+        <img src="${image}" alt="${property.title}" class="w-full h-48 object-cover rounded-lg mb-4" />
+        <h3 class="font-semibold text-slate-800 line-clamp-2">${property.title}</h3>
+        <p class="text-sm text-slate-500 mt-1">${[property.district, property.city].filter(Boolean).join(', ')}</p>
+      </div>
+    `;
+  }
+
+  function renderRow(field: CompareField, props: PropertyData[]): string {
+    const values = props.map(p => {
+      const val = p[field.key];
+      if (val === undefined || val === null || val === '') return '-';
+      return String(val);
+    });
+
+    const cols = values.map(v => `<td class="px-4 py-3 text-slate-600">${v}</td>`).join('');
+
+    return `
+      <tr class="border-b border-slate-100">
+        <td class="px-4 py-3 font-medium text-slate-700 bg-slate-50 w-1/4">${field.label}</td>
+        ${cols}
+      </tr>
+    `;
+  }
+
+  function showError() {
+    loadingEl?.classList.add('hidden');
+    emptyEl?.classList.add('hidden');
+    errorEl?.classList.remove('hidden');
+    contentEl?.classList.add('hidden');
+  }
+
+  function showEmpty() {
+    loadingEl?.classList.add('hidden');
+    emptyEl?.classList.remove('hidden');
+    errorEl?.classList.add('hidden');
+    contentEl?.classList.add('hidden');
+  }
+
+  function showLoading() {
+    loadingEl?.classList.remove('hidden');
+    emptyEl?.classList.add('hidden');
+    errorEl?.classList.add('hidden');
+    contentEl?.classList.add('hidden');
+  }
+
+  function showContent() {
+    loadingEl?.classList.add('hidden');
+    emptyEl?.classList.add('hidden');
+    errorEl?.classList.add('hidden');
+    contentEl?.classList.remove('hidden');
+  }
+
+  async function init() {
+    const items = getItems();
+
+    if (items.length === 0) {
+      showEmpty();
+      return;
+    }
+
+    showLoading();
+
+    try {
+      const data = await fetchCompareData(
+        items[0].estateId,
+        items[1]?.estateId
+      );
+
+      if (!data.real_estates?.length) {
+        showEmpty();
+        return;
+      }
+
+      // Render headers
+      headersEl!.innerHTML = data.real_estates.map(renderHeader).join('');
+
+      // Render table
+      tableEl!.innerHTML = data.compare_fields.map((f: CompareField) =>
+        renderRow(f, data.real_estates)
+      ).join('');
+
+      showContent();
+    } catch (error) {
+      console.error('Compare fetch error:', error);
+      showError();
+    }
+  }
+
+  // Retry button handler
+  retryBtn?.addEventListener('click', () => {
+    init();
+  });
+
+  init();
+</script>

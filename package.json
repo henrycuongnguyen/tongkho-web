@@ -7,7 +7,10 @@
     "start": "astro dev",
     "build": "astro check && astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "test": "npx tsx --test src/**/*.test.ts",
+    "test:ui": "vitest --ui",
+    "test:run": "npx tsx --test src/**/*.test.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.6",
@@ -21,12 +24,16 @@
     "postgres": "^3.4.8",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "swiper": "^12.1.0",
     "typescript": "^5.7.0"
   },
   "devDependencies": {
     "@iconify-json/lucide": "^1.2.0",
     "@tailwindcss/vite": "^4.1.18",
+    "@vitest/ui": "^4.0.18",
     "drizzle-kit": "^0.31.8",
-    "tailwindcss": "^4.1.18"
+    "jsdom": "^28.0.0",
+    "tailwindcss": "^4.1.18",
+    "vitest": "^4.0.18"
   }
 }

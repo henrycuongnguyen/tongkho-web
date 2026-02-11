@@ -1,0 +1,66 @@
+---
+/**
+ * Sidebar Wrapper
+ * Contains all sidebar widgets for listing page
+ */
+import type { PropertySearchFilters } from '@/services/elasticsearch/types';
+import type { SidebarFilterBlock } from '@/services/sidebar-filter-service';
+import type { FeaturedProject } from '@/services/featured-project-service';
+import type { SideBlock } from '@/services/get-side-block-service';
+import ContactCard from '@/components/shared/contact-card.astro';
+import LocationFilterCard from './location-filter-card.astro';
+import PriceRangeFilterCard from './price-range-filter-card.astro';
+import AreaRangeFilterCard from './area-range-filter-card.astro';
+import DynamicSidebarFilters from './dynamic-sidebar-filters.astro';
+import FeaturedProjectBanner from './featured-project-banner.astro';
+import PriceTrendCard from './price-trend-card.astro';
+
+interface PriceTrendData {
+  changePercent?: string;
+  trendDirection?: 'up' | 'down' | 'stable';
+  propertyType?: string;
+  location?: string;
+}
+
+interface Props {
+  filters: PropertySearchFilters;
+  dynamicFilterBlocks?: SidebarFilterBlock[];
+  featuredProjects?: FeaturedProject[];
+  sideBlocks?: SideBlock[];
+  priceTrend?: PriceTrendData | null;
+}
+
+const { filters, dynamicFilterBlocks = [], featuredProjects = [], sideBlocks = [], priceTrend } = Astro.props;
+---
+
+<div class="space-y-4">
+  <!-- Quick Contact -->
+  <ContactCard />
+
+  <!-- Price Trend Card (shows when price history available) -->
+  {priceTrend && (
+    <PriceTrendCard
+      changePercent={priceTrend.changePercent}
+      trendDirection={priceTrend.trendDirection}
+      propertyType={priceTrend.propertyType}
+      location={priceTrend.location}
+    />
+  )}
+
+  <!-- Price Range Filter -->
+  <PriceRangeFilterCard currentMin={filters.minPrice} currentMax={filters.maxPrice} />
+
+  <!-- Area Range Filter -->
+  <AreaRangeFilterCard currentMin={filters.minArea} currentMax={filters.maxArea} />
+
+  <!-- Dynamic Filters (context-aware) -->
+  {dynamicFilterBlocks.length > 0 && (
+    <DynamicSidebarFilters blocks={dynamicFilterBlocks} />
+  )}
+
+  <!-- Location Filter (SSR) -->
+  <LocationFilterCard sideBlocks={sideBlocks} />
+
+  <!-- Featured Projects -->
+  <FeaturedProjectBanner projects={featuredProjects} />
+</div>

@@ -1,0 +1,241 @@
+# Phase 1: Simple Fallback UI with Featured Projects
+
+**Priority:** High | **Status:** 📋 Planned | **Complexity:** Low
+
+## Context Links
+
+- [Plan Overview](./plan.md)
+- [v1 Analysis](./research/researcher-260211-1038-v1-zero-results-fallback.md)
+- [v2 Current State](./reports/scout-260211-1038-v2-listing-current-state.md)
+
+## Overview
+
+Quick win implementation using already-loaded data. When search returns zero results, display featured projects and helpful messaging instead of blank page. No backend changes needed.
+
+## Key Insights
+
+**Data Already Available:**
+- `featuredProjects` (5 items) - loaded in `[...slug].astro` line 236
+- `seoMetadata` - title, description, content blocks
+- `sideBlocks` - related regions, category info
+- `provinceList` with counts - alternative locations
+
+**No Additional API Calls Needed!**
+
+## Requirements
+
+### Functional Requirements
+
+1. **Detect zero results** in `[...slug].astro` after `searchProperties()` returns
+2. **Pass fallback flag** to `listing-grid.astro`
+3. **Render fallback UI** with:
+   - Clear messaging: "Không tìm thấy kết quả phù hợp với tiêu chí tìm kiếm"
+   - Suggestion heading: "Gợi ý cho bạn" (Suggestions for you)
+   - Featured projects grid (reuse existing data)
+   - Optional: Links to nearby provinces/districts
+
+### Non-Functional Requirements
+
+- No performance impact (reuse loaded data)
+- Mobile responsive layout
+- Consistent styling with existing grid
+- Accessible (screen reader friendly)
+
+## Architecture
+
+### Component Structure
+
+```
+[...slug].astro (lines 236-265)
+  ├─ Detect: searchResult.hits.length === 0
+  ├─ Set: isFallback = true
+  └─ Pass props to:
+       └─ listing-grid.astro
+            ├─ Conditional rendering
+            ├─ Empty state message (if isFallback)
+            └─ Fallback results (featuredProjects)
+```
+
+### Data Flow
+
+```
+searchProperties() → {total: 0, hits: []}
+  ↓
+[...slug].astro detects zero
+  ↓
+Pass: isFallback=true, fallbackResults=featuredProjects
+  ↓
+listing-grid.astro renders:
+  - "Không tìm thấy kết quả..." message
+  - "Gợi ý cho bạn" section
+  - Featured projects grid
+```
+
+## Related Code Files
+
+### Files to Modify
+
+1. **`src/pages/[...slug].astro`** (lines 236-265)
+   - Add zero results detection
+   - Prepare fallback data
+   - Pass to listing-grid
+
+2. **`src/components/listing/listing-grid.astro`**
+   - Add `isFallback` prop
+   - Add `fallbackResults` prop
+   - Conditional rendering logic
+   - Fallback UI components
+
+### Files to Reference (No Changes)
+
+- `src/services/elasticsearch/property-search-service.ts` - search logic
+- `src/services/featured-projects/featured-projects-service.ts` - featured data
+- `src/components/property/property-card.astro` - card component
+
+## Implementation Steps
+
+### Step 1: Detect Zero Results in `[...slug].astro`
+
+After line 243 (parallel data loading), add:
+
+```typescript
+const [searchResult, featuredProjects, sideBlocks] = await Promise.all([...]);
+
+// NEW: Detect zero results and prepare fallback
+const hasResults = searchResult.hits.length > 0;
+const isFallback = !hasResults;
+const fallbackResults = isFallback ? featuredProjects.slice(0, 6) : [];
+```
+
+### Step 2: Pass Props to listing-grid.astro
+
+Update line ~265:
+
+```astro
+<ListingGrid
+  properties={searchResult.hits}
+  isFallback={isFallback}
+  fallbackResults={fallbackResults}
+/>
+```
+
+### Step 3: Update listing-grid.astro Props
+
+Add to Astro.props:
+
+```typescript
+interface Props {
+  properties: PropertySearchHit[];
+  isFallback?: boolean;
+  fallbackResults?: PropertySearchHit[];
+}
+
+const { properties, isFallback = false, fallbackResults = [] } = Astro.props;
+```
+
+### Step 4: Implement Fallback Rendering
+
+Replace existing empty state (lines 20-41) with:
+
+```astro
+{properties.length === 0 ? (
+  <div class="space-y-8">
+    {/* Empty State Message */}
+    <div class="text-center py-12">
+      <div class="mb-4">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+      </div>
+      <h3 class="text-lg font-medium text-gray-900 mb-2">
+        Không tìm thấy kết quả phù hợp với tiêu chí tìm kiếm
+      </h3>
+      <p class="text-gray-600 mb-6">
+        Thử điều chỉnh bộ lọc hoặc xem các gợi ý bên dưới
+      </p>
+    </div>
+
+    {/* Fallback Suggestions */}
+    {isFallback && fallbackResults.length > 0 && (
+      <div>
+        <h2 class="text-xl font-semibold mb-4 text-gray-800">
+          Gợi ý cho bạn
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {fallbackResults.map((property) => (
+            <PropertyCard property={property} />
+          ))}
+        </div>
+      </div>
+    )}
+  </div>
+) : (
+  <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    {properties.map((property) => (
+      <PropertyCard property={property} />
+    ))}
+  </div>
+)}
+```
+
+### Step 5: Add Visual Distinction (Optional)
+
+Add subtle badge to fallback cards:
+
+```astro
+{isFallback && (
+  <span class="absolute top-2 left-2 bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+    Gợi ý
+  </span>
+)}
+```
+
+## Todo List
+
+- [ ] Modify `[...slug].astro` to detect zero results
+- [ ] Pass `isFallback` and `fallbackResults` props
+- [ ] Update `listing-grid.astro` props interface
+- [ ] Implement fallback UI rendering
+- [ ] Add empty state icon and messaging
+- [ ] Test with various filter combinations
+- [ ] Verify mobile responsive layout
+- [ ] Check accessibility (keyboard nav, screen reader)
+
+## Success Criteria
+
+- ✅ Zero results shows featured projects instead of blank page
+- ✅ Clear messaging: "Không tìm thấy kết quả..." + "Gợi ý cho bạn"
+- ✅ Reuses existing data (no extra API calls)
+- ✅ Responsive on mobile/tablet/desktop
+- ✅ No console errors or warnings
+
+## Testing Checklist
+
+- [ ] Navigate to URL with impossible filters (e.g., 50 bedrooms)
+- [ ] Verify empty state message displays
+- [ ] Verify featured projects show in fallback section
+- [ ] Click fallback property card → navigates correctly
+- [ ] Test on mobile viewport (< 768px)
+- [ ] Test with featured projects = 0 (edge case)
+- [ ] Test with screen reader (accessibility)
+
+## Risk Assessment
+
+| Risk | Impact | Mitigation |
+|------|--------|------------|
+| Featured projects not relevant | Low | Phase 2 will add smart relaxation |
+| Featured projects = 0 | Low | Handle gracefully, show message only |
+| Mobile layout breaks | Low | Test responsive grid early |
+
+## Security Considerations
+
+- No user input involved (read-only)
+- Reuses existing property data (already sanitized)
+- No XSS risk (standard Astro templating)
+
+## Next Steps
+
+After Phase 1 completion:
+1. Deploy to staging for user testing
+2. Gather metrics (bounce rate, click-through on fallback)
+3. Proceed to Phase 2: Filter relaxation service

@@ -4,13 +4,14 @@
  *
  * @example
  * <PropertyTypeDropdown name="property-type" />
- * <PropertyTypeDropdown placeholder="Loại cho thuê" />
+ * <PropertyTypeDropdown placeholder="Loại cho thuê" transactionType={2} />
  *
  * @prop id - Form input ID (optional, default: 'property-type')
  * @prop name - Form input name (optional, default: 'type')
  * @prop placeholder - Trigger button text (optional, default: 'Loại mua bán')
+ * @prop transactionType - 1 = Mua bán, 2 = Cho thuê, 3 = Dự án (default: 1)
  */
-import { propertyTypes } from "@/data/static-data";
+import { getPropertyTypesByTransaction } from "@/services/property-type-service";
 
 interface Props {
   /** Form input ID */
@@ -19,9 +20,19 @@ interface Props {
   name?: string;
   /** Trigger button placeholder text */
   placeholder?: string;
+  /** Transaction type: 1 = Mua bán, 2 = Cho thuê, 3 = Dự án */
+  transactionType?: number;
 }
 
-const { id = "property-type", name = "type", placeholder = "Loại mua bán" } = Astro.props;
+const {
+  id = "property-type",
+  name = "type",
+  placeholder = "Loại mua bán",
+  transactionType = 1
+} = Astro.props;
+
+// Fetch property types from database
+const propertyTypes = await getPropertyTypesByTransaction(transactionType);
 ---
 
 <div class="property-type-dropdown relative flex-1" data-property-dropdown>
@@ -72,8 +83,9 @@ const { id = "property-type", name = "type", placeholder = "Loại mua bán" } =
           <div class="relative shrink-0">
             <input
               type="checkbox"
-              class="peer sr-only"
+              class="peer sr-only widget-type"
               value={type.value}
+              data-slug={type.dataSlug}
             />
             <div class="w-5 h-5 rounded-md border-2 border-secondary-300 bg-white transition-all peer-checked:bg-primary-500 peer-checked:border-primary-500 peer-focus-visible:ring-2 peer-focus-visible:ring-primary-200 peer-focus-visible:ring-offset-1 group-hover:border-primary-400">
             </div>

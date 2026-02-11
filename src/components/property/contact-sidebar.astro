@@ -11,18 +11,22 @@ interface Props {
   agentName?: string;
   agentAvatar?: string;
   email?: string;
+  callPhone?: string;
+  zaloId?: string;
 }
 
 const {
   phone = "1900 98 89 98",
   agentName = "TongkhoBDS.com",
-  agentAvatar,
+  agentAvatar = "/images/tongkho-logo.jpg",
   email = "cskh@tongkhobds.com",
+  callPhone = "0965324969",
+  zaloId = "743507688581290959",
 } = Astro.props;
 
 // Format phone for tel: link (remove spaces/dashes)
-const telLink = `tel:${phone.replace(/\s|-/g, "")}`;
-const zaloLink = `https://zalo.me/${phone.replace(/\s|-/g, "")}`;
+const telLink = `tel:${callPhone.replace(/\s|-/g, "")}`;
+const zaloLink = `https://zalo.me/${zaloId}`;
 ---
 
 <!-- Desktop Sidebar (hidden on mobile) -->

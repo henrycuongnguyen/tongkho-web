@@ -1,0 +1,107 @@
+---
+/**
+ * Featured Project Banner (SSG)
+ * Display highlighted projects in sidebar slideshow from news table
+ * Matches v1 logic: queries news by folder "banner-du-an-noi-bat"
+ * Data passed from parent (fetched in parallel at page level)
+ */
+import type { FeaturedProject } from '@/services/featured-project-service';
+
+interface Props {
+  projects?: FeaturedProject[];
+}
+
+const { projects = [] } = Astro.props;
+
+const FALLBACK_IMAGE = '/images/placeholder-project.jpg';
+
+// Generate unique ID for this swiper instance
+const swiperId = `featured-projects-${Math.random().toString(36).substring(2, 11)}`;
+---
+
+{projects.length > 0 && (
+  <div class="featured-projects-wrapper">
+    <div id={swiperId} class="swiper rounded-lg overflow-hidden shadow-sm">
+      <div class="swiper-wrapper">
+        {projects.map((project) => (
+          <div class="swiper-slide">
+            <div class="sidebar-featured-property relative h-96 overflow-hidden rounded-lg">
+              {/* Background Image */}
+              <div class="absolute inset-0">
+                <img
+                  src={project.mainImage || FALLBACK_IMAGE}
+                  alt={project.title}
+                  class="w-full h-full object-cover"
+                  loading="lazy"
+                  onerror="if(!this.dataset.errorHandled){this.dataset.errorHandled='true';this.src='/images/placeholder-project.jpg';this.onerror=null}"
+                />
+              </div>
+
+              {/* Gradient Overlay */}
+              <div class="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent"></div>
+
+              {/* Project Info Overlay */}
+              <div class="absolute bottom-0 left-0 right-0 p-5 text-white">
+                <div class="content mb-4">
+                  <h4 class="title text-xl font-bold mb-3 line-clamp-2">
+                    {project.title}
+                  </h4>
+                  {project.description && (
+                    <div class="text-address">
+                      <p class="text-sm leading-relaxed line-clamp-4 text-white/90">
+                        {project.description}
+                      </p>
+                    </div>
+                  )}
+                </div>
+                <a
+                  href={`/du-an/${project.slug}`}
+                  class="block w-full bg-primary-500 hover:bg-primary-600 text-white text-center font-semibold py-3 px-6 rounded-full transition-all duration-300 hover:shadow-lg"
+                >
+                  Xem chi tiết
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
+
+<style>
+  /* Import Swiper CSS from npm package */
+  @import 'swiper/css';
+</style>
+
+<script is:inline data-swiper-id={swiperId} data-has-multiple={projects.length > 1}>
+  // Initialize Swiper after page load (use globally loaded Swiper from layout)
+  (function() {
+    const script = document.currentScript;
+    const swiperId = script.getAttribute('data-swiper-id');
+    const hasMultipleSlides = script.getAttribute('data-has-multiple') === 'true';
+
+    function initSwiper() {
+      const swiperEl = document.getElementById(swiperId);
+
+      if (swiperEl && typeof window.Swiper !== 'undefined' && !swiperEl.classList.contains('swiper-initialized')) {
+        new window.Swiper(`#${swiperId}`, {
+          modules: window.SwiperModules ? [window.SwiperModules.Autoplay] : [],
+          slidesPerView: 1,
+          spaceBetween: 15,
+          loop: hasMultipleSlides,
+          autoplay: hasMultipleSlides ? {
+            delay: 5000,
+            disableOnInteraction: false,
+          } : false,
+        });
+      }
+    }
+
+    // Init on page load and View Transitions
+    document.addEventListener('astro:page-load', initSwiper);
+    if (document.readyState === 'complete') {
+      initSwiper();
+    }
+  })();
+</script>
