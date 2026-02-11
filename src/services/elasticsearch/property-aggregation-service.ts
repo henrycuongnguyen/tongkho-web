@@ -51,11 +51,11 @@ export class PropertyAggregationService {
     }
 
     if (filters.city_id) {
-      must.push({ term: { "city_id.keyword": filters.city_id } });
+      must.push({ term: { "city_id": filters.city_id } });
     }
 
     if (filters.district_id) {
-      must.push({ term: { "district_id.keyword": filters.district_id } });
+      must.push({ term: { "district_id": filters.district_id } });
     }
 
     if (filters.ward_id) {
@@ -92,7 +92,7 @@ export class PropertyAggregationService {
         aggs: {
           by_city: {
             terms: {
-              field: "city_id.keyword",
+              field: "city_id",
               size: 200,
               order: { _count: "desc" }
             }
@@ -137,7 +137,7 @@ export class PropertyAggregationService {
         aggs: {
           by_district: {
             terms: {
-              field: "district_id.keyword",
+              field: "district_id",
               size: 500,
               order: { _count: "desc" }
             }
