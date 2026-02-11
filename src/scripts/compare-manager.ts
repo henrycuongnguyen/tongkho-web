@@ -135,7 +135,6 @@ const CompareManager = (() => {
     const title = sanitize(element.dataset.title || '');
 
     if (!estateId || !url || !title) {
-      console.warn('Missing required data attributes on compare button');
       return;
     }
 
@@ -160,10 +159,10 @@ const CompareManager = (() => {
     }
   };
 
-  const init = (): void => {
-    const items = getItems();
-
+  const syncButtonStates = (): void => {
     if (typeof document === 'undefined') return;
+
+    const items = getItems();
 
     // Update active state for all buttons (sync with localStorage)
     document.querySelectorAll('.btn-compare').forEach((btn) => {
@@ -175,25 +174,36 @@ const CompareManager = (() => {
         btn.classList.remove('active');
       }
     });
+  };
+
+  const init = (): void => {
+    if (typeof document === 'undefined') return;
 
     // Use event delegation to prevent memory leaks on HTMX swaps
-    // Remove any existing listener first to prevent duplicates
-    if ((document.body as any).__compareListenerAttached) {
-      return; // Already attached
+    // Attach listener only once
+    if (!(document.body as any).__compareListenerAttached) {
+      document.body.addEventListener('click', (e) => {
+        const target = e.target as HTMLElement;
+        const btn = target.closest('.btn-compare');
+
+        if (btn) {
+          e.preventDefault();
+          e.stopPropagation();
+          toggle(btn as HTMLElement);
+        }
+      });
+
+      (document.body as any).__compareListenerAttached = true;
     }
 
-    document.body.addEventListener('click', (e) => {
-      const target = e.target as HTMLElement;
-      const btn = target.closest('.btn-compare');
+    // Always sync button states (runs after HTMX swaps too)
+    syncButtonStates();
 
-      if (btn) {
-        e.preventDefault();
-        e.stopPropagation();
-        toggle(btn as HTMLElement);
-      }
-    });
+    // Listen for HTMX afterSwap events to re-sync button states
+    document.body.addEventListener('htmx:afterSwap', syncButtonStates);
 
-    (document.body as any).__compareListenerAttached = true;
+    // Listen for compareListChanged events to re-sync button states
+    document.addEventListener('compareListChanged', syncButtonStates);
   };
 
   const clear = (): void => {

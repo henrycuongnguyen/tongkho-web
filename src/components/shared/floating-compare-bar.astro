@@ -1,0 +1,288 @@
+---
+/**
+ * Floating Compare Bar
+ * Shows selected properties for comparison at bottom of screen
+ */
+---
+
+<div id="compare-bar" class="compare-bar hide fixed bottom-0 left-0 right-0 bg-white shadow-2xl border-t-2 border-orange-500 z-40 transition-transform duration-300">
+  <div class="container mx-auto px-4 sm:px-6 py-4">
+    <div class="flex flex-col sm:flex-row items-stretch sm:items-center gap-4">
+      <!-- Left: Counter + Items -->
+      <div class="flex-1 flex items-center gap-4 min-w-0">
+        <!-- Counter Badge -->
+        <div class="shrink-0">
+          <div class="flex items-center gap-2 px-3 py-1.5 bg-orange-50 border border-orange-200 rounded-lg">
+            <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
+            </svg>
+            <span id="compare-count" class="text-sm font-semibold text-orange-600">0</span>
+          </div>
+        </div>
+
+        <!-- Items Container -->
+        <div id="compare-bar-items" class="flex-1 flex items-center gap-3 overflow-x-auto scrollbar-thin scrollbar-thumb-slate-300 scrollbar-track-slate-100">
+          <!-- Rendered by script -->
+        </div>
+      </div>
+
+      <!-- Right: Actions -->
+      <div class="flex items-center gap-2 shrink-0">
+        <a
+          href="/tienich/so-sanh"
+          class="flex-1 sm:flex-none px-6 py-2.5 bg-orange-500 text-white rounded-lg font-semibold hover:bg-orange-600 active:bg-orange-700 transition-colors text-center shadow-md hover:shadow-lg"
+        >
+          So sánh
+        </a>
+        <button
+          id="compare-bar-clear"
+          class="px-4 py-2.5 text-slate-600 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors font-medium"
+        >
+          Xóa hết
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script is:inline>
+  // Prevent multiple initializations
+  if (window.__compareBarInitialized) {
+    // Already initialized, skip
+  } else {
+    initCompareBar();
+  }
+
+  function initCompareBar() {
+    const compareBar = document.getElementById('compare-bar');
+    const itemsContainer = document.getElementById('compare-bar-items');
+    const clearBtn = document.getElementById('compare-bar-clear');
+    const STORAGE_KEY = 'compare_items';
+
+    // Verify elements exist
+    if (!compareBar || !itemsContainer || !clearBtn) {
+      setTimeout(initCompareBar, 100);
+      return;
+    }
+
+    // Mark as initialized
+    window.__compareBarInitialized = true;
+
+    function getItems() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+      } catch {
+        return [];
+      }
+    }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
+  function createItemElement(item) {
+    const container = document.createElement('div');
+    container.className = 'compare-bar-item group relative flex items-center gap-3 bg-gradient-to-br from-slate-50 to-slate-100 hover:from-orange-50 hover:to-orange-100 rounded-xl p-3 min-w-[240px] border border-slate-200 hover:border-orange-300 transition-all duration-200 shadow-sm hover:shadow-md';
+
+    // Image
+    const img = document.createElement('img');
+    img.src = item.image || '/images/placeholder-property.jpg';
+    img.alt = item.title || '';
+    img.className = 'w-14 h-14 rounded-lg object-cover shrink-0 ring-2 ring-white shadow-sm';
+    img.onerror = function() {
+      this.src = '/images/placeholder-property.jpg';
+    };
+    container.appendChild(img);
+
+    // Title container
+    const titleContainer = document.createElement('div');
+    titleContainer.className = 'flex-1 min-w-0 pr-2';
+
+    const link = document.createElement('a');
+    link.href = item.url || '#';
+    link.className = 'text-sm font-semibold text-slate-800 line-clamp-2 hover:text-orange-600 transition-colors leading-snug';
+    link.textContent = item.title || '';
+    titleContainer.appendChild(link);
+    container.appendChild(titleContainer);
+
+    // Remove button
+    const removeBtn = document.createElement('button');
+    removeBtn.className = 'compare-bar-remove absolute top-1 right-1 shrink-0 w-6 h-6 flex items-center justify-center rounded-full bg-white/80 hover:bg-red-500 text-slate-400 hover:text-white shadow-sm backdrop-blur-sm transition-all duration-200 opacity-0 group-hover:opacity-100';
+    removeBtn.dataset.estateId = String(item.estateId);
+    removeBtn.setAttribute('aria-label', 'Xóa');
+
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('class', 'w-3.5 h-3.5');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('viewBox', '0 0 24 24');
+
+    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    path.setAttribute('stroke-linecap', 'round');
+    path.setAttribute('stroke-linejoin', 'round');
+    path.setAttribute('stroke-width', '2.5');
+    path.setAttribute('d', 'M6 18L18 6M6 6l12 12');
+
+    svg.appendChild(path);
+    removeBtn.appendChild(svg);
+    container.appendChild(removeBtn);
+
+    return container;
+  }
+
+    function updateBar() {
+      // Safety check
+      if (!compareBar || !itemsContainer) {
+        return;
+      }
+
+      try {
+        const items = getItems();
+
+        // Update counter badge
+        const counterEl = document.getElementById('compare-count');
+        if (counterEl) {
+          counterEl.textContent = items.length;
+        }
+
+        if (items.length > 0) {
+          // Clear container
+          itemsContainer.innerHTML = '';
+
+          // Append items using DOM elements (XSS-safe)
+          items.forEach((item) => {
+            itemsContainer.appendChild(createItemElement(item));
+          });
+
+          // Remove hide class and add show class
+          compareBar.classList.remove('hide');
+          compareBar.classList.add('show');
+          document.body.classList.add('compare-bar-active');
+
+          // Force style to ensure visibility
+          compareBar.style.transform = 'translateY(0)';
+          compareBar.style.visibility = 'visible';
+          compareBar.style.display = 'block';
+
+          // Force reflow to ensure animation works
+          void compareBar.offsetHeight;
+        } else {
+          itemsContainer.innerHTML = '';
+          compareBar.classList.add('hide');
+          compareBar.classList.remove('show');
+          document.body.classList.remove('compare-bar-active');
+        }
+      } catch (error) {
+        // Silent fail
+      }
+    }
+
+    // Event delegation for remove buttons (prevents memory leaks)
+    itemsContainer.addEventListener('click', (e) => {
+      const target = e.target;
+      const removeBtn = target.closest('.compare-bar-remove');
+
+      if (removeBtn && removeBtn.dataset.estateId) {
+        e.preventDefault();
+        if (typeof window.CompareManager !== 'undefined') {
+          window.CompareManager.remove(removeBtn.dataset.estateId);
+        }
+      }
+    });
+
+    // Clear all handler
+    clearBtn.addEventListener('click', () => {
+      if (typeof window.CompareManager !== 'undefined') {
+        window.CompareManager.clear();
+      }
+    });
+
+    // Listen for changes
+    document.addEventListener('compareListChanged', updateBar);
+    window.addEventListener('storage', (e) => {
+      if (e.key === STORAGE_KEY) {
+        updateBar();
+      }
+    });
+
+    // Initial render with multiple attempts to ensure DOM is ready
+    updateBar(); // Immediate attempt
+
+    // Fallback renders in case first attempt fails
+    setTimeout(() => {
+      updateBar();
+    }, 100);
+
+    setTimeout(() => {
+      updateBar();
+    }, 500);
+
+    setTimeout(() => {
+      updateBar();
+    }, 1000);
+
+    // Expose updateBar globally for debugging
+    window.__updateCompareBar = updateBar;
+  }
+</script>
+
+<style>
+  #compare-bar.hide {
+    transform: translateY(100%) !important;
+  }
+  #compare-bar.show {
+    transform: translateY(0) !important;
+  }
+
+  /* Ensure bar is positioned correctly */
+  #compare-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    transition: transform 0.3s ease-in-out;
+    backdrop-filter: blur(10px);
+  }
+
+  /* Custom scrollbar for items container */
+  #compare-bar-items {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(203 213 225) rgb(241 245 249);
+  }
+
+  #compare-bar-items::-webkit-scrollbar {
+    height: 6px;
+  }
+
+  #compare-bar-items::-webkit-scrollbar-track {
+    background: rgb(241 245 249);
+    border-radius: 3px;
+  }
+
+  #compare-bar-items::-webkit-scrollbar-thumb {
+    background: rgb(203 213 225);
+    border-radius: 3px;
+  }
+
+  #compare-bar-items::-webkit-scrollbar-thumb:hover {
+    background: rgb(148 163 184);
+  }
+
+  /* Smooth animation for items */
+  .compare-bar-item {
+    animation: slideIn 0.3s ease-out;
+  }
+
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+</style>
