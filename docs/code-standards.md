@@ -27,12 +27,13 @@ Guide to maintaining code quality, consistency, and best practices across the To
 
 - **TypeScript strict mode required** - No implicit `any`, all parameters typed
 - **Astro/React components** - Descriptive names, one per file, under 150 LOC
-- **DRY & Composition** - Check existing components before creating new ones
+- **DRY & Composition** - Check existing components before creating new ones (e.g., `ShareButtons` for all share needs)
 - **Vietnamese localization** - Use `formatPrice()`, `formatDate()`, `generateSlug()` utilities
 - **Responsive design** - Mobile-first with Tailwind breakpoints
 - **Database** - Drizzle ORM, typed queries, explicit column selection
 - **Styling** - Tailwind-first, custom CSS only when necessary
 - **Navigation Safety** - Always check current URL before navigating to prevent infinite reload loops
+- **Event Propagation** - Use `onclick="event.stopPropagation()"` to prevent parent link navigation in interactive components (share buttons, compare, favorites)
 
 ### Client-Side Navigation Pattern
 
@@ -70,12 +71,21 @@ window.location.href = baseUrl;  // Always navigates, even if already there
 | Data file | 300 |
 | Page layout | 100 |
 | Type definitions | 100 |
+| Shared UI (like ShareButtons) | 300 |
+
+### Reusable UI Components
+
+**ShareButtons (components/ui/share-buttons.astro)**
+- Use for all share functionality across cards, articles, detail pages
+- Props: `url`, `title`, `variant` (inline/popup), `size` (sm/md/lg), `showLabel`
+- Integration: Wrap with `onclick="event.stopPropagation()"` in cards to prevent link navigation
+- Platforms: Facebook, Zalo, Twitter/X, Copy Link (clipboard)
 
 ---
 
 ## Document Version
 
-- **Version:** 2.1
-- **Last Updated:** 2026-02-08
+- **Version:** 2.2
+- **Last Updated:** 2026-02-11
 - **Structure:** Modular (split into 3 files for maintainability)
-- **Latest Change:** Added client-side navigation safety pattern to prevent infinite reload loops
+- **Latest Change:** Added ShareButtons reusable UI component pattern, event propagation safety for interactive elements in cards

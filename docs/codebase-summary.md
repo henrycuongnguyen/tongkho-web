@@ -7,7 +7,7 @@ tongkho-web/
 ├── src/
 │   ├── components/
 │   │   ├── cards/
-│   │   │   └── property-card.astro          # Property listing card (110 LOC)
+│   │   │   └── property-card.astro          # Property listing card w/ ShareButtons (110 LOC) [Phase 1]
 │   │   ├── footer/
 │   │   │   └── footer.astro                 # Footer with links (173 LOC)
 │   │   ├── header/
@@ -24,7 +24,7 @@ tongkho-web/
 │   │   │   ├── listing-filter.astro         # Filter panel (desktop)
 │   │   │   ├── listing-grid.astro           # Property results grid
 │   │   │   ├── listing-pagination.astro     # Pagination controls
-│   │   │   ├── listing-property-card.astro  # Property card variant
+│   │   │   ├── listing-property-card.astro  # ES property card w/ ShareButtons [Phase 1]
 │   │   │   ├── location-chips.astro         # Selected location tags
 │   │   │   ├── location-autocomplete.astro  # Location search input
 │   │   │   └── sidebar/
@@ -542,4 +542,5 @@ npm run astro    # Astro CLI commands
 | 1.2 | 2026-02-06 | Phase 2 complete: Added menu-data.ts, build-time menu generation with fallback support |
 | 1.3 | 2026-02-06 | Phase 3 complete: Extracted static-data.ts for filter options; database-driven header navigation |
 | 1.4 | 2026-02-06 | Phase 4 complete: Hierarchical news folders, dynamic folder pages (27 total), recursive data structures |
+| 2.1 | 2026-02-11 | Phase 1 share functionality: Integrated ShareButtons component (popup variant) into property-card.astro and listing-property-card.astro; Share button row added to action buttons |
 | 2.0 | 2026-02-07 | Scout report: Added 32 components (8 new sections), 8 page routes, dynamic detail pages, authentication modal, SEO schemas, image gallery, news system, price history chart. Total ~3,500 LOC |

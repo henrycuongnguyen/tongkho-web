@@ -5,6 +5,7 @@
  */
 import type { PropertyDocument } from '@/services/elasticsearch/types';
 import { formatRelativeTime } from '@/utils/format';
+import ShareButtons from '@/components/ui/share-buttons.astro';
 
 interface Props {
   property: PropertyDocument;
@@ -130,6 +131,41 @@ const location = [property.district, property.city || property.city_name].filter
           <span>{property.bathrooms} WC</span>
         </>
       )}
+    </div>
+
+    <!-- Action Buttons Row -->
+    <div class="flex items-center justify-between pt-3 border-t border-slate-100 mt-3">
+      <div class="flex items-center gap-2">
+        <div onclick="event.stopPropagation()">
+          <ShareButtons
+            url={`/bds/${property.slug}`}
+            title={property.title}
+            variant="popup"
+            size="sm"
+          />
+        </div>
+        <!-- Compare and Favorite buttons (Phase 2) -->
+        <button
+          class="w-7 h-7 flex items-center justify-center text-secondary-400 hover:text-blue-500 hover:bg-secondary-50 rounded-full transition-all duration-200 cursor-pointer"
+          aria-label="So sánh"
+          title="So sánh"
+          onclick="event.stopPropagation()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+        </button>
+        <button
+          class="w-7 h-7 flex items-center justify-center text-secondary-400 hover:text-red-500 hover:bg-secondary-50 rounded-full transition-all duration-200 cursor-pointer"
+          aria-label="Yêu thích"
+          title="Yêu thích"
+          onclick="event.stopPropagation()"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+          </svg>
+        </button>
+      </div>
     </div>
   </div>
 </a>

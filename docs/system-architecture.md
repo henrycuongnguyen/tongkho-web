@@ -399,6 +399,40 @@ Examples:
 - Performance: No runtime database queries (static HTML)
 - SEO: All URLs crawlable and indexable as pure links
 
+### ShareButtons Component Pattern (Astro + Vanilla JS)
+
+**File:** `components/ui/share-buttons.astro`
+
+**Pattern:**
+1. **Server Phase (Astro Compile):** Two variants generated at build time
+   - Inline: Row of 4 share buttons (Facebook, Zalo, Twitter/X, Copy Link)
+   - Popup: Single trigger button with dropdown menu (compact)
+
+2. **Client Phase (Runtime):** Vanilla JavaScript event handlers
+   - Facebook/Zalo/Twitter: Open share URL in new tab via native share dialogs
+   - Copy: Clipboard API, visual feedback (checkmark for 2s)
+   - Popup: Toggle visibility, close on outside click, multiple popup support
+
+3. **Integration:** Used in property cards with `onclick="event.stopPropagation()"`
+   - Prevents parent link navigation when clicking share buttons
+   - Supports relative URLs (prefixed with `window.location.origin`)
+
+**Props:**
+```typescript
+url: string          // URL to share (relative path like /bds/{slug})
+title: string        // Share text/title
+variant: 'inline' | 'popup'  // Display style
+size: 'sm' | 'md' | 'lg'     // Button size
+showLabel: boolean   // Show "Chia sẻ:" label (inline only)
+```
+
+**Features:**
+- Zero-dependency (vanilla JS + Tailwind)
+- Graceful fallback if Web Share API unavailable
+- Platform-specific URLs (Facebook, Zalo, Twitter, copy link)
+- Accessible labels and ARIA attributes
+- Event propagation control for card integration
+
 ### Related Services
 
 **LocationService (`services/location/location-service.ts`):**
@@ -411,6 +445,7 @@ Examples:
 - Price range filter card (SSR version with aggregated price counts)
 - Property type filter card (dynamic counts per type)
 - Featured cities section (use displayOrder for ranking)
+- Share buttons on article pages (news sharing pattern)
 
 ---
 
