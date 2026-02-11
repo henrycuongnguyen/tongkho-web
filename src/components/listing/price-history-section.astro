@@ -1,0 +1,241 @@
+---
+/**
+ * Price History Section
+ * Displays price trend chart below listing pagination
+ * Shows only when price filters are active
+ */
+import type { PriceHistoryChartData, PriceHistoryAnalysis } from '@/services/price-history-service';
+
+interface Props {
+  twoYear: PriceHistoryChartData | null;
+  fiveYear: PriceHistoryChartData | null;
+  analyzedData: PriceHistoryAnalysis | null;
+  chartTitle?: string;
+  chartUnit?: string;
+}
+
+const {
+  twoYear,
+  fiveYear,
+  analyzedData,
+  chartTitle = 'Biến động giá khu vực',
+  chartUnit = 'tr/m²',
+} = Astro.props;
+
+// Prepare chart data for client-side
+const chartData = JSON.stringify({
+  twoYear,
+  fiveYear,
+  chartUnit,
+});
+
+// Default to 2-year view, fallback to 5-year if 2-year not available
+const defaultPeriod = twoYear ? '2year' : '5year';
+const defaultData = twoYear || fiveYear;
+
+// Extract analyzed data for display
+const commonPrice = analyzedData?.commonPriceValue;
+const changePercent = analyzedData?.changedPercentValue;
+const changeStatus = analyzedData?.changedPercentStatus;
+const isUp = changeStatus && changeStatus > 0;
+---
+
+<section
+  class="mt-12 bg-white rounded-xl shadow-sm border border-slate-100 p-6"
+  id="price-history-section"
+  data-chart={chartData}
+  data-default-period={defaultPeriod}
+>
+  <!-- Header -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+    <div>
+      <h2 class="text-xl font-semibold text-slate-900">{chartTitle}</h2>
+      <p class="text-sm text-slate-500 mt-1">
+        Xu hướng giá bất động sản trong khu vực tìm kiếm của bạn
+      </p>
+    </div>
+
+    <!-- Period Toggle -->
+    <div class="flex gap-2" id="price-history-period-selector">
+      <button
+        data-period="2year"
+        class:list={[
+          'period-btn px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+          defaultPeriod === '2year'
+            ? 'bg-orange-500 text-white'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+          !twoYear && 'opacity-50 cursor-not-allowed',
+        ]}
+        disabled={!twoYear}
+      >
+        2 Năm
+      </button>
+      <button
+        data-period="5year"
+        class:list={[
+          'period-btn px-4 py-2 text-sm font-medium rounded-lg transition-colors',
+          defaultPeriod === '5year'
+            ? 'bg-orange-500 text-white'
+            : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+          !fiveYear && 'opacity-50 cursor-not-allowed',
+        ]}
+        disabled={!fiveYear}
+      >
+        5 Năm
+      </button>
+    </div>
+  </div>
+
+  <!-- Stats Cards -->
+  {(commonPrice || changePercent) && (
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+      {commonPrice && (
+        <div class="bg-slate-50 rounded-lg p-4">
+          <p class="text-sm text-slate-500 mb-1">Giá phổ biến</p>
+          <p class="text-lg font-semibold text-slate-900">{commonPrice}</p>
+        </div>
+      )}
+
+      {changePercent && (
+        <div class="bg-slate-50 rounded-lg p-4">
+          <p class="text-sm text-slate-500 mb-1">Thay đổi</p>
+          <p class:list={['text-lg font-semibold', isUp ? 'text-green-600' : 'text-red-600']}>
+            {changePercent} {isUp ? '↑' : '↓'}
+          </p>
+        </div>
+      )}
+
+      <div class="bg-slate-50 rounded-lg p-4" id="price-history-change-card">
+        <p class="text-sm text-slate-500 mb-1">Xu hướng</p>
+        <p class="text-lg font-semibold text-slate-900" id="price-history-trend">
+          {defaultData?.trendDirection === 'up' ? 'Tăng' : defaultData?.trendDirection === 'down' ? 'Giảm' : 'Ổn định'}
+        </p>
+      </div>
+    </div>
+  )}
+
+  <!-- Chart -->
+  <div class="relative h-64 sm:h-80">
+    <canvas id="price-history-canvas"></canvas>
+  </div>
+
+  <!-- Disclaimer -->
+  <p class="text-xs text-slate-400 mt-4 italic text-center">
+    * Dữ liệu tham khảo dựa trên biến động thị trường khu vực. Giá thực tế có thể khác.
+  </p>
+</section>
+
+<!-- Chart.js -->
+<script is:inline src="/js/chart.umd.min.js"></script>
+
+<script is:inline>
+(function() {
+  var container = document.getElementById('price-history-section');
+  if (!container) return;
+
+  var chartDataStr = container.getAttribute('data-chart');
+  var defaultPeriod = container.getAttribute('data-default-period') || '2year';
+
+  if (!chartDataStr) return;
+
+  var chartConfig = JSON.parse(chartDataStr);
+  var canvas = document.getElementById('price-history-canvas');
+  var trendEl = document.getElementById('price-history-trend');
+  var periodSelector = document.getElementById('price-history-period-selector');
+
+  if (!canvas) return;
+
+  var currentData = defaultPeriod === '2year' ? chartConfig.twoYear : chartConfig.fiveYear;
+  if (!currentData) return;
+
+  var chart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: currentData.labels,
+      datasets: [{
+        label: 'Giá (' + chartConfig.chartUnit + ')',
+        data: currentData.data,
+        borderColor: '#F97316',
+        backgroundColor: 'rgba(249, 115, 22, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.3,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+        pointHoverBackgroundColor: '#F97316',
+        pointHoverBorderColor: '#fff',
+        pointHoverBorderWidth: 2
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { intersect: false, mode: 'index' },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          titleColor: '#fff',
+          bodyColor: '#fff',
+          padding: 12,
+          displayColors: false,
+          callbacks: {
+            label: function(context) {
+              return context.parsed.y.toFixed(2) + ' ' + chartConfig.chartUnit;
+            }
+          }
+        }
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: { maxTicksLimit: 8, color: '#9CA3AF' }
+        },
+        y: {
+          grid: { color: 'rgba(156, 163, 175, 0.2)' },
+          ticks: {
+            callback: function(value) { return value + ' ' + chartConfig.chartUnit; },
+            color: '#9CA3AF'
+          }
+        }
+      }
+    }
+  });
+
+  function updateTrend(data) {
+    if (!trendEl || !data) return;
+    var trend = data.trendDirection;
+    trendEl.textContent = trend === 'up' ? 'Tăng' : trend === 'down' ? 'Giảm' : 'Ổn định';
+  }
+
+  if (!periodSelector) return;
+
+  var buttons = periodSelector.querySelectorAll('.period-btn');
+  buttons.forEach(function(btn) {
+    btn.addEventListener('click', function() {
+      if (btn.disabled) return;
+
+      var period = btn.getAttribute('data-period');
+      var newData = period === '2year' ? chartConfig.twoYear : chartConfig.fiveYear;
+
+      if (!newData) return;
+
+      // Update button styles
+      buttons.forEach(function(b) {
+        b.classList.remove('bg-orange-500', 'text-white');
+        b.classList.add('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+      });
+      btn.classList.remove('bg-slate-100', 'text-slate-600', 'hover:bg-slate-200');
+      btn.classList.add('bg-orange-500', 'text-white');
+
+      // Update chart
+      chart.data.labels = newData.labels;
+      chart.data.datasets[0].data = newData.data;
+      chart.update('active');
+
+      // Update trend
+      updateTrend(newData);
+    });
+  });
+})();
+</script>

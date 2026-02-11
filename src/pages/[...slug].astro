@@ -23,6 +23,8 @@ import { filterRelaxationService } from '@/services/search-relaxation/filter-rel
 import type { LocationContext, RelaxationLevel } from '@/services/search-relaxation/types';
 import { trackZeroResults, trackFallbackSuccess } from '@/services/analytics/fallback-analytics';
 import { fallbackCache } from '@/services/cache/fallback-cache';
+import { getPriceHistoryForLocation } from '@/services/price-history-service';
+import PriceHistorySection from '@/components/listing/price-history-section.astro';
 
 // Valid transaction slugs
 const VALID_TRANSACTIONS = ['mua-ban', 'cho-thue', 'du-an'];
@@ -376,6 +378,29 @@ function buildSortUrl(sortOption: string): string {
   const query = params.toString();
   return query ? `${url.pathname}?${query}` : url.pathname;
 }
+
+// Fetch price history when district is selected (based on district + property type, not price filter)
+const hasDistrictContext = selectedLocation?.type === 'district' || resolvedDistricts.length > 0;
+
+let priceHistoryData: Awaited<ReturnType<typeof getPriceHistoryForLocation>> = null;
+
+if (hasDistrictContext) {
+  // Get district slug for price history lookup
+  const districtSlug = resolvedDistricts[0]?.slug || selectedLocation?.slug;
+  // Get property type slug for price history lookup
+  const propertySlug = propertyTypeFromSlug?.slug || slugParts[0] || 'mua-ban';
+
+  if (districtSlug) {
+    try {
+      priceHistoryData = await getPriceHistoryForLocation({
+        district: districtSlug,
+        slug: propertySlug,
+      });
+    } catch (error) {
+      console.error('[ListingPage] Failed to fetch price history:', error);
+    }
+  }
+}
 ---
 
 <ListingWithSidebarLayout title={pageTitle} description={description}>
@@ -458,6 +483,17 @@ function buildSortUrl(sortOption: string): string {
       baseUrl={url.pathname}
       totalResults={total}
       pageSize={pageSize}
+    />
+  )}
+
+  <!-- Price History Section (only when price filter active and data available) -->
+  {priceHistoryData && (priceHistoryData.twoYear || priceHistoryData.fiveYear) && (
+    <PriceHistorySection
+      twoYear={priceHistoryData.twoYear}
+      fiveYear={priceHistoryData.fiveYear}
+      analyzedData={priceHistoryData.analyzedData}
+      chartTitle={priceHistoryData.chartTitle}
+      chartUnit={priceHistoryData.chartUnit}
     />
   )}
 
