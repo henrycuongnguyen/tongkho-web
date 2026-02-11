@@ -263,6 +263,7 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
           if (provinceSlug && provinceNId) {
             // Dispatch event for location-selector to handle
             // This will update province display and load districts
+            console.log('[ProvinceModal] Dispatching province-selected event:', { slug: provinceSlug, name: provinceName, nId: provinceNId });
             const event = new CustomEvent('province-selected', {
               detail: {
                 slug: provinceSlug,
@@ -271,9 +272,12 @@ const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.sl
               }
             });
             document.dispatchEvent(event);
+            console.log('[ProvinceModal] Event dispatched');
 
             // Close modal
             closeDropdown();
+          } else {
+            console.error('[ProvinceModal] Missing data - slug:', provinceSlug, 'nId:', provinceNId);
           }
         });
       });

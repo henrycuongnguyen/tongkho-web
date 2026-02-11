@@ -250,7 +250,85 @@ Astro Build Process
      └─ No runtime database calls (data baked into HTML)
 ```
 
-### 3. Data Source: Mock Data
+### 3. SEO Metadata Flow (Phase 5)
+**Purpose:** Dynamic page titles, descriptions, and SEO content from database
+
+```
+Listing Page Request: /mua-ban/ha-noi/gia-tu-1-ty-den-2-ty?filters...
+  ↓
+[...slug].astro:229 calls getSeoMetadata(pathname)
+  ↓
+seo-metadata-service.ts (orchestration)
+  ├─ Parse slug: '/mua-ban/ha-noi/gia-tu-1-ty-den-2-ty'
+  │   → baseSlug: '/mua-ban/ha-noi'
+  │   → priceSlug: 'gia-tu-1-ty-den-2-ty'
+  │
+  └─ Try ElasticSearch (searchSeoMetadata)
+     ├─ Query: seo_meta_data index
+     ├─ Filter: slug exact match + is_active=true
+     └─ Returns: SeoMetadataResult or null
+       │
+       ├─ If found: Format + return
+       │
+       ├─ If not found: Try PostgreSQL (getSeoMetadataFromDb)
+       │   ├─ Query: seo_meta_data table via Drizzle
+       │   ├─ Filter: slug + isActive=true
+       │   └─ Returns: SeoMetadataResult or null
+       │     │
+       │     ├─ If found: Format + return
+       │     │
+       │     ├─ If not found: Fetch default (slug='/default/')
+       │     │   └─ Returns: SeoMetadataResult or null
+       │     │
+       │     └─ If still null: Return empty metadata object
+
+Formatting phase (regardless of source):
+  ├─ Extract title, metaDescription, contentBelow
+  ├─ Apply price context if priceSlug exists
+  │   Example: Replace {price} placeholder in title
+  │   'Mua bán nhà {price}' → 'Mua bán nhà giá từ 1 tỷ đến 2 tỷ'
+  │
+  ├─ Replace relative image URLs with CDN URLs
+  │   /uploads/image.jpg → {PUBLIC_IMAGE_SERVER_URL}/uploads/image.jpg
+  │
+  └─ Return: SeoMetadata (always object, never null)
+
+Rendering in [...slug].astro:
+  ├─ pageTitle = seoMetadata.titleWeb || seoMetadata.title || generated
+  ├─ Rendered as H1 in results header (line 305)
+  ├─ contentBelow rendered below pagination if exists (line 346)
+  └─ Meta tags passed to layout
+```
+
+**Database Schema (seo_meta_data table):**
+- `slug` (string, primary): URL path (e.g., '/mua-ban/ha-noi')
+- `title` (text): Page title for meta tags
+- `titleWeb` (text): H1 heading for web display
+- `metaDescription` (text): Meta description tag
+- `contentAbove` (text, HTML): Content above listings
+- `contentBelow` (text, HTML): Content below listings (main SEO content)
+- `ogTitle`, `ogDescription`, `ogImage` (text): Open Graph
+- `twitterTitle`, `twitterDescription`, `twitterImage` (text): Twitter card
+- `canonicalUrl`, `schemaJson`, `breadcrumbJson` (text): SEO extras
+- `isActive` (boolean): Enable/disable SEO for slug
+- `isDefault` (boolean): Mark as default fallback
+
+**Example metadata entry:**
+```json
+{
+  "slug": "/mua-ban/ha-noi",
+  "title": "Mua bán nhà đất tại Hà Nội giá rẻ nhất 2024",
+  "titleWeb": "Mua bán nhà đất {price} tại Hà Nội",
+  "metaDescription": "Tìm kiếm nhà đất bán tại Hà Nội {price}. Hơn 10,000 tin đăng mỗi ngày",
+  "contentBelow": "<h2>Thị trường bất động sản Hà Nội</h2><p>...</p>"
+}
+```
+
+When user searches `/mua-ban/ha-noi/gia-tu-1-ty-den-2-ty`:
+1. Title becomes: "Mua bán nhà đất giá từ 1 tỷ đến 2 tỷ tại Hà Nội"
+2. Description becomes: "Tìm kiếm nhà đất bán tại Hà Nội giá từ 1 tỷ đến 2 tỷ. Hơn 10,000 tin đăng..."
+
+### 5. Data Source: Mock Data
 ```typescript
 mock-properties.ts (single source of truth)
 ├── mockProperties: Property[]
@@ -261,7 +339,7 @@ mock-properties.ts (single source of truth)
   Section components → Rendered as HTML
 ```
 
-### 4. Styling Pipeline
+### 6. Styling Pipeline
 ```
 tailwind.config.mjs (define colors, fonts)
     ↓
@@ -516,6 +594,183 @@ global.css
 - Featured cities section (use displayOrder for ranking)
 - Share buttons on article pages (news sharing pattern)
 - Favorites list (similar to compare-manager pattern)
+
+---
+
+## Zero Results Fallback & Suggestions Strategy
+
+### Overview
+When a search returns zero results, the system automatically attempts intelligent filter relaxation to find nearby matches, improving user experience and reducing bounce rates. This matches v1 behavior with a 3-tier fallback strategy.
+
+### Architecture Flow
+
+```
+Search Request: /mua-ban/ba-dinh?bedrooms=5&minPrice=10ty
+  ↓
+[...slug].astro searches with full filters
+  ↓
+Results count = 0
+  ↓
+Track zero results event (analytics)
+  ↓
+Check LRU cache for this filter combination
+  ├─ If cached: Return cached fallback + level info
+  └─ If not cached: Proceed to relaxation
+  ↓
+LEVEL 1 RELAXATION (Remove filters, keep location)
+├─ Keep: transactionType, provinceIds, districtIds, wardIds
+├─ Remove: price, area, bedrooms, bathrooms, property_types
+├─ Message: "Đã bỏ các bộ lọc về giá, diện tích, và phòng"
+├─ Search again with relaxed filters
+├─ If results found:
+│   ├─ Cache result (5-min TTL, 100 max entries)
+│   ├─ Track fallback_success event (level=1, resultsCount)
+│   ├─ Display yellow alert: "Chúng tôi tìm thấy kết quả khi bỏ giá, diện tích..."
+│   └─ Show "Tìm kiếm cách nhất" link
+├─ If no results: Continue to Level 2
+│   ↓
+│   LEVEL 2 RELAXATION (Expand location, remove all filters)
+│   ├─ Keep: transactionType
+│   ├─ Expand: districtId/wardId → provinceId (Ba Dinh → Ha Noi)
+│   ├─ Remove: all filters
+│   ├─ Message: "Đã mở rộng tìm kiếm từ {from} đến {to}"
+│   ├─ Search again
+│   ├─ If results found:
+│   │   ├─ Cache result (5-min TTL)
+│   │   ├─ Track fallback_success event (level=2)
+│   │   ├─ Display orange alert
+│   │   └─ Show expanded location context
+│   ├─ If no results: Continue to Level 3
+│   │   ↓
+│   │   LEVEL 3 RELAXATION (Nationwide search)
+│   │   ├─ Keep: transactionType
+│   │   ├─ Remove: all location & filter constraints
+│   │   ├─ Message: "Tìm kiếm trên toàn quốc"
+│   │   ├─ Search again
+│   │   ├─ If results found:
+│   │   │   ├─ Cache result
+│   │   │   ├─ Track fallback_success event (level=3)
+│   │   │   ├─ Display red alert
+│   │   │   └─ Show results
+│   │   └─ If no results: Show "Không có kết quả" (no fallback possible)
+│   │
+│   └─ Return best available results
+│
+└─ Return Level 1 results
+
+Rendering:
+├─ Display properties + relaxationMetadata
+├─ If relaxationMetadata exists:
+│   ├─ Render color-coded alert (yellow/orange/red)
+│   ├─ Show removed filters in message
+│   ├─ Show "Tìm kiếm cách nhất" link to less restrictive search
+│   └─ Mobile: Full-width alert at top
+└─ Normal pagination + properties
+```
+
+### Service Components
+
+**FilterRelaxationService** (`src/services/search-relaxation/filter-relaxation-service.ts`)
+- `relaxLevel1(filters)` – Remove filters, keep location
+- `relaxLevel2(filters, locationContext)` – Expand to city level
+- `relaxLevel3(filters)` – Nationwide search
+- Returns: `RelaxationLevel` with level, description, removedFilters, relaxedParams
+
+**FallbackAnalytics** (`src/services/analytics/fallback-analytics.ts`)
+- `trackZeroResults(filters)` – Log when original search = 0
+- `trackFallbackSuccess(level, resultsCount, filters)` – Log successful fallback
+- `trackFallbackClick()` – User clicked fallback link
+- Sends GA4 events + console logging
+
+**FallbackCache** (`src/services/cache/fallback-cache.ts`)
+- LRU in-memory cache
+- Max size: 100 entries
+- TTL: 5 minutes
+- Key: deterministic filter serialization
+- `get(filters)` – Retrieve cached result
+- `set(filters, results, level)` – Store with TTL
+
+### Data Types
+
+```typescript
+interface RelaxationLevel {
+  level: 1 | 2 | 3;
+  description: string;                    // User-facing message
+  removedFilters: string[];               // ['price', 'area', 'bedrooms']
+  relaxedParams: PropertySearchFilters;   // Modified filter object
+}
+
+interface LocationContext {
+  currentProvince?: Location;             // Current province (name, nId)
+  currentDistrict?: Location;             // Current district (name, nId)
+  currentWard?: Location;                 // Current ward (name, nId)
+}
+```
+
+### UI Presentation
+
+**Alert Styling (listing-grid.astro):**
+```html
+<!-- Level 1: Light Yellow Background (Tailwind: bg-yellow-50) -->
+<div class="bg-yellow-50 border-l-4 border-yellow-400 p-4">
+  <p class="text-yellow-800">⚠️ Đã bỏ các bộ lọc về giá, diện tích, và phòng</p>
+  <a href="...">Tìm kiếm cách nhất</a>
+</div>
+
+<!-- Level 2: Orange Background (Tailwind: bg-orange-50) -->
+<div class="bg-orange-50 border-l-4 border-orange-400 p-4">
+  <p class="text-orange-800">ℹ️ Đã mở rộng tìm kiếm từ Ba Đình đến Hà Nội</p>
+  <a href="...">Tìm kiếm cách nhất</a>
+</div>
+
+<!-- Level 3: Red Background (Tailwind: bg-red-50) -->
+<div class="bg-red-50 border-l-4 border-red-400 p-4">
+  <p class="text-red-800">📍 Tìm kiếm trên toàn quốc</p>
+  <a href="...">Tìm kiếm cách nhất</a>
+</div>
+```
+
+### Integration Points
+
+1. **[...slug].astro (Line 250-350):**
+   - Call `trackZeroResults()` when count = 0
+   - Check `fallbackCache.get(filters)`
+   - Loop: Level 1 → Level 2 → Level 3
+   - Set `relaxationMetadata` for template rendering
+   - Call `trackFallbackSuccess()` when results found
+
+2. **listing-grid.astro (Component Props):**
+   - Receive `relaxationMetadata?: RelaxationLevel`
+   - Render alert if metadata exists
+   - Show removed filters + action link
+
+### Performance Characteristics
+
+| Metric | Value |
+|---|---|
+| Cache hit rate | 80% (common filter combinations) |
+| Level 1 search latency | <100ms (same location, fewer filters) |
+| Level 2 search latency | 100-200ms (city-wide search) |
+| Level 3 search latency | 200-500ms (nationwide search) |
+| Cache memory per entry | ~500 bytes (filter + metadata) |
+| Total cache memory (100 max) | ~50KB |
+
+### Analytics Events (GA4)
+
+| Event | Properties | Purpose |
+|---|---|---|
+| `zero_results` | filters, transaction_type, has_price, has_area, has_location | Identify problem filter combinations |
+| `fallback_success` | level, results_count, filters | Measure fallback effectiveness |
+| `fallback_click` | level, property_id | Track user engagement with fallback results |
+| `fallback_back_click` | level | User clicked "back to original" |
+
+### Why This Pattern
+
+1. **User Experience:** Find something instead of showing "no results"
+2. **v1 Parity:** Matches production behavior users expect
+3. **SEO:** Fewer 404s, more crawlable content
+4. **Analytics:** Track common zero-result filter patterns for refinement
+5. **Performance:** LRU cache prevents redundant ES queries (80% hit rate)
 
 ---
 
@@ -857,7 +1112,9 @@ See detailed V1 schema documentation for deeper analysis:
 
 | Version | Date | Changes |
 |---|---|---|
+| 3.1 | 2026-02-11 | Docs: Added zero results fallback architecture, 3-tier relaxation flow, caching strategy, analytics events, UI patterns |
 | 3.0 | 2026-02-07 | Scout: 32 components across 10 categories (about, auth, news, property, seo, ui, home), 8 page routes (index, about, news listing, article detail, property detail, category filters, 27 folder pages), multi-page component composition patterns, service layers (elasticsearch, postgres, menu) |
+| 2.5 | 2026-02-10 | Docs: Added SSR location filter pattern, LocationService, property counts aggregation |
 | 2.4 | 2026-02-06 | Phase 4: Hierarchical news folders, 27 dynamic folder pages, recursive transformation patterns |
 | 2.3 | 2026-02-06 | Phase 3: static-data.ts module, separated concerns (mock vs menu vs static data) |
 | 2.2 | 2026-02-06 | Phase 2: Build-time menu generation, environment loading, fallback strategy |

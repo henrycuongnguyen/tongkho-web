@@ -69,7 +69,6 @@ export const GET: APIRoute = async ({ request }) => {
         ${icon}
         <div class="flex-1 min-w-0">
           <div class="text-sm text-secondary-800 font-medium">${escapeHtml(r.fullName)}</div>
-          ${isProject ? '<span class="text-xs text-primary-500">Dự án</span>' : ''}
         </div>
       </button>`;
   }).join('');

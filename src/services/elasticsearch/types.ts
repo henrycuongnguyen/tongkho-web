@@ -9,6 +9,7 @@ export interface PropertySearchFilters {
   propertyTypes?: number[];         // [12, 13, 14]
   provinceIds?: string[];           // ["VN-HN", "VN-SG"] - Use nId (string) for ES compatibility
   districtIds?: string[];           // ["VN-HN-HBT", "VN-HN-HKM"] - Use nId (string) for ES compatibility
+  wardIds?: string[];               // ["VN-HN-HBT-PBD"] - Ward-level filtering
   minPrice?: number;                // VND
   maxPrice?: number;                // VND
   minArea?: number;                 // m²

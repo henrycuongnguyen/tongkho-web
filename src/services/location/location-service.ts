@@ -369,10 +369,11 @@ export async function resolveLocationSlugs(
   slug: string;
   type: 'province' | 'district';
   provinceId?: string; // For districts only
+  lat?: number;        // For radius search
+  lon?: number;        // For radius search
 }>> {
   if (slugs.length === 0) return [];
 
-  console.log('[LocationService] resolveLocationSlugs input:', slugs);
 
   try {
     const rows = await db
@@ -385,6 +386,7 @@ export async function resolveLocationSlugs(
         provinceId: locations.nParentid,
         aactive: locations.aactive,
         nStatus: locations.nStatus,
+        nLatlng: locations.nLatlng,
       })
       .from(locations)
       .where(
@@ -395,29 +397,33 @@ export async function resolveLocationSlugs(
         )
       );
 
-    console.log('[LocationService] Query result count:', rows.length);
-    if (rows.length > 0) {
-      console.log('[LocationService] First result:', {
-        nId: rows[0].nId,
-        name: rows[0].name,
-        slug: rows[0].slug,
-        slugV1: rows[0].slugV1,
-        level: rows[0].level,
-        aactive: rows[0].aactive,
-        nStatus: rows[0].nStatus
-      });
-    }
-
     return rows.map(row => {
       // Determine which slug matched (prefer V1 slug for backward compatibility)
       const matchedSlug = slugs.find(s => s === row.slugV1 || s === row.slug) || row.slug || '';
+
+      // Parse lat/lon from nLatlng string (format: "lat,lng")
+      let lat: number | undefined;
+      let lon: number | undefined;
+      if (row.nLatlng) {
+        const parts = row.nLatlng.split(',');
+        if (parts.length === 2) {
+          const parsedLat = parseFloat(parts[0].trim());
+          const parsedLon = parseFloat(parts[1].trim());
+          if (!isNaN(parsedLat) && !isNaN(parsedLon)) {
+            lat = parsedLat;
+            lon = parsedLon;
+          }
+        }
+      }
 
       return {
         nId: row.nId || '',
         name: row.name || '',
         slug: matchedSlug,
         type: row.level === 'TinhThanh' ? 'province' : 'district',
-        ...(row.level === 'QuanHuyen' && { provinceId: row.provinceId || '' })
+        ...(row.level === 'QuanHuyen' && { provinceId: row.provinceId || '' }),
+        ...(lat !== undefined && { lat }),
+        ...(lon !== undefined && { lon })
       };
     });
 
@@ -448,11 +454,6 @@ export async function getDistrictsByProvinceSlugWithCount(
       return [];
     }
 
-    console.log('[LocationService] Province found:', {
-      slug: provinceSlug,
-      nId: province.nId,
-      name: province.name
-    });
 
     // Query districts from locations_with_count_property
     // Build all filter conditions
@@ -467,11 +468,6 @@ export async function getDistrictsByProvinceSlugWithCount(
       conditions.push(isNull(locationsWithCountProperty.mergedintoid));
     }
 
-    console.log('[LocationService] Query conditions:', {
-      cityId: province.nId,
-      useNewAddresses,
-      conditionsCount: conditions.length
-    });
 
     // Build query with all conditions combined
     const query = db
@@ -490,15 +486,6 @@ export async function getDistrictsByProvinceSlugWithCount(
 
     // Apply limit if specified
     const rows = limit ? await query.limit(limit) : await query;
-
-    console.log('[LocationService] Districts query result:', {
-      rowCount: rows.length,
-      firstThree: rows.slice(0, 3).map(r => ({
-        title: r.title,
-        slug: r.slug,
-        mergedintoid: r.mergedintoid
-      }))
-    });
 
     // Transform to District type
     const districts: District[] = (rows as any[]).map((row: any) => ({
@@ -548,7 +535,6 @@ export async function getWardsByDistrictSlugWithCount(
     }
 
     // Query wards from locations_with_count_property
-    console.log('[LocationService] Querying wards for district:', { districtSlug, districtNId: district.nId });
 
     // Build all filter conditions
     const conditions = [
@@ -579,16 +565,6 @@ export async function getWardsByDistrictSlugWithCount(
 
     // Apply limit if specified
     const rows = limit ? await query.limit(limit) : await query;
-
-    console.log('[LocationService] Raw query results (first 3):',
-      rows.slice(0, 3).map((r: any) => ({
-        title: r.title,
-        slug: r.slug,
-        wardId: r.wardId,
-        districtId: r.districtId
-      }))
-    );
-
     // Transform to Ward type
     const wards = (rows as any[]).map((row: any) => ({
       id: row.id,

@@ -25,8 +25,8 @@ interface Props {
   provinces?: Province[];
   /** Current province slug from URL */
   currentProvince?: string;
-  /** Current district slug from URL */
-  currentDistrict?: string;
+  /** Current district slugs from URL (multi-select support) */
+  currentDistricts?: string[];
   /** Current filter values from URL */
   currentFilters: {
     propertyTypes?: number[];
@@ -43,7 +43,7 @@ interface Props {
   selectedLocations?: Array<{ nId: string; name: string; slug: string; type: string }>;
 }
 
-const { transactionType, propertyTypes, provinces = [], currentProvince, currentDistrict, currentFilters, currentPath, selectedLocations = [] } = Astro.props;
+const { transactionType, propertyTypes, provinces = [], currentProvince, currentDistricts = [], currentFilters, currentPath, selectedLocations = [] } = Astro.props;
 
 // Transaction type to base URL mapping
 const TRANSACTION_BASE_URLS: Record<number, string> = {
@@ -70,7 +70,7 @@ const isPropertyTypeActive = (id: number) =>
           provinces={provinces}
           baseUrl={baseUrl}
           currentProvince={currentProvince}
-          currentDistrict={currentDistrict}
+          currentDistricts={currentDistricts}
           selectedLocations={selectedLocations}
         />
       </div>
@@ -225,10 +225,125 @@ const isPropertyTypeActive = (id: number) =>
       selectedPropertyTypes = propertyTypesParam.split(',').filter(Boolean);
     }
 
-    // Listen for property type dropdown apply event
-    container.addEventListener('apply-property-types', ((e: CustomEvent) => {
+    // Helper function to build and navigate to URL with current filters
+    function navigateWithFilters() {
+      // Get current property types from checkboxes (in case user selected but didn't click "Áp dụng")
+      console.log('[listing-filter] navigateWithFilters called');
+      console.log('[listing-filter] Querying checkboxes from container:', container);
+
+      const allCheckboxes = container.querySelectorAll('[data-property-type-checkbox]') as NodeListOf<HTMLInputElement>;
+      console.log('[listing-filter] Found all checkboxes:', allCheckboxes.length);
+
+      const propertyTypeCheckboxes = container.querySelectorAll('[data-property-type-checkbox]:checked') as NodeListOf<HTMLInputElement>;
+      console.log('[listing-filter] Found checked checkboxes:', propertyTypeCheckboxes.length);
+
+      if (propertyTypeCheckboxes.length > 0) {
+        selectedPropertyTypes = Array.from(propertyTypeCheckboxes).map(cb => cb.value);
+        console.log('[listing-filter] Read property types from checkboxes:', selectedPropertyTypes);
+      } else {
+        console.log('[listing-filter] No checked checkboxes found, using current state:', selectedPropertyTypes);
+      }
+
+      // Get current price/area values from inputs if available
+      const priceMinInput = container.querySelector('[name="price-min"]') as HTMLInputElement;
+      const priceMaxInput = container.querySelector('[name="price-max"]') as HTMLInputElement;
+      const areaInput = container.querySelector('[name="area"]') as HTMLInputElement;
+
+      const priceMin = priceMinInput?.value || '';
+      const priceMax = priceMaxInput?.value || '';
+      const currentPrice = (priceMin || priceMax) ? `${priceMin}-${priceMax}` : '';
+      const currentArea = areaInput?.value || '';
+
+      // Extract location slug from current path
+      const pathParts = currentPath.split('/').filter(Boolean);
+      let locationSlug = pathParts.length > 1 ? pathParts[1] : null;
+
+      // Build URL parts
+      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
+
+      // Calculate price slug
+      let priceSlug = '';
+      if (currentPrice) {
+        const [minP, maxP] = currentPrice.split('-');
+        const minPriceTrieu = minP ? parseFloat(minP) : 0;
+        const maxPriceTrieu = maxP ? parseFloat(maxP) : 0;
+
+        if (minPriceTrieu || maxPriceTrieu) {
+          priceSlug = buildPriceSlug(minPriceTrieu, maxPriceTrieu);
+        }
+      }
+
+      // Add location
+      if (locationSlug && locationSlug !== 'toan-quoc') {
+        urlParts.push(locationSlug);
+      } else if (priceSlug) {
+        urlParts.push('toan-quoc');
+      }
+
+      // Add price slug
+      if (priceSlug) {
+        urlParts.push(priceSlug);
+      }
+
+      let targetUrl = '/' + urlParts.join('/');
+
+      // Build query string manually to preserve commas without encoding (v1 compatible)
+      const queryParts: string[] = [];
+
+      // Get current addresses param (preserve selected districts)
+      const currentParams = new URLSearchParams(window.location.search);
+      const addressesParam = currentParams.get('addresses');
+      if (addressesParam) {
+        // Don't encode - v1 uses plain commas
+        queryParts.push(`addresses=${addressesParam}`);
+      }
+
+      // Add property_types WITHOUT encoding (v1 uses plain commas)
+      if (selectedPropertyTypes.length) {
+        queryParts.push(`property_types=${selectedPropertyTypes.join(',')}`);
+      }
+
+      // Add other query params (can be encoded normally)
+      const params = new URLSearchParams();
+
+      if (currentArea) {
+        const [minA, maxA] = currentArea.split('-');
+        if (minA) params.set('dtnn', minA);
+        if (maxA) params.set('dtcn', maxA);
+      }
+
+      if (selectedBedrooms) params.set('bedrooms', selectedBedrooms);
+      if (selectedBathrooms) params.set('bathrooms', selectedBathrooms);
+
+      const standardParams = params.toString();
+      if (standardParams) {
+        queryParts.push(standardParams);
+      }
+
+      if (queryParts.length > 0) {
+        targetUrl += '?' + queryParts.join('&');
+      }
+
+      window.location.href = targetUrl;
+    }
+
+    // Listen for property type checkbox changes (updates state without clicking "Áp dụng")
+    container.addEventListener('property-types-changed', ((e: CustomEvent) => {
+      console.log('[listing-filter] Received property-types-changed event:', e.detail);
       selectedPropertyTypes = e.detail.selectedIds.map(String);
+      console.log('[listing-filter] Updated selectedPropertyTypes (without apply):', selectedPropertyTypes);
     }) as EventListener);
+
+    // Listen for property type dropdown apply event - navigate immediately
+    container.addEventListener('apply-property-types', ((e: CustomEvent) => {
+      console.log('[listing-filter] Received apply-property-types event:', e.detail);
+      selectedPropertyTypes = e.detail.selectedIds.map(String);
+      console.log('[listing-filter] Updated selectedPropertyTypes:', selectedPropertyTypes);
+      // Navigate immediately when "Áp dụng" is clicked
+      navigateWithFilters();
+    }) as EventListener);
+
+    console.log('[listing-filter] Event listeners attached to container:', container);
 
     // Advanced dropdown toggle
     const advancedTrigger = container.querySelector('[data-advanced-trigger]');
@@ -282,74 +397,16 @@ const isPropertyTypeActive = (id: number) =>
       });
     });
 
-    // Apply filters button
+    // Apply filters button - uses same navigation logic
     const applyBtn = container.querySelector('[data-apply-filters]');
     applyBtn?.addEventListener('click', () => {
-      const priceMinInput = container.querySelector('[name="price-min"]') as HTMLInputElement;
-      const priceMaxInput = container.querySelector('[name="price-max"]') as HTMLInputElement;
-      const areaInput = container.querySelector('[name="area"]') as HTMLInputElement;
+      // Read property types directly from checkboxes (don't rely on events)
+      const propertyTypeCheckboxes = document.querySelectorAll('[data-property-type-checkbox]:checked') as NodeListOf<HTMLInputElement>;
+      selectedPropertyTypes = Array.from(propertyTypeCheckboxes).map(cb => cb.value);
 
-      // Build price value from min-max inputs
-      const priceMin = priceMinInput?.value || '';
-      const priceMax = priceMaxInput?.value || '';
-      selectedPrice = (priceMin || priceMax) ? `${priceMin}-${priceMax}` : '';
-      selectedArea = areaInput?.value || '';
+      console.log('[listing-filter] Search button clicked, reading checkboxes directly:', selectedPropertyTypes);
 
-      // Extract location slug from current path
-      const pathParts = currentPath.split('/').filter(Boolean);
-      let locationSlug = pathParts.length > 1 ? pathParts[1] : null;
-
-      // Build URL parts
-      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
-
-      // Calculate price slug
-      let priceSlug = '';
-      if (selectedPrice) {
-        const [minP, maxP] = selectedPrice.split('-');
-        const minPriceTrieu = minP ? parseFloat(minP) : 0;
-        const maxPriceTrieu = maxP ? parseFloat(maxP) : 0;
-
-        if (minPriceTrieu || maxPriceTrieu) {
-          priceSlug = buildPriceSlug(minPriceTrieu, maxPriceTrieu);
-        }
-      }
-
-      // Add location
-      if (locationSlug && locationSlug !== 'toan-quoc') {
-        urlParts.push(locationSlug);
-      } else if (priceSlug) {
-        urlParts.push('toan-quoc');
-      }
-
-      // Add price slug
-      if (priceSlug) {
-        urlParts.push(priceSlug);
-      }
-
-      let targetUrl = '/' + urlParts.join('/');
-
-      // Add query params
-      const params = new URLSearchParams();
-
-      if (selectedPropertyTypes.length) {
-        params.set('property_types', selectedPropertyTypes.join(','));
-      }
-
-      if (selectedArea) {
-        const [minA, maxA] = selectedArea.split('-');
-        if (minA) params.set('dtnn', minA);
-        if (maxA) params.set('dtcn', maxA);
-      }
-
-      if (selectedBedrooms) params.set('bedrooms', selectedBedrooms);
-      if (selectedBathrooms) params.set('bathrooms', selectedBathrooms);
-
-      const query = params.toString();
-      if (query) {
-        targetUrl += '?' + query;
-      }
-
-      window.location.href = targetUrl;
+      navigateWithFilters();
     });
 
     // Helper functions
