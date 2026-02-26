@@ -101,6 +101,15 @@ interface Props {
 }
 
 const { id = "location", name = "city", placeholder = "Toàn quốc", compact = false } = Astro.props;
+
+// Helper function to strip province prefixes
+const stripProvincePrefix = (name: string): string => {
+  return name
+    .replace(/^Tỉnh\s+/i, '')
+    .replace(/^Thành phố\s+/i, '')
+    .replace(/^TP\.\s+/i, '')
+    .replace(/^TP\s+/i, '');
+};
 ---
 
 <div class="location-dropdown relative flex-1 z-[9999]" data-location-dropdown>
@@ -237,9 +246,19 @@ const { id = "location", name = "city", placeholder = "Toàn quốc", compact = 
     let selectedValue = '';
     let selectedLabel = 'Toàn quốc';
 
+    // Helper function to strip province prefixes
+    function stripProvincePrefix(name: string): string {
+      return name
+        .replace(/^Tỉnh\s+/i, '')
+        .replace(/^Thành phố\s+/i, '')
+        .replace(/^TP\.\s+/i, '')
+        .replace(/^TP\s+/i, '');
+    }
+
     function updateUI() {
-      display.textContent = selectedLabel;
+      display.textContent = stripProvincePrefix(selectedLabel);
       input.value = selectedValue;
+      console.log(selectedLabel, "selectedLabel")
 
       // Update featured cities selection state
       featuredCities.forEach((btn) => {

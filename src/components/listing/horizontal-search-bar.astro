@@ -75,10 +75,11 @@ const isPropertyTypeSlug = firstSegment && !['mua-ban', 'cho-thue', 'du-an'].inc
 const baseUrl = isPropertyTypeSlug ? `/${firstSegment}` : (TRANSACTION_BASE_URLS[transactionType] || '/mua-ban');
 const transactionLabel = TRANSACTION_LABELS[transactionType] || 'Loại BĐS';
 
-// Find selected province - default to Hà Nội if no province in URL
+// Find selected province - default to null (Toàn quốc) if no province in URL
+// Client-side JavaScript will check localStorage and restore saved province
 const selectedProvince = currentProvince
   ? provinces.find(p => p.slug === currentProvince)
-  : provinces.find(p => p.name === 'Hà Nội' || p.slug === 'ha-noi') || null;
+  : null;
 
 // Debug: Log province selection
 
@@ -92,6 +93,15 @@ const currentMinPrice = currentFilters.minPrice
 const currentMaxPrice = currentFilters.maxPrice
   ? (Number(currentFilters.maxPrice) / 1_000_000).toString()
   : undefined;
+
+// Helper function to strip province prefixes
+const stripProvincePrefix = (name: string): string => {
+  return name
+    .replace(/^Tỉnh\s+/i, '')
+    .replace(/^Thành phố\s+/i, '')
+    .replace(/^TP\.\s+/i, '')
+    .replace(/^TP\s+/i, '');
+};
 ---
 
 <div class="horizontal-search-bar relative py-2 top-0 z-[60]">
@@ -112,7 +122,7 @@ const currentMaxPrice = currentFilters.maxPrice
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
               <span class="text-secondary-700 font-medium" data-location-display>
-                {selectedProvince ? selectedProvince.name : 'Hà Nội'}
+                {selectedProvince ? stripProvincePrefix(selectedProvince.name) : 'Toàn quốc'}
               </span>
             </div>
             <svg class="w-4 h-4 text-secondary-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -561,6 +571,53 @@ const currentMaxPrice = currentFilters.maxPrice
 
     const baseUrl = searchBar.getAttribute('data-base-url') || '/mua-ban';
 
+    // LocalStorage key for selected province
+    const PROVINCE_STORAGE_KEY = 'tongkho_selected_province';
+
+    // Helper function to strip province prefixes
+    function stripProvincePrefix(name: string): string {
+      return name
+        .replace(/^Tỉnh\s+/i, '')
+        .replace(/^Thành phố\s+/i, '')
+        .replace(/^TP\.\s+/i, '')
+        .replace(/^TP\s+/i, '');
+    }
+
+    // Save selected province to localStorage
+    function saveProvinceToStorage(provinceData: { nId: string; slug: string; name: string }) {
+      try {
+        localStorage.setItem(PROVINCE_STORAGE_KEY, JSON.stringify(provinceData));
+        console.log('[HorizontalSearchBar] Province saved to localStorage:', provinceData);
+      } catch (error) {
+        console.error('[HorizontalSearchBar] Failed to save province to localStorage:', error);
+      }
+    }
+
+    // Load selected province from localStorage
+    function loadProvinceFromStorage(): { nId: string; slug: string; name: string } | null {
+      try {
+        const saved = localStorage.getItem(PROVINCE_STORAGE_KEY);
+        if (saved) {
+          const provinceData = JSON.parse(saved);
+          console.log('[HorizontalSearchBar] Province loaded from localStorage:', provinceData);
+          return provinceData;
+        }
+      } catch (error) {
+        console.error('[HorizontalSearchBar] Failed to load province from localStorage:', error);
+      }
+      return null;
+    }
+
+    // Clear saved province from localStorage
+    function clearProvinceFromStorage() {
+      try {
+        localStorage.removeItem(PROVINCE_STORAGE_KEY);
+        console.log('[HorizontalSearchBar] Province cleared from localStorage');
+      } catch (error) {
+        console.error('[HorizontalSearchBar] Failed to clear province from localStorage:', error);
+      }
+    }
+
     // Location dropdown
     const locationTrigger = searchBar.querySelector('[data-location-trigger]') as HTMLButtonElement;
     const locationDisplay = searchBar.querySelector('[data-location-display]') as HTMLSpanElement;
@@ -600,6 +657,22 @@ const currentMaxPrice = currentFilters.maxPrice
     // Track current province selection - initialize from data attributes (for page with province in URL)
     const initialProvinceNId = searchBar?.getAttribute('data-current-province-nid');
     let currentProvinceNId: string | null = (initialProvinceNId && initialProvinceNId.trim()) ? initialProvinceNId : null;
+
+    // Restore province from localStorage if no URL province
+    if (!currentProvinceNId) {
+      const savedProvince = loadProvinceFromStorage();
+      if (savedProvince && locationDisplay) {
+        // Update display with saved province
+        locationDisplay.textContent = stripProvincePrefix(savedProvince.name);
+        currentProvinceNId = savedProvince.nId;
+
+        // Update search bar data attributes
+        searchBar.setAttribute('data-current-province-nid', savedProvince.nId);
+        searchBar.setAttribute('data-current-province-slug', savedProvince.slug);
+
+        console.log('[HorizontalSearchBar] Restored province from localStorage:', savedProvince);
+      }
+    }
 
     // Multi-select districts state - initialize from URL addresses param
     const urlParams = new URLSearchParams(window.location.search);
@@ -828,9 +901,12 @@ const currentMaxPrice = currentFilters.maxPrice
 
       console.log('[HorizontalSearchBar] Received province-selected event:', { name, nId, slug });
 
+      // Save province to localStorage for persistence across sessions
+      saveProvinceToStorage({ nId, slug, name });
+
       // Update location display
       if (locationDisplay) {
-        locationDisplay.textContent = name;
+        locationDisplay.textContent = stripProvincePrefix(name);
       }
 
       // Update province tracking

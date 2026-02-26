@@ -21,6 +21,15 @@ const { provinces, featuredProvinces = [], baseUrl, currentProvince } = Astro.pr
 
 // If no featured provinces provided, use first 5 provinces
 const featured = featuredProvinces.length > 0 ? featuredProvinces : provinces.slice(0, 5);
+
+// Helper function to strip province prefixes
+const stripProvincePrefix = (name: string): string => {
+  return name
+    .replace(/^Tỉnh\s+/i, '')
+    .replace(/^Thành phố\s+/i, '')
+    .replace(/^TP\.\s+/i, '')
+    .replace(/^TP\s+/i, '');
+};
 ---
 
 <!-- Dropdown Panel -->
