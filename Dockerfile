@@ -3,6 +3,26 @@ FROM node:22-alpine AS builder
 
 WORKDIR /app
 
+# Build-time arguments for prerendering
+ARG DATABASE_URL
+ARG ES_URL
+ARG ES_INDEX
+ARG ES_API_KEY
+ARG SEO_ES_INDEX=seo_meta_data
+ARG PUBLIC_SITE_URL=https://tongkhobds.com
+ARG PUBLIC_API_URL=
+ARG PUBLIC_IMAGE_SERVER_URL=https://quanly.tongkhobds.com
+
+# Set as env vars for the build process
+ENV DATABASE_URL=${DATABASE_URL}
+ENV ES_URL=${ES_URL}
+ENV ES_INDEX=${ES_INDEX}
+ENV ES_API_KEY=${ES_API_KEY}
+ENV SEO_ES_INDEX=${SEO_ES_INDEX}
+ENV PUBLIC_SITE_URL=${PUBLIC_SITE_URL}
+ENV PUBLIC_API_URL=${PUBLIC_API_URL}
+ENV PUBLIC_IMAGE_SERVER_URL=${PUBLIC_IMAGE_SERVER_URL}
+
 # Install dependencies
 COPY package*.json ./
 RUN npm ci
