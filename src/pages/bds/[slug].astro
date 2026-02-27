@@ -4,45 +4,22 @@
  * Dynamic route for individual property listings
  * URL: /bat-dong-san/{slug}
  */
-import MainLayout from '@/layouts/main-layout.astro';
+import ListingWithSidebarLayout from '@/layouts/listing-with-sidebar-layout.astro';
 import ImageGalleryCarousel from '@/components/property/property-detail-image-gallery-carousel.astro';
 import PropertyInfoSection from '@/components/property/property-info-section.astro';
 import ContactCard from '@/components/shared/contact-card.astro';
-import SidebarFilterList from '@/components/property/sidebar-filter-list.astro';
-import SidebarFeaturedProject from '@/components/property/sidebar-featured-project.astro';
+import PriceRangeFilterCard from '@/components/listing/sidebar/price-range-filter-card.astro';
+import AreaRangeFilterCard from '@/components/listing/sidebar/area-range-filter-card.astro';
+import SideBlockFiltersCard from '@/components/listing/sidebar/side-block-filters-card.astro';
+import FeaturedProjectBanner from '@/components/listing/sidebar/featured-project-banner.astro';
 import PropertyCard from '@/components/cards/property-card.astro';
+import { getFeaturedProjects } from '@/services/featured-project-service';
 import PriceHistoryChart from '@/components/property/price-history-chart.astro';
 import { postgresPropertyService } from '@/services/postgres-property-service';
 import type { Property } from '@/types/property';
-
-// Filter data
-const priceRanges = [
-  { label: '800 triệu - 1 tỷ', min: 0.8, max: 1 },
-  { label: '1 tỷ - 2 tỷ', min: 1, max: 2 },
-  { label: '2 tỷ - 3 tỷ', min: 2, max: 3 },
-  { label: '3 tỷ - 5 tỷ', min: 3, max: 5 },
-  { label: '5 tỷ - 7 tỷ', min: 5, max: 7 },
-  { label: '7 tỷ - 10 tỷ', min: 7, max: 10 },
-  { label: '10 tỷ - 20 tỷ', min: 10, max: 20 },
-  { label: '20 tỷ - 30 tỷ', min: 20, max: 30 },
-  { label: '30 tỷ - 40 tỷ', min: 30, max: 40 },
-  { label: '40 tỷ - 60 tỷ', min: 40, max: 60 },
-  { label: 'Trên 60 tỷ', min: 60 },
-  { label: 'Thương lượng' },
-];
-
-const areaRanges = [
-  { label: 'Dưới 30 m²', max: 30 },
-  { label: '30 - 50 m²', min: 30, max: 50 },
-  { label: '50 - 80 m²', min: 50, max: 80 },
-  { label: '80 - 100 m²', min: 80, max: 100 },
-  { label: '100 - 150 m²', min: 100, max: 150 },
-  { label: '150 - 200 m²', min: 150, max: 200 },
-  { label: '200 - 250 m²', min: 200, max: 250 },
-  { label: '250 - 300 m²', min: 250, max: 300 },
-  { label: '300 - 500 m²', min: 300, max: 500 },
-  { label: 'Trên 500 m²', min: 500 },
-];
+import { db } from '@/db';
+import { locations, propertyType } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 // Get slug from URL params
 const { slug } = Astro.params;
@@ -82,66 +59,118 @@ const propertyImages = property.images.length > 1
 // SEO
 const pageTitle = `${property.title} | TongkhoBDS`;
 const pageDescription = property.description.slice(0, 160);
+
+// Build listing page base path for sidebar filters
+// Get location slug from property (priority: ward > district > city)
+let locationSlug = 'toan-quoc'; // fallback
+
+if (property.wardId) {
+  const ward = await db.select({ slug: locations.nSlugV1 })
+    .from(locations)
+    .where(eq(locations.nId, property.wardId))
+    .limit(1);
+  if (ward.length > 0 && ward[0].slug) {
+    locationSlug = ward[0].slug;
+  }
+} else if (property.districtId) {
+  const district = await db.select({ slug: locations.nSlugV1 })
+    .from(locations)
+    .where(eq(locations.nId, property.districtId))
+    .limit(1);
+  if (district.length > 0 && district[0].slug) {
+    locationSlug = district[0].slug;
+  }
+} else if (property.cityId) {
+  const city = await db.select({ slug: locations.nSlugV1 })
+    .from(locations)
+    .where(eq(locations.nId, property.cityId))
+    .limit(1);
+  if (city.length > 0 && city[0].slug) {
+    locationSlug = city[0].slug;
+  }
+}
+
+// Get property type slug for URL (prefer property type slug over transaction slug)
+// Use propertyTypeId from database (property.propertyTypeId) or mapped value
+const actualPropertyTypeId = property.propertyTypeId || propertyTypeId;
+
+let propertyTypeSlug: string | null = null;
+if (actualPropertyTypeId) {
+  const propertyTypeData = await db
+    .select({ slug: propertyType.slug })
+    .from(propertyType)
+    .where(eq(propertyType.id, actualPropertyTypeId))
+    .limit(1);
+  propertyTypeSlug = propertyTypeData[0]?.slug || null;
+}
+
+// Build listing base path with property type slug (if available) or transaction slug
+const baseSlug = propertyTypeSlug || (property.transactionType === 'sale' ? 'mua-ban' : 'cho-thue');
+const listingBasePath = `/${baseSlug}/${locationSlug}`;
+
+// Fetch featured projects for sidebar
+const featuredProjects = await getFeaturedProjects(5);
 ---
 
-<MainLayout
+<ListingWithSidebarLayout
   title={pageTitle}
   description={pageDescription}
   image={property.thumbnail}
 >
-  <div class="bg-secondary-50 min-h-screen pb-20 lg:pb-8">
+  <!-- Main Content Slot -->
+  <div class="space-y-6">
     <!-- Breadcrumb -->
-    <div class="container-custom py-4">
-      <nav class="text-sm text-secondary-500">
-        <ol class="flex flex-wrap items-center gap-2">
-          <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
-          <li class="text-secondary-300">&gt;</li>
-          <li>
-            <a href={property.transactionType === 'sale' ? '/mua-ban' : '/cho-thue'} class="hover:text-primary-500 transition-colors">
-              {property.transactionType === 'sale' ? 'Mua bán' : 'Cho thuê'}
-            </a>
-          </li>
-          <li class="text-secondary-300">&gt;</li>
-          <li class="text-secondary-700 font-medium line-clamp-1">{property.title}</li>
-        </ol>
-      </nav>
-    </div>
+    <nav class="text-sm text-secondary-500">
+      <ol class="flex flex-wrap items-center gap-2">
+        <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
+        <li class="text-secondary-300">&gt;</li>
+        <li>
+          <a href={property.transactionType === 'sale' ? '/mua-ban' : '/cho-thue'} class="hover:text-primary-500 transition-colors">
+            {property.transactionType === 'sale' ? 'Mua bán' : 'Cho thuê'}
+          </a>
+        </li>
+        <li class="text-secondary-300">&gt;</li>
+        <li class="text-secondary-700 font-medium line-clamp-1">{property.title}</li>
+      </ol>
+    </nav>
 
-    <!-- Main Content -->
-    <div class="container-custom">
-      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        <!-- Left Column: Gallery + Info (8 cols) -->
-        <div class="lg:col-span-9 space-y-6">
-          <!-- Image Gallery -->
-          <ImageGalleryCarousel images={propertyImages} />
+    <!-- Image Gallery -->
+    <ImageGalleryCarousel images={propertyImages} />
 
-          <!-- Property Info Section -->
-          <PropertyInfoSection property={property} />
+    <!-- Property Info Section -->
+    <PropertyInfoSection property={property} />
 
-          <!-- Price History Chart -->
-          <PriceHistoryChart currentPrice={property.price} priceUnit={property.priceUnit} />
+    <!-- Price History Chart -->
+    <PriceHistoryChart currentPrice={property.price} priceUnit={property.priceUnit} />
+
+    <!-- Related Properties Section -->
+    {displayRelated.length > 0 && (
+      <section class="mt-12">
+        <h2 class="text-2xl font-bold text-secondary-800 mb-6">Bất động sản khác</h2>
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          {displayRelated.map((relatedProperty) => (
+            <PropertyCard property={relatedProperty} />
+          ))}
         </div>
-
-        <!-- Right Column: Contact Sidebar + Filters (4 cols, smaller) -->
-        <div class="lg:col-span-3 space-y-6">
-          <ContactCard showMobileBar={true} />
-          <SidebarFeaturedProject />
-          <SidebarFilterList title="Lọc theo khoảng giá" items={priceRanges} minParam="priceMin" maxParam="priceMax" />
-          <SidebarFilterList title="Lọc theo diện tích" items={areaRanges} minParam="areaMin" maxParam="areaMax" />
-        </div>
-      </div>
-
-      <!-- Related Properties Section -->
-      {displayRelated.length > 0 && (
-        <section class="mt-12">
-          <h2 class="text-2xl font-bold text-secondary-800 mb-6">Bất động sản khác</h2>
-          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {displayRelated.map((relatedProperty) => (
-              <PropertyCard property={relatedProperty} />
-            ))}
-          </div>
-        </section>
-      )}
-    </div>
+      </section>
+    )}
   </div>
-</MainLayout>
+
+  <!-- Sidebar Slot -->
+  <div slot="sidebar" class="space-y-4">
+    <!-- Quick Contact -->
+    <ContactCard />
+
+    <!-- Price Range Filter -->
+    <PriceRangeFilterCard currentMin={undefined} currentMax={undefined} basePath={listingBasePath} />
+
+    <!-- Area Range Filter -->
+    <AreaRangeFilterCard currentMin={undefined} currentMax={undefined} basePath={listingBasePath} />
+
+    <!-- Side Block Filters (Related Filters) -->
+    <SideBlockFiltersCard propertyId={property.id} />
+
+    <!-- Featured Projects -->
+    <FeaturedProjectBanner projects={featuredProjects} />
+  </div>
+</ListingWithSidebarLayout>
