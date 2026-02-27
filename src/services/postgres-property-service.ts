@@ -130,6 +130,7 @@ function mapToProperty(row: RealEstateRow): Property {
       new Date().toISOString(),
     isFeatured: row.isFeatured || false,
     isHot: row.isVerified || false,
+    realEstateCode: row.realEstateCode || undefined,
   };
 }
 

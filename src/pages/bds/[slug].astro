@@ -135,7 +135,7 @@ const featuredProjects = await getFeaturedProjects(5);
     </nav>
 
     <!-- Image Gallery -->
-    <ImageGalleryCarousel images={propertyImages} />
+    <ImageGalleryCarousel images={propertyImages} realEstateCode={property.realEstateCode} />
 
     <!-- Property Info Section -->
     <PropertyInfoSection property={property} />

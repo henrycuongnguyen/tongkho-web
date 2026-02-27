@@ -25,6 +25,7 @@ export interface Property {
   createdAt: string;
   isFeatured: boolean;
   isHot: boolean;
+  realEstateCode?: string;
 }
 
 export type PropertyType =

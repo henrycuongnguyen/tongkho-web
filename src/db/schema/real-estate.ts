@@ -36,6 +36,7 @@ export const realEstate = pgTable('real_estate', {
   houseDirection: varchar('house_direction', { length: 50 }),
   frontageWidth: numeric('frontage_width'),
   roadWidth: numeric('road_width'),
+  realEstateCode: varchar('real_estate_code', { length: 512 }),
   aactive: boolean('aactive').default(true),
 });
 
