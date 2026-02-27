@@ -7,9 +7,10 @@
 interface Props {
   currentMin?: number;
   currentMax?: number;
+  basePath?: string; // Override base path for detail pages (e.g., '/mua-ban/ha-noi')
 }
 
-const { currentMin, currentMax } = Astro.props;
+const { currentMin, currentMax, basePath } = Astro.props;
 
 // Area ranges in m² (v1 format)
 const AREA_RANGES = [
@@ -46,7 +47,8 @@ function getRangeUrl(range: typeof AREA_RANGES[0]): string {
   }
   params.delete('page'); // Reset to page 1
   const query = params.toString();
-  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
+  const pathname = basePath || Astro.url.pathname;
+  return query ? `${pathname}?${query}` : pathname;
 }
 
 // Get URL without area filter (remove dtnn, dtcn params only)
@@ -56,7 +58,8 @@ function getClearAreaUrl(): string {
   params.delete('dtcn');
   params.delete('page'); // Reset to page 1
   const query = params.toString();
-  return query ? `${Astro.url.pathname}?${query}` : Astro.url.pathname;
+  const pathname = basePath || Astro.url.pathname;
+  return query ? `${pathname}?${query}` : pathname;
 }
 ---
 

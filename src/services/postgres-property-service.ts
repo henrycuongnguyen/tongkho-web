@@ -107,6 +107,7 @@ function mapToProperty(row: RealEstateRow): Property {
     title: row.title || "",
     slug: row.slug || "",
     type: propertyType,
+    propertyTypeId: row.propertyTypeId || undefined,
     transactionType,
     price,
     priceUnit,
@@ -116,6 +117,9 @@ function mapToProperty(row: RealEstateRow): Property {
     address: row.streetAddress || "",
     district: row.district || "",
     city: row.city || "",
+    wardId: row.wardId || undefined,
+    districtId: row.districtId || undefined,
+    cityId: row.cityId || undefined,
     description,
     images,
     thumbnail,
@@ -126,6 +130,7 @@ function mapToProperty(row: RealEstateRow): Property {
       new Date().toISOString(),
     isFeatured: row.isFeatured || false,
     isHot: row.isVerified || false,
+    realEstateCode: row.realEstateCode || undefined,
   };
 }
 

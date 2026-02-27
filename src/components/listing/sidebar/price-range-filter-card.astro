@@ -7,9 +7,10 @@
 interface Props {
   currentMin?: number;
   currentMax?: number;
+  basePath?: string; // Override base path for detail pages (e.g., '/mua-ban/ha-noi')
 }
 
-const { currentMin, currentMax } = Astro.props;
+const { currentMin, currentMax, basePath } = Astro.props;
 
 // Price ranges (v1 format)
 const PRICE_RANGES = [
@@ -33,22 +34,34 @@ function isActive(range: typeof PRICE_RANGES[0]): boolean {
   return currentMin === range.min && (currentMax === range.max || (!range.max && !currentMax));
 }
 
-// Build URL for range (v1 format: /mua-ban/ha-noi/gia-tu-1-ty-den-2-ty)
+// Build URL for range (v1 format: /mua-ban/ha-noi/gia-tu-1-ty-den-2-ty or /ban-dat/ha-noi/gia-tu-1-ty-den-2-ty)
 function getRangeUrl(range: typeof PRICE_RANGES[0]): string {
-  // Extract path parts from current URL
-  const pathParts = Astro.url.pathname.split('/').filter(Boolean);
+  let baseSlug: string;
+  let locationSlug: string | null;
 
-  // Arg0: transaction type (mua-ban, cho-thue, du-an)
-  const transactionType = pathParts[0] || 'mua-ban';
-
-  // Arg1: location slug (ha-noi, ba-dinh, or toan-quoc)
-  let locationSlug = pathParts.length > 1 ? pathParts[1] : null;
+  if (basePath) {
+    // Use provided basePath for detail pages
+    const pathParts = basePath.split('/').filter(Boolean);
+    const firstSegment = pathParts[0] || '';
+    // Check if first segment is property type slug or transaction type
+    const isPropertyTypeSlug = firstSegment && !['mua-ban', 'cho-thue', 'du-an'].includes(firstSegment);
+    baseSlug = isPropertyTypeSlug ? firstSegment : (firstSegment || 'mua-ban');
+    locationSlug = pathParts.length > 1 ? pathParts[1] : 'toan-quoc';
+  } else {
+    // Extract path parts from current URL (listing pages)
+    const pathParts = Astro.url.pathname.split('/').filter(Boolean);
+    const firstSegment = pathParts[0] || '';
+    // Check if first segment is property type slug or transaction type
+    const isPropertyTypeSlug = firstSegment && !['mua-ban', 'cho-thue', 'du-an'].includes(firstSegment);
+    baseSlug = isPropertyTypeSlug ? firstSegment : (firstSegment || 'mua-ban');
+    locationSlug = pathParts.length > 1 ? pathParts[1] : null;
+  }
 
   // Build price slug
   const priceSlug = buildPriceSlug(range.min, range.max);
 
   // Build URL parts
-  const urlParts = [transactionType];
+  const urlParts = [baseSlug];
 
   // Add location (required if price slug exists, per v1 format)
   if (locationSlug && locationSlug !== 'toan-quoc' && !locationSlug.startsWith('gia-')) {
@@ -69,8 +82,8 @@ function getRangeUrl(range: typeof PRICE_RANGES[0]): string {
   params.delete('page'); // Reset to page 1
 
   const query = params.toString();
-  const basePath = '/' + urlParts.join('/');
-  return query ? `${basePath}?${query}` : basePath;
+  const finalPath = '/' + urlParts.join('/');
+  return query ? `${finalPath}?${query}` : finalPath;
 }
 
 // Build price slug from min/max values
@@ -110,13 +123,24 @@ function convertAmountToPriceSlug(amount: number): string {
 
 // Get URL without price filter (remove arg3 price slug)
 function getClearPriceUrl(): string {
+  if (basePath) {
+    // Use provided basePath for detail pages
+    const params = new URLSearchParams(Astro.url.search);
+    params.delete('gtn');
+    params.delete('gcn');
+    params.delete('page');
+    const query = params.toString();
+    return query ? `${basePath}?${query}` : basePath;
+  }
+
+  // Extract from current URL for listing pages
   const pathParts = Astro.url.pathname.split('/').filter(Boolean);
 
-  // Keep arg0 (transaction) and arg1 (location if not price slug)
+  // Keep arg0 (property type slug or transaction type) and arg1 (location if not price slug)
   const urlParts: string[] = [];
 
   if (pathParts[0]) {
-    urlParts.push(pathParts[0]); // transaction
+    urlParts.push(pathParts[0]); // property type slug or transaction type
   }
 
   // Add location only if arg1 is not a price slug
@@ -131,8 +155,8 @@ function getClearPriceUrl(): string {
   params.delete('page'); // Reset to page 1
 
   const query = params.toString();
-  const basePath = urlParts.length > 0 ? '/' + urlParts.join('/') : '/';
-  return query ? `${basePath}?${query}` : basePath;
+  const finalPath = urlParts.length > 0 ? '/' + urlParts.join('/') : '/';
+  return query ? `${finalPath}?${query}` : finalPath;
 }
 ---
 
