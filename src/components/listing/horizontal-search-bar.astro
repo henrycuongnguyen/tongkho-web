@@ -190,10 +190,9 @@ const stripProvincePrefix = (name: string): string => {
           <div class="flex-1 px-5 py-4 border-r border-secondary-100">
             <div
               data-district-list-container
-              hx-swap="innerHTML"
-              class=""
+              class="grid grid-cols-3 gap-2"
             >
-              <!-- Districts (grid) or search results (list) will be loaded here -->
+              <!-- Districts will be rendered from static JSON -->
             </div>
           </div>
 
@@ -557,10 +556,85 @@ const stripProvincePrefix = (name: string): string => {
 <script>
   /**
    * Horizontal Search Bar Logic
+   * Uses static JSON files for districts via location-fetcher
    */
+
+  import { getDistricts, getVersion } from '@/lib/location-fetcher';
+  import type { DistrictItem } from '@/lib/location-types';
 
   // Store handler reference for cleanup (prevent duplicate listeners on re-init)
   let provinceSelectedHandler: ((event: CustomEvent) => void) | null = null;
+
+  /**
+   * Escape HTML to prevent XSS attacks
+   */
+  function escapeHtml(str: string): string {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  /**
+   * Escape HTML attribute value
+   */
+  function escapeAttr(str: string): string {
+    return str
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;');
+  }
+
+  /**
+   * Render district buttons from JSON data
+   */
+  function renderDistrictsHtml(
+    districts: DistrictItem[],
+    selectedSlugs: Set<string>,
+    baseUrl: string
+  ): string {
+    if (districts.length === 0) {
+      return '<div class="text-sm text-secondary-500 text-center py-4">Không có quận/huyện</div>';
+    }
+
+    return districts.map(d => {
+      const isSelected = selectedSlugs.has(d.slug);
+      const btnClass = isSelected
+        ? 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group'
+        : 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+      const iconClass = isSelected
+        ? 'w-4 h-4 shrink-0 text-primary-600'
+        : 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500';
+      const textClass = isSelected
+        ? 'text-sm text-primary-700 font-medium truncate'
+        : 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+
+      // Escape all user-controlled data to prevent XSS
+      const safeSlug = escapeAttr(d.slug);
+      const safeNId = escapeAttr(d.nId);
+      const safeName = escapeAttr(d.name);
+      const safeDisplayName = escapeHtml(d.name);
+
+      return `
+        <button
+          type="button"
+          class="${btnClass}"
+          data-district-toggle
+          data-slug="${safeSlug}"
+          data-nid="${safeNId}"
+          data-name="${safeName}"
+          data-selected="${isSelected}"
+        >
+          <svg class="${iconClass}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"/>
+          </svg>
+          <span class="${textClass}">${safeDisplayName}</span>
+        </button>
+      `;
+    }).join('');
+  }
 
   function initHorizontalSearchBar() {
     const searchBar = document.querySelector('[data-search-bar]');
@@ -951,32 +1025,30 @@ const stripProvincePrefix = (name: string): string => {
         districtEmpty?.classList.add('hidden');
         districtListContainer.innerHTML = '';
 
-        // Fetch districts with selected districts
-        const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
-        const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
-        console.log('[HorizontalSearchBar] Loading districts with selected:', selectedSlugs);
-        fetch(url)
-          .then(response => response.text())
-          .then(html => {
-            console.log('[HorizontalSearchBar] Districts API response length:', html.length);
-            console.log('[HorizontalSearchBar] Districts HTML preview:', html.substring(0, 500));
+        // Fetch districts from static JSON via location-fetcher
+        const selectedSlugsSet = new Set(selectedDistricts.map(d => d.slug));
+        const currentVersion = getVersion();
+        console.log('[HorizontalSearchBar] Loading districts from JSON for province:', currentProvinceNId, 'version:', currentVersion);
+
+        getDistricts(currentProvinceNId, currentVersion)
+          .then(districts => {
+            console.log('[HorizontalSearchBar] Districts loaded from JSON:', districts.length);
 
             districtLoading?.classList.add('hidden');
+
+            // Render districts using client-side rendering
+            const html = renderDistrictsHtml(districts, selectedSlugsSet, baseUrl);
             districtListContainer.innerHTML = html;
             districtsLoaded = true;
-
-            // Use grid layout for district buttons (3 columns like screenshot)
-            districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
-            districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
 
             // Attach button handlers
             attachDistrictButtonHandlers(districtListContainer);
 
-            // Update selectedDistricts names from loaded buttons (replace slugs with proper names)
+            // Update selectedDistricts names from loaded districts
             selectedDistricts.forEach(district => {
-              const button = districtListContainer.querySelector(`[data-district-toggle][data-slug="${district.slug}"]`) as HTMLButtonElement;
-              if (button && button.dataset.name) {
-                district.name = button.dataset.name;
+              const found = districts.find(d => d.slug === district.slug);
+              if (found) {
+                district.name = found.name;
               }
             });
 
@@ -990,19 +1062,12 @@ const stripProvincePrefix = (name: string): string => {
             districtDropdown?.classList.remove('hidden');
             districtSearchInput?.focus();
 
-            // CRITICAL FIX: Delay check until browser parses HTML into DOM
-            setTimeout(() => {
-              const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
-              console.log('[HorizontalSearchBar] District buttons found (after timeout):', districtButtons?.length);
-
-              if (!districtButtons || districtButtons.length === 0) {
-                console.log('[HorizontalSearchBar] No districts, showing empty state');
-                districtEmpty?.classList.remove('hidden');
-              } else {
-                console.log('[HorizontalSearchBar] Districts found, HIDING empty state');
-                districtEmpty?.classList.add('hidden');
-              }
-            }, 50); // Increased delay to ensure DOM parsing
+            // Check if we have districts
+            if (districts.length === 0) {
+              districtEmpty?.classList.remove('hidden');
+            } else {
+              districtEmpty?.classList.add('hidden');
+            }
           })
           .catch(error => {
             console.error('[HorizontalSearchBar] Failed to load districts:', error);
@@ -1018,6 +1083,21 @@ const stripProvincePrefix = (name: string): string => {
     // Add listener
     console.log('[HorizontalSearchBar] Adding province-selected listener');
     document.addEventListener('province-selected', provinceSelectedHandler as EventListener);
+
+    // Listen for version changes (old/new address toggle)
+    document.addEventListener('version-changed', async (e: Event) => {
+      const { version } = (e as CustomEvent).detail;
+      console.log('[HorizontalSearchBar] Version changed:', version);
+
+      // If province is selected, reload districts with new version
+      if (currentProvinceNId) {
+        const districts = await getDistricts(currentProvinceNId, version);
+        const slugsSet = new Set(selectedDistricts.map(d => d.slug));
+        districtListContainer.innerHTML = renderDistrictsHtml(districts, slugsSet, baseUrl);
+        attachDistrictButtonHandlers(districtListContainer);
+        console.log('[HorizontalSearchBar] Districts reloaded for version:', version, 'count:', districts.length);
+      }
+    });
 
     // Property Type dropdown
     const propertyTypeTrigger = searchBar.querySelector('[data-property-type-trigger]') as HTMLButtonElement;
@@ -1457,35 +1537,24 @@ const stripProvincePrefix = (name: string): string => {
       districtListContainer.innerHTML = '';
       districtDropdown?.classList.remove('hidden');
 
-      const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
-      const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
-      console.log('[HorizontalSearchBar] Loading districts on focus with selected:', selectedSlugs);
-      fetch(url)
-        .then(response => response.text())
-        .then(html => {
+      const selectedSlugsSet = new Set(selectedDistricts.map(d => d.slug));
+      const currentVersion = getVersion();
+      console.log('[HorizontalSearchBar] Loading districts on focus from JSON, version:', currentVersion);
+
+      getDistricts(currentProvinceNId, currentVersion)
+        .then(districts => {
           districtLoading?.classList.add('hidden');
+
+          // Render districts using client-side rendering
+          const html = renderDistrictsHtml(districts, selectedSlugsSet, baseUrl);
           districtListContainer.innerHTML = html;
           districtsLoaded = true;
 
-          // Use grid layout for district buttons (3 columns like screenshot)
-          districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
-          districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
-
-          // Sync selectedDistricts with selected buttons (populate names)
-          const buttons = districtListContainer.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
-          buttons.forEach(button => {
-            const isSelected = button.dataset.selected === 'true';
-            if (isSelected) {
-              const slug = button.dataset.slug || '';
-              const name = button.dataset.name || slug;
-              if (!selectedDistricts.some(d => d.slug === slug)) {
-                selectedDistricts.push({ slug, name });
-              } else {
-                const existing = selectedDistricts.find(d => d.slug === slug);
-                if (existing && existing.name === slug) {
-                  existing.name = name;
-                }
-              }
+          // Update selectedDistricts names from loaded districts
+          selectedDistricts.forEach(district => {
+            const found = districts.find(d => d.slug === district.slug);
+            if (found) {
+              district.name = found.name;
             }
           });
 
@@ -1498,15 +1567,12 @@ const stripProvincePrefix = (name: string): string => {
           // Render top 5 most searched districts
           renderTopDistricts();
 
-          // Check if any districts were loaded (defer to next tick for DOM parsing)
-          setTimeout(() => {
-            const districtCheckboxes = districtListContainer?.querySelectorAll('input[type="checkbox"]');
-            if (!districtCheckboxes || districtCheckboxes.length === 0) {
-              districtEmpty?.classList.remove('hidden');
-            } else {
-              districtEmpty?.classList.add('hidden');
-            }
-          }, 0);
+          // Check if any districts were loaded
+          if (districts.length === 0) {
+            districtEmpty?.classList.remove('hidden');
+          } else {
+            districtEmpty?.classList.add('hidden');
+          }
         })
         .catch(error => {
           console.error('[HorizontalSearchBar] Failed to load districts on focus:', error);
@@ -1545,41 +1611,29 @@ const stripProvincePrefix = (name: string): string => {
           }
         }
 
-        // If province selected, reload and show districts
+        // If province selected, reload and show districts from JSON
         if (currentProvinceNId) {
-          // Reload districts from API
           districtLoading?.classList.remove('hidden');
           districtListContainer.innerHTML = '';
 
-          const selectedSlugs = selectedDistricts.map(d => d.slug).join(',');
-          const url = `/api/location/districts?province=${currentProvinceNId}&base=${baseUrl}&mode=checkboxes&selected=${encodeURIComponent(selectedSlugs)}`;
-          console.log('[HorizontalSearchBar] Reloading districts after empty search with selected:', selectedSlugs);
-          fetch(url)
-            .then(response => response.text())
-            .then(html => {
+          const selectedSlugsSet = new Set(selectedDistricts.map(d => d.slug));
+          const currentVersion = getVersion();
+          console.log('[HorizontalSearchBar] Reloading districts from JSON after empty search, version:', currentVersion);
+
+          getDistricts(currentProvinceNId, currentVersion)
+            .then(districts => {
               districtLoading?.classList.add('hidden');
+
+              // Render districts using client-side rendering
+              const html = renderDistrictsHtml(districts, selectedSlugsSet, baseUrl);
               districtListContainer.innerHTML = html;
               districtsLoaded = true;
 
-              // Use grid layout for district buttons (3 columns like screenshot)
-              districtListContainer.classList.remove('flex', 'flex-col', 'gap-y-1');
-              districtListContainer.classList.add('grid', 'grid-cols-3', 'gap-2');
-
-              // Sync selectedDistricts with selected buttons (populate names)
-              const buttons = districtListContainer.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
-              buttons.forEach(button => {
-                const isSelected = button.dataset.selected === 'true';
-                if (isSelected) {
-                  const slug = button.dataset.slug || '';
-                  const name = button.dataset.name || slug;
-                  if (!selectedDistricts.some(d => d.slug === slug)) {
-                    selectedDistricts.push({ slug, name });
-                  } else {
-                    const existing = selectedDistricts.find(d => d.slug === slug);
-                    if (existing && existing.name === slug) {
-                      existing.name = name;
-                    }
-                  }
+              // Update selectedDistricts names from loaded districts
+              selectedDistricts.forEach(district => {
+                const found = districts.find(d => d.slug === district.slug);
+                if (found) {
+                  district.name = found.name;
                 }
               });
 
@@ -1594,15 +1648,12 @@ const stripProvincePrefix = (name: string): string => {
 
               districtDropdown?.classList.remove('hidden');
 
-              // Check if any districts were loaded (defer to next tick for DOM parsing)
-              setTimeout(() => {
-                const districtButtons = districtListContainer?.querySelectorAll('[data-district-toggle]');
-                if (!districtButtons || districtButtons.length === 0) {
-                  districtEmpty?.classList.remove('hidden');
-                } else {
-                  districtEmpty?.classList.add('hidden');
-                }
-              }, 50); // Increased delay to ensure DOM parsing
+              // Check if any districts were loaded
+              if (districts.length === 0) {
+                districtEmpty?.classList.remove('hidden');
+              } else {
+                districtEmpty?.classList.add('hidden');
+              }
             })
             .catch(error => {
               console.error('[HorizontalSearchBar] Failed to reload districts:', error);

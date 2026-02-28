@@ -68,12 +68,10 @@ const stripProvincePrefix = (name: string): string => {
         </div>
       </div>
 
-      <!-- Province List Container (loaded via HTMX) -->
+      <!-- Province List Container (loaded via client JS) -->
       <div
         data-province-list-container
-        hx-get={`/api/location/provinces?useNew=false&current=${currentProvince || ''}`}
-        hx-trigger="load once, reloadProvinces"
-        hx-swap="innerHTML"
+        data-current-province={currentProvince || ''}
       >
         <!-- Initial content (SSR fallback) -->
         <!-- Featured Provinces -->
@@ -154,6 +152,30 @@ const stripProvincePrefix = (name: string): string => {
 </div>
 
 <script>
+  import { getProvinces, getVersion, setVersion } from '@/lib/location-fetcher';
+  import type { LocationItem } from '@/lib/location-types';
+
+  /**
+   * XSS protection: Escape HTML special characters
+   */
+  function escapeHtml(str: string): string {
+    const htmlEscapes: Record<string, string> = {
+      '&': '&amp;',
+      '<': '&lt;',
+      '>': '&gt;',
+      '"': '&quot;',
+      "'": '&#39;',
+    };
+    return str.replace(/[&<>"']/g, (char) => htmlEscapes[char] || char);
+  }
+
+  /**
+   * Escape attribute values (stricter)
+   */
+  function escapeAttr(str: string): string {
+    return str.replace(/[&<>"'`=]/g, (char) => `&#${char.charCodeAt(0)};`);
+  }
+
   /**
    * Province Dropdown Panel Logic
    */
@@ -168,20 +190,14 @@ const stripProvincePrefix = (name: string): string => {
     const addressCheckbox = panel.querySelector('[data-address-type-checkbox]') as HTMLInputElement;
     const provinceListContainer = panel.querySelector('[data-province-list-container]') as HTMLDivElement;
     const baseUrl = panel.getAttribute('data-base-url') || '/mua-ban';
+    const currentProvince = provinceListContainer?.getAttribute('data-current-province') || '';
 
     // Unique ID for this dropdown
     const dropdownId = 'province-selector-modal';
 
-    // LocalStorage key for address type preference
-    const STORAGE_KEY = 'tongkho_use_new_addresses';
-
     // Restore checkbox state from localStorage (default: false = old addresses)
-    const savedPreference = localStorage.getItem(STORAGE_KEY);
-    if (savedPreference !== null) {
-      addressCheckbox.checked = savedPreference === 'true';
-    } else {
-      addressCheckbox.checked = false; // Default to old addresses
-    }
+    const currentVersion = getVersion();
+    addressCheckbox.checked = currentVersion === 'new';
 
     // Close dropdown function
     function closeDropdown() {
@@ -231,30 +247,115 @@ const stripProvincePrefix = (name: string): string => {
       }
     });
 
-    // Handle checkbox change - reload provinces
-    addressCheckbox?.addEventListener('change', () => {
+    // S3 config for image URLs
+    const S3_BASE = 'https://s3-han02.fptcloud.com/bds-crawl-data';
+    const FALLBACK_IMG = 'https://images.unsplash.com/photo-1583417319070-4a69db38a482?w=400&h=300&fit=crop';
+
+    /**
+     * Get full image URL from key
+     */
+    function getImageUrl(imageKey: string | undefined): string {
+      if (!imageKey) return FALLBACK_IMG;
+      if (imageKey.startsWith('http')) return imageKey;
+      return `${S3_BASE}/${imageKey}`;
+    }
+
+    /**
+     * Render provinces HTML from data
+     */
+    function renderProvincesHtml(provinces: LocationItem[], currentSlug: string): string {
+      // Featured provinces (first 5)
+      const featured = provinces.slice(0, 5);
+
+      const featuredHtml = featured.map(p => {
+        const imgUrl = getImageUrl(p.cityImageWeb || p.cityImage);
+        return `
+        <button
+          type="button"
+          class="featured-province-card group relative rounded-xl overflow-hidden cursor-pointer transition-all duration-300 hover:shadow-lg hover:-translate-y-1 ${p.slug === currentSlug ? 'ring-2 ring-primary-500' : 'ring-1 ring-secondary-200 hover:ring-primary-300'}"
+          data-province-slug="${escapeAttr(p.slug)}"
+          data-province-nid="${escapeAttr(p.nId)}"
+          data-province-name="${escapeAttr(p.name)}"
+        >
+          <div class="aspect-[4/3] bg-secondary-100 relative overflow-hidden">
+            <img
+              src="${escapeAttr(imgUrl)}"
+              alt="${escapeAttr(p.name)}"
+              class="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+              loading="lazy"
+              onerror="this.src='${FALLBACK_IMG}'"
+            />
+            <div class="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent"></div>
+          </div>
+          <div class="absolute bottom-0 left-0 right-0 p-3">
+            <h5 class="font-semibold text-white text-sm line-clamp-2 group-hover:text-primary-200 transition-colors">
+              ${escapeHtml(p.name)}
+            </h5>
+          </div>
+        </button>
+      `}).join('');
+
+      const allProvincesHtml = provinces.map(p => `
+        <button
+          type="button"
+          class="province-item text-left text-sm py-2 px-3 rounded-lg transition-all duration-150 ${p.slug === currentSlug ? 'bg-primary-50 text-primary-600 font-semibold' : 'text-secondary-700 hover:bg-secondary-50 hover:text-primary-600'}"
+          data-province-slug="${escapeAttr(p.slug)}"
+          data-province-nid="${escapeAttr(p.nId)}"
+          data-province-name="${escapeAttr(p.name)}"
+        >
+          ${escapeHtml(p.name)}
+        </button>
+      `).join('');
+
+      return `
+        <!-- Featured Provinces -->
+        <div class="mb-6">
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+            ${featuredHtml}
+          </div>
+        </div>
+
+        <!-- All Provinces -->
+        <div>
+          <h4 class="text-xl font-bold text-secondary-800 mb-4">Tất cả tỉnh thành</h4>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-2">
+            ${allProvincesHtml}
+          </div>
+        </div>
+      `;
+    }
+
+    /**
+     * Load and render provinces
+     */
+    async function loadProvinces() {
+      const version = getVersion();
+      const provinces = await getProvinces(version);
+      provinceListContainer.innerHTML = renderProvincesHtml(provinces, currentProvince);
+      attachProvinceHandlers();
+      console.log('[province-modal] Provinces loaded:', provinces.length, 'version:', version);
+    }
+
+    // Handle checkbox change - reload provinces and notify other components
+    addressCheckbox?.addEventListener('change', async () => {
       const useNew = addressCheckbox.checked;
+      const version = useNew ? 'new' : 'old';
 
-      // Save preference to localStorage
-      localStorage.setItem(STORAGE_KEY, useNew.toString());
+      // Save preference
+      setVersion(version);
 
-      // Get current province slug
-      const currentProvince = panel.closest('[data-location-selector]')?.getAttribute('data-current-province') || '';
+      // Reload provinces with new version
+      await loadProvinces();
 
-      // Update HTMX URL
-      const newUrl = `/api/location/provinces?useNew=${useNew}&current=${encodeURIComponent(currentProvince)}`;
-      provinceListContainer?.setAttribute('hx-get', newUrl);
+      // Dispatch event to reload districts in other components
+      document.dispatchEvent(new CustomEvent('version-changed', {
+        detail: { version }
+      }));
 
-      // Trigger HTMX reload
-      if (typeof (window as any).htmx !== 'undefined') {
-        (window as any).htmx.process(provinceListContainer);
-        (window as any).htmx.trigger(provinceListContainer, 'reloadProvinces');
-      }
-
-      console.log('[province-modal] Address type changed:', useNew ? 'new' : 'old');
+      console.log('[province-modal] Address type changed:', version);
     });
 
-    // Attach province click handlers after HTMX swap
+    // Attach province click handlers after render
     function attachProvinceHandlers() {
       const provinceButtons = provinceListContainer?.querySelectorAll('[data-province-slug]') as NodeListOf<HTMLButtonElement>;
 
@@ -292,14 +393,8 @@ const stripProvincePrefix = (name: string): string => {
       });
     }
 
-    // Attach handlers on initial load
-    attachProvinceHandlers();
-
-    // Re-attach handlers after HTMX swap
-    provinceListContainer?.addEventListener('htmx:afterSwap', () => {
-      console.log('[province-modal] Provinces reloaded');
-      attachProvinceHandlers();
-    });
+    // Load provinces on initial load
+    loadProvinces();
 
     // Clear selection - navigate back to base URL (all provinces)
     clearBtn?.addEventListener('click', () => {

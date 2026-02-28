@@ -5,12 +5,15 @@
   "scripts": {
     "dev": "astro dev",
     "start": "astro dev",
+    "prebuild": "npm run generate:locations",
     "build": "astro check && astro build",
     "preview": "astro preview",
     "astro": "astro",
     "test": "npx tsx --test src/**/*.test.ts",
     "test:ui": "vitest --ui",
-    "test:run": "npx tsx --test src/**/*.test.ts"
+    "test:run": "npx tsx --test src/**/*.test.ts",
+    "generate:locations": "npx tsx scripts/generate-locations.ts",
+    "validate:locations": "npx tsx scripts/validate-locations.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.6",
