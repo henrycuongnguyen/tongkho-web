@@ -44,6 +44,7 @@ if (!project) {
 const projectProperties = await getProjectProperties(
   project.projectName,
   project.districtId,
+  project.projectCode,
   6
 );
 
@@ -157,19 +158,19 @@ const hasMap = project.lat !== null && project.lng !== null;
             <span class="font-medium text-secondary-800">{project.projectStatus}</span>
           </div>
         )}
-        {project.projectArea && (
+        {project.projectArea != null && project.projectArea > 0 && (
           <div class="bg-secondary-50 rounded-lg p-3">
             <span class="block text-xs text-secondary-500">Diện tích</span>
             <span class="font-medium text-secondary-800">{project.projectArea.toLocaleString('vi-VN')} {project.areaUnit}</span>
           </div>
         )}
-        {project.totalUnits && (
+        {project.totalUnits != null && project.totalUnits > 0 && (
           <div class="bg-secondary-50 rounded-lg p-3">
             <span class="block text-xs text-secondary-500">Số căn hộ</span>
             <span class="font-medium text-secondary-800">{project.totalUnits.toLocaleString('vi-VN')}</span>
           </div>
         )}
-        {project.totalTowers && (
+        {project.totalTowers != null && project.totalTowers > 0 && (
           <div class="bg-secondary-50 rounded-lg p-3">
             <span class="block text-xs text-secondary-500">Số tòa</span>
             <span class="font-medium text-secondary-800">{project.totalTowers}</span>

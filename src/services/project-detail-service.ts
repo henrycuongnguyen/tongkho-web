@@ -428,6 +428,7 @@ async function searchProjectByIdInES(id: number): Promise<ProjectDetail | null> 
 export async function getProjectProperties(
   projectName: string,
   districtId: string | null,
+  projectCode: string | null,
   limit: number = 6
 ): Promise<ProjectProperties> {
   const result: ProjectProperties = {
@@ -468,12 +469,14 @@ export async function getProjectProperties(
     result.rentProperties = rentResult.hits;
 
     // Build "see all" URLs if there are results
-    const encodedProjectName = encodeURIComponent(projectName);
-    if (sellResult.total > limit) {
-      result.seeAllSellUrl = `/mua-ban?keyword=${encodedProjectName}`;
-    }
-    if (rentResult.total > limit) {
-      result.seeAllRentUrl = `/cho-thue?keyword=${encodedProjectName}`;
+    // Use project_code (matching v1) instead of keyword
+    if (projectCode) {
+      if (sellResult.total > limit) {
+        result.seeAllSellUrl = `/mua-ban?project_code=${projectCode}`;
+      }
+      if (rentResult.total > limit) {
+        result.seeAllRentUrl = `/cho-thue?project_code=${projectCode}`;
+      }
     }
 
   } catch (error) {
