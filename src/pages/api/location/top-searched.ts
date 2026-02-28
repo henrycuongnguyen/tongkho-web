@@ -30,7 +30,10 @@ export const GET: APIRoute = async ({ request }) => {
 
   if (!provinceNId) {
     return new Response('', {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=1800, stale-while-revalidate=3600'
+      }
     });
   }
 
@@ -61,7 +64,10 @@ export const GET: APIRoute = async ({ request }) => {
         `<div class="p-3 text-center text-secondary-500 text-sm">
           Chưa có dữ liệu tìm kiếm
         </div>`,
-        { headers: { 'Content-Type': 'text/html; charset=utf-8' } }
+        { headers: {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Cache-Control': 'public, max-age=1800, stale-while-revalidate=3600'
+        }}
       );
     }
 
@@ -113,7 +119,10 @@ export const GET: APIRoute = async ({ request }) => {
       .join('');
 
     return new Response(html, {
-      headers: { 'Content-Type': 'text/html; charset=utf-8' }
+      headers: {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Cache-Control': 'public, max-age=1800, stale-while-revalidate=3600'
+      }
     });
   } catch (error) {
     console.error('Error fetching top searched locations:', error);
