@@ -1,8 +1,12 @@
 ---
-import type { Property, PropertyType, TransactionType } from '@/types/property';
+/**
+ * Property Info Section
+ * Displays property details in v1-compatible layout
+ * Order: Title+Price, Address+Time, Actions, Info Grid, Description, Contact
+ */
+import type { Property, PropertyType } from '@/types/property';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
 import ShareButtons from '@/components/ui/share-buttons.astro';
-// PriceHistoryChart moved to separate card in [slug].astro
 
 interface Props {
   property: Property;
@@ -21,137 +25,194 @@ const propertyTypeLabels: Record<PropertyType, string> = {
   warehouse: 'Kho xưởng',
 };
 
-// Transaction type labels
-const transactionTypeLabels: Record<TransactionType, string> = {
-  sale: 'Bán',
-  rent: 'Cho thuê',
-};
-
 // Calculate price per m2
-const pricePerM2 = property.priceUnit === 'billion'
-  ? (property.price * 1000000000 / property.area).toFixed(0)
-  : property.priceUnit === 'million'
-  ? (property.price * 1000000 / property.area).toFixed(0)
+const pricePerM2 = property.area > 0 && property.price > 0
+  ? property.priceUnit === 'billion'
+    ? (property.price * 1000000000 / property.area).toFixed(0)
+    : property.priceUnit === 'million'
+    ? (property.price * 1000000 / property.area).toFixed(0)
+    : null
   : null;
 
+// Get property type display name (prefer DB value, fallback to mapped)
+const propertyTypeName = property.propertyTypeName || propertyTypeLabels[property.type] || 'Bất động sản';
+
+// Build full address
+const fullAddress = [property.ward, property.district, property.city].filter(Boolean).join(', ');
+
+// Check if has HTML content
+const hasHtmlContent = property.htmlContent && property.htmlContent.trim().length > 0;
 const isLongDescription = property.description.length > 300;
 ---
 
 <section class="bg-white rounded-xl shadow-sm border border-secondary-100 p-6 md:p-8">
-  <!-- Title + Price Row -->
-  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4 pb-4 border-b border-secondary-100">
+  <!-- Title + Price Row (v1 style) -->
+  <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
     <!-- Title -->
-    <h1 class="text-2xl md:text-3xl font-bold text-secondary-800 flex-1">
+    <h1
+      class="text-2xl md:text-3xl font-bold text-secondary-800 flex-1"
+      id="property-title"
+      data-estate-id={property.id}
+      data-transaction-type={property.transactionType}
+      data-title={property.title}
+      data-url={`/bds/${property.slug}`}
+      data-image={property.thumbnail}
+    >
       {property.title}
     </h1>
 
     <!-- Price -->
-    <div class="shrink-0 text-right">
+    <div class="shrink-0 text-right" id="property-price">
       <div class="text-2xl md:text-3xl font-bold text-primary-500">
         {formatPrice(property.price, property.priceUnit)}
       </div>
-      {pricePerM2 && (
-        <div class="text-sm text-secondary-500">
-          {property.area} m² - {(parseInt(pricePerM2) / 1000000).toFixed(0)} triệu/m²
-        </div>
-      )}
+      <div class="text-sm text-secondary-500">
+        {property.area > 0 && (
+          <span>{property.area} m²</span>
+        )}
+        {pricePerM2 && (
+          <span> - {(parseInt(pricePerM2) / 1000000).toFixed(0)} triệu/m²</span>
+        )}
+      </div>
     </div>
   </div>
 
-  <!-- Share Actions Row -->
-  <div class="flex items-center justify-between gap-4 mb-6 pb-6 border-b border-secondary-100">
-    <span class="text-sm text-secondary-500">Chia sẻ tin này:</span>
-    <div class="flex items-center gap-2">
-      <!-- Share Buttons -->
-      <ShareButtons url={`/bat-dong-san/${property.slug}`} title={property.title} variant="inline" size="sm" showLabel={false} />
-      <!-- Favorite -->
-      <button
-        class="w-9 h-9 flex items-center justify-center rounded-lg bg-secondary-100 hover:bg-red-50 hover:text-red-500 text-secondary-500 transition-all duration-200 cursor-pointer"
-        title="Lưu tin yêu thích"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
-        </svg>
-      </button>
-      <!-- Print -->
-      <button
-        class="print-btn w-9 h-9 flex items-center justify-center rounded-lg bg-secondary-100 hover:bg-secondary-200 text-secondary-500 transition-all duration-200 cursor-pointer"
-        title="In tin đăng"
-      >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
-        </svg>
-      </button>
-    </div>
+  <!-- Address + Time Row (v1 style) -->
+  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-4 pb-4 border-b border-secondary-100">
+    <p class="flex items-center gap-2 text-secondary-600">
+      <svg class="w-4 h-4 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+      </svg>
+      <span id="property-address">{fullAddress || property.address}</span>
+    </p>
+    <p class="flex items-center gap-2 text-secondary-500 text-sm">
+      <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span id="property-time-ago">{formatRelativeTime(property.createdAt)}</span>
+    </p>
   </div>
 
-  <!-- Specs Grid -->
-  <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 pb-6 border-b border-secondary-100">
-    <div class="flex items-center gap-2">
-      <div class="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center shrink-0">
-        <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
+  <!-- Action Buttons Row (v1 style: favorite, compare, share) -->
+  <div class="flex items-center justify-end gap-2 mb-6 pb-6 border-b border-secondary-100">
+    <!-- Favorite -->
+    <button
+      class="favourite-button w-9 h-9 flex items-center justify-center rounded-lg bg-secondary-100 hover:bg-red-50 hover:text-red-500 text-secondary-500 transition-all duration-200 cursor-pointer"
+      title="Thêm vào quan tâm"
+      data-property-id={property.id}
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z" />
+      </svg>
+    </button>
+    <!-- Compare -->
+    <button
+      class="btn-compare w-9 h-9 flex items-center justify-center rounded-lg bg-secondary-100 hover:bg-blue-50 hover:text-blue-500 text-secondary-500 transition-all duration-200 cursor-pointer"
+      title="So sánh"
+      data-estate-id={property.id}
+      data-transaction-type={property.transactionType}
+      data-image={property.thumbnail}
+      data-title={property.title}
+      data-url={`/bds/${property.slug}`}
+    >
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+      </svg>
+    </button>
+    <!-- Share -->
+    <ShareButtons url={`/bds/${property.slug}`} title={property.title} variant="inline" size="sm" showLabel={false} />
+  </div>
+
+  <!-- Info Details Grid (v1 style: property type, floors, bedrooms, bathrooms, year built, area) -->
+  <div class="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 pb-6 border-b border-secondary-100">
+    <!-- Property Type -->
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
         </svg>
       </div>
       <div>
-        <div class="text-xs text-secondary-500">Diện tích</div>
-        <div class="font-semibold text-secondary-800">{property.area} m²</div>
+        <div class="text-xs text-secondary-500">Loại</div>
+        <div class="font-semibold text-secondary-800" id="property-type">{propertyTypeName}</div>
       </div>
     </div>
 
-    {property.bedrooms && (
-      <div class="flex items-center gap-2">
-        <div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
-          <svg class="w-4 h-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <!-- Floors (if available) -->
+    {property.floors && (
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-indigo-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
           </svg>
         </div>
         <div>
-          <div class="text-xs text-secondary-500">Phòng ngủ</div>
-          <div class="font-semibold text-secondary-800">{property.bedrooms} PN</div>
+          <div class="text-xs text-secondary-500">Số tầng</div>
+          <div class="font-semibold text-secondary-800">{property.floors} tầng</div>
         </div>
       </div>
     )}
 
+    <!-- Bedrooms -->
+    {property.bedrooms && (
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+          </svg>
+        </div>
+        <div>
+          <div class="text-xs text-secondary-500">Phòng ngủ</div>
+          <div class="font-semibold text-secondary-800">{property.bedrooms} Phòng</div>
+        </div>
+      </div>
+    )}
+
+    <!-- Bathrooms -->
     {property.bathrooms && (
-      <div class="flex items-center gap-2">
-        <div class="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
-          <svg class="w-4 h-4 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-teal-50 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-teal-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 14v3m4-3v3m4-3v3M3 21h18M3 10h18M3 7l9-4 9 4M4 10h16v11H4V10z" />
           </svg>
         </div>
         <div>
           <div class="text-xs text-secondary-500">Phòng tắm</div>
-          <div class="font-semibold text-secondary-800">{property.bathrooms} WC</div>
+          <div class="font-semibold text-secondary-800">{property.bathrooms} Phòng</div>
         </div>
       </div>
     )}
 
-    <div class="flex items-center gap-2">
-      <div class="w-9 h-9 rounded-lg bg-purple-50 flex items-center justify-center shrink-0">
-        <svg class="w-4 h-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+    <!-- Year Built -->
+    {property.yearBuilt && (
+      <div class="flex items-center gap-3">
+        <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center shrink-0">
+          <svg class="w-5 h-5 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+          </svg>
+        </div>
+        <div>
+          <div class="text-xs text-secondary-500">Năm xây dựng</div>
+          <div class="font-semibold text-secondary-800" id="property-year-built">{property.yearBuilt}</div>
+        </div>
+      </div>
+    )}
+
+    <!-- Area -->
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center shrink-0">
+        <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
         </svg>
       </div>
       <div>
-        <div class="text-xs text-secondary-500">Đăng tin</div>
-        <div class="font-semibold text-secondary-800">{formatRelativeTime(property.createdAt)}</div>
+        <div class="text-xs text-secondary-500">Diện tích</div>
+        <div class="font-semibold text-secondary-800">{property.area > 0 ? `${property.area} m²` : 'N/A'}</div>
       </div>
     </div>
   </div>
 
-  <!-- Location -->
-  <div class="mb-6 pb-6 border-b border-secondary-100">
-    <h3 class="text-lg font-semibold text-secondary-800 mb-3">Vị trí</h3>
-    <p class="flex gap-2 text-secondary-600">
-      <svg class="w-5 h-5 text-primary-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-      {property.address}, {property.district}, {property.city}
-    </p>
-  </div>
-
-  <!-- Features -->
+  <!-- Features (if available) -->
   {property.features && property.features.length > 0 && (
     <div class="mb-6 pb-6 border-b border-secondary-100">
       <h3 class="text-lg font-semibold text-secondary-800 mb-3">Đặc điểm nổi bật</h3>
@@ -165,11 +226,13 @@ const isLongDescription = property.description.length > 300;
     </div>
   )}
 
-  <!-- Description -->
+  <!-- Description (v1 style: HTML content or plain text) -->
   <div class="mb-6 pb-6 border-b border-secondary-100">
-    <h3 class="text-lg font-semibold text-secondary-800 mb-3">Mô tả chi tiết</h3>
-    <div class="prose prose-sm max-w-none text-secondary-600">
-      {isLongDescription ? (
+    <h3 class="text-lg font-semibold text-secondary-800 mb-3">Thông tin chi tiết</h3>
+    <div class="wg-content prose prose-sm max-w-none text-secondary-600" id="property-description">
+      {hasHtmlContent ? (
+        <div set:html={property.htmlContent} />
+      ) : isLongDescription ? (
         <div>
           <div class="description-content" data-full-text={property.description}>
             {property.description.slice(0, 300)}...
@@ -182,13 +245,13 @@ const isLongDescription = property.description.length > 300;
           </button>
         </div>
       ) : (
-        <p>{property.description}</p>
+        <p>{property.description || 'Thông tin chi tiết đang được cập nhật'}</p>
       )}
     </div>
   </div>
 
-  <!-- Contact Info Section -->
-  <div class="bg-secondary-50 rounded-xl p-5">
+  <!-- Contact Info Section (v1 style) -->
+  <div class="bg-secondary-50 rounded-xl p-5 contact-info">
     <p class="text-secondary-700 mb-2">
       Tổng Kho BĐS luôn sẵn sàng đồng hành cùng bạn trên hành trình tìm kiếm bất động sản phù hợp nhất.
     </p>
@@ -196,7 +259,7 @@ const isLongDescription = property.description.length > 300;
       Liên hệ ngay để được chuyên viên tư vấn và hỗ trợ nhanh nhất!
     </p>
     <p class="mb-2">
-      <a href="/" class="text-primary-500 hover:text-primary-600 font-medium transition-colors">TongkhoBDS.com</a>
+      <a href="https://tongkhobds.com" class="text-primary-500 hover:text-primary-600 font-medium transition-colors" target="_blank">TongkhoBDS.com</a>
       <span class="text-secondary-600"> – Kho dữ liệu Bất động sản lớn nhất Việt Nam</span>
     </p>
     <p class="text-secondary-700 mb-1">
@@ -213,7 +276,7 @@ const isLongDescription = property.description.length > 300;
 </section>
 
 <script>
-  // Toggle description
+  // Toggle description expand/collapse
   document.querySelectorAll('.toggle-description').forEach(btn => {
     btn.addEventListener('click', (e) => {
       const target = e.target as HTMLButtonElement;
@@ -224,10 +287,5 @@ const isLongDescription = property.description.length > 300;
       target.textContent = isExpanded ? 'Xem thêm →' : '← Thu gọn';
       target.dataset.action = isExpanded ? 'expand' : 'collapse';
     });
-  });
-
-  // Print button
-  document.querySelectorAll('.print-btn').forEach(btn => {
-    btn.addEventListener('click', () => window.print());
   });
 </script>

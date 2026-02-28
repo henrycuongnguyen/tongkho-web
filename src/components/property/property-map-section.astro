@@ -1,0 +1,67 @@
+---
+/**
+ * Property Map Section
+ * Displays Google Maps embed with property location
+ * Matches v1 views/bds/components/map.html
+ */
+interface Props {
+  lat?: number;
+  lng?: number;
+  address?: string;
+  ward?: string;
+  district?: string;
+  city?: string;
+}
+
+const { lat, lng, address, ward, district, city } = Astro.props;
+
+// Don't render if no coordinates
+if (!lat || !lng) return;
+
+// Build Google Maps embed URL
+const mapUrl = `https://www.google.com/maps?q=${lat},${lng}&z=15&output=embed`;
+---
+
+<section class="bg-white rounded-xl shadow-sm border border-secondary-100 p-6 md:p-8">
+  <h2 class="text-xl font-bold text-secondary-800 mb-4">Vị trí</h2>
+
+  <!-- Map Embed -->
+  <div class="w-full h-[400px] rounded-lg overflow-hidden bg-secondary-100 mb-4">
+    <iframe
+      class="w-full h-full"
+      src={mapUrl}
+      style="border:0;"
+      loading="lazy"
+      allowfullscreen
+      referrerpolicy="no-referrer-when-downgrade"
+    ></iframe>
+  </div>
+
+  <!-- Location Details Grid (v1 style) -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {address && (
+      <div class="flex items-start gap-2">
+        <span class="text-secondary-500 font-medium shrink-0">Địa chỉ:</span>
+        <span class="text-secondary-800" id="property-direction">{address}</span>
+      </div>
+    )}
+    {city && (
+      <div class="flex items-start gap-2">
+        <span class="text-secondary-500 font-medium shrink-0">Tỉnh/Thành:</span>
+        <span class="text-secondary-800" id="property-city">{city}</span>
+      </div>
+    )}
+    {district && (
+      <div class="flex items-start gap-2">
+        <span class="text-secondary-500 font-medium shrink-0">Quận/Huyện:</span>
+        <span class="text-secondary-800" id="property-district">{district}</span>
+      </div>
+    )}
+    {ward && (
+      <div class="flex items-start gap-2">
+        <span class="text-secondary-500 font-medium shrink-0">Phường/Xã:</span>
+        <span class="text-secondary-800" id="property-ward">{ward}</span>
+      </div>
+    )}
+  </div>
+</section>

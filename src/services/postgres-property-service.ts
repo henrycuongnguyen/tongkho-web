@@ -5,7 +5,7 @@
 import { db } from "@/db";
 import { realEstate, type RealEstateRow } from "@/db/schema";
 import { eq, and, ne, desc } from "drizzle-orm";
-import type { Property, PropertyType, TransactionType } from "@/types/property";
+import type { Property, PropertyType, TransactionType, LegalDocument } from "@/types/property";
 
 // Base URL for uploaded images
 const UPLOADS_BASE_URL = "https://quanly.tongkhobds.com";
@@ -102,28 +102,44 @@ function mapToProperty(row: RealEstateRow): Property {
       ? row.description
       : stripHtml(row.htmlContent || row.description || "");
 
+  // Parse lat/lng from latlng field (format: "lat,lng")
+  const { lat, lng } = parseLatLng(row.latlng);
+
+  // Parse legal documents from legalDocumentUrl
+  const legalDocuments = parseLegalDocuments(row.legalDocumentUrl);
+
   return {
     id: String(row.id),
     title: row.title || "",
     slug: row.slug || "",
     type: propertyType,
     propertyTypeId: row.propertyTypeId || undefined,
+    propertyTypeName: row.propertyType || undefined,
     transactionType,
     price,
     priceUnit,
     area: Number(row.area) || 0,
     bedrooms: row.bedrooms ?? undefined,
     bathrooms: row.bathrooms ?? undefined,
+    floors: row.floors ?? undefined,
+    yearBuilt: row.yearBuilt || undefined,
     address: row.streetAddress || "",
+    ward: row.ward || undefined,
     district: row.district || "",
     city: row.city || "",
     wardId: row.wardId || undefined,
     districtId: row.districtId || undefined,
     cityId: row.cityId || undefined,
+    lat,
+    lng,
     description,
+    htmlContent: row.htmlContent || undefined,
     images,
     thumbnail,
     features,
+    videoUrl: row.videoUrl || undefined,
+    legalDocuments,
+    priceHistory: row.priceHistory || undefined,
     createdAt:
       row.createdOn?.toISOString() ||
       row.createdTime?.toISOString() ||
@@ -132,6 +148,61 @@ function mapToProperty(row: RealEstateRow): Property {
     isHot: row.isVerified || false,
     realEstateCode: row.realEstateCode || undefined,
   };
+}
+
+/**
+ * Parse lat/lng from latlng string (format: "lat,lng")
+ */
+function parseLatLng(latlng: string | null): { lat?: number; lng?: number } {
+  if (!latlng) return {};
+  const parts = latlng.split(",");
+  if (parts.length !== 2) return {};
+  const lat = parseFloat(parts[0].trim());
+  const lng = parseFloat(parts[1].trim());
+  if (isNaN(lat) || isNaN(lng)) return {};
+  return { lat, lng };
+}
+
+/**
+ * Parse legal documents from URL or JSON string
+ */
+function parseLegalDocuments(url: string | null): LegalDocument[] {
+  if (!url) return [];
+
+  // Try parsing as JSON array first
+  try {
+    const docs = JSON.parse(url);
+    if (Array.isArray(docs)) {
+      return docs.map((doc: { url?: string; link_url?: string; title?: string; type?: string }) => ({
+        url: doc.url || doc.link_url || "",
+        title: doc.title || "Tài liệu pháp lý",
+        type: getDocumentType(doc.type || doc.url || doc.link_url || ""),
+      }));
+    }
+  } catch {
+    // Not JSON, treat as single URL
+  }
+
+  // Single URL
+  if (url.startsWith("http") || url.startsWith("/")) {
+    return [{
+      url: url,
+      title: "Tài liệu pháp lý",
+      type: getDocumentType(url),
+    }];
+  }
+
+  return [];
+}
+
+/**
+ * Get document type from URL or type string
+ */
+function getDocumentType(urlOrType: string): LegalDocument["type"] {
+  const lower = urlOrType.toLowerCase();
+  if (lower.includes("pdf") || lower.endsWith(".pdf")) return "pdf";
+  if (lower.includes("doc") || lower.endsWith(".doc") || lower.endsWith(".docx")) return "doc";
+  return "other";
 }
 
 /**

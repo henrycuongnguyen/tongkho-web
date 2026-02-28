@@ -2,11 +2,24 @@
 /**
  * Property Detail Page
  * Dynamic route for individual property listings
- * URL: /bat-dong-san/{slug}
+ * URL: /bds/{slug}
+ *
+ * Layout Order (matches v1):
+ * 1. Image Gallery
+ * 2. Breadcrumbs
+ * 3. Property Info Section (title, price, address, actions, specs, description)
+ * 4. Video Section (if available)
+ * 5. Map Section (if coordinates available)
+ * 6. Documents Section (if available)
+ * 7. Price History Chart
+ * 8. Related Properties
  */
 import ListingWithSidebarLayout from '@/layouts/listing-with-sidebar-layout.astro';
 import ImageGalleryCarousel from '@/components/property/property-detail-image-gallery-carousel.astro';
 import PropertyInfoSection from '@/components/property/property-info-section.astro';
+import PropertyVideoSection from '@/components/property/property-video-section.astro';
+import PropertyMapSection from '@/components/property/property-map-section.astro';
+import PropertyDocumentsSection from '@/components/property/property-documents-section.astro';
 import ContactCard from '@/components/shared/contact-card.astro';
 import PriceRangeFilterCard from '@/components/listing/sidebar/price-range-filter-card.astro';
 import AreaRangeFilterCard from '@/components/listing/sidebar/area-range-filter-card.astro';
@@ -122,7 +135,10 @@ const featuredProjects = await getFeaturedProjects(5);
 >
   <!-- Main Content Slot -->
   <div class="space-y-6">
-    <!-- Breadcrumb -->
+    <!-- 1. Image Gallery (first, like v1) -->
+    <ImageGalleryCarousel images={propertyImages} realEstateCode={property.realEstateCode} />
+
+    <!-- 2. Breadcrumb (after gallery, like v1) -->
     <nav class="text-sm text-secondary-500">
       <ol class="flex flex-wrap items-center gap-2">
         <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
@@ -137,16 +153,41 @@ const featuredProjects = await getFeaturedProjects(5);
       </ol>
     </nav>
 
-    <!-- Image Gallery -->
-    <ImageGalleryCarousel images={propertyImages} realEstateCode={property.realEstateCode} />
-
-    <!-- Property Info Section -->
+    <!-- 3. Property Info Section (title, price, address, actions, specs, description, contact) -->
     <PropertyInfoSection property={property} />
 
-    <!-- Price History Chart -->
-    <PriceHistoryChart currentPrice={property.price} priceUnit={property.priceUnit} />
+    <!-- 4. Video Section (if available) -->
+    {property.videoUrl && (
+      <PropertyVideoSection videoUrl={property.videoUrl} />
+    )}
 
-    <!-- Related Properties Section -->
+    <!-- 5. Map Section (if coordinates available) -->
+    {property.lat && property.lng && (
+      <PropertyMapSection
+        lat={property.lat}
+        lng={property.lng}
+        address={property.address}
+        ward={property.ward}
+        district={property.district}
+        city={property.city}
+      />
+    )}
+
+    <!-- 6. Documents Section (if available) -->
+    {property.legalDocuments && property.legalDocuments.length > 0 && (
+      <PropertyDocumentsSection documents={property.legalDocuments} />
+    )}
+
+    <!-- 7. Price History Chart (hidden if no valid price or no map) -->
+    {property.lat && property.lng && (
+      <PriceHistoryChart
+        currentPrice={property.price}
+        priceUnit={property.priceUnit}
+        priceHistory={property.priceHistory}
+      />
+    )}
+
+    <!-- 8. Related Properties Section -->
     {displayRelated.length > 0 && (
       <section class="mt-12">
         <h2 class="text-2xl font-bold text-secondary-800 mb-6">Bất động sản khác</h2>
