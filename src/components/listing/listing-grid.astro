@@ -7,6 +7,7 @@
 import type { PropertyDocument } from '@/services/elasticsearch/types';
 import type { RelaxationLevel } from '@/services/search-relaxation/types';
 import PropertyCard from '@/components/cards/property-card.astro';
+import ListingPropertyCard from '@/components/listing/listing-property-card.astro';
 import { mapPropertyDocumentsToProperties } from '@/utils/property-mapper';
 
 interface Props {
@@ -17,8 +18,8 @@ interface Props {
 
 const { properties: propertyDocs, isFallback = false, relaxationMetadata = null } = Astro.props;
 
-// Convert PropertyDocuments to Property type for PropertyCard
-const properties = mapPropertyDocumentsToProperties(propertyDocs);
+// Convert for PropertyCard (mua-ban, cho-thue)
+const mappedProperties = mapPropertyDocumentsToProperties(propertyDocs);
 ---
 
 {/* Fallback messaging - v1 style: show "no results" message then "suggestions" */}
@@ -40,14 +41,20 @@ const properties = mapPropertyDocumentsToProperties(propertyDocs);
   </div>
 )}
 
-{properties.length > 0 ? (
+{propertyDocs.length > 0 ? (
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-6">
-    {properties.map((property, index) => (
+    {propertyDocs.map((propDoc, index) => (
       <div
         class="opacity-0 animate-fade-in-up"
         style={`animation-delay: ${index * 100}ms; animation-fill-mode: forwards;`}
       >
-        <PropertyCard property={property} />
+        {propDoc.transaction_type === 3 ? (
+          <!-- Project card -->
+          <ListingPropertyCard property={propDoc} />
+        ) : (
+          <!-- Regular property card (mua-ban, cho-thue) -->
+          <PropertyCard property={mappedProperties[index]} />
+        )}
       </div>
     ))}
   </div>
