@@ -4,7 +4,11 @@ interface Props {
   realEstateCode?: string;
 }
 
-const { images, realEstateCode } = Astro.props;
+const { images: rawImages, realEstateCode } = Astro.props;
+
+// Ensure we have at least a placeholder image
+const PLACEHOLDER = '/images/placeholder-property.jpg';
+const images = rawImages.length > 0 ? rawImages : [PLACEHOLDER];
 const totalImages = images.length;
 ---
 

@@ -50,7 +50,7 @@ const location = [property.district, property.city || property.city_name].filter
 
 // Check if this is a project listing (transaction_type === 3)
 const isProject = property.transaction_type === 3;
-const detailUrl = isProject ? `/duan/${property.slug}` : `/bds/${property.slug}`;
+const detailUrl = isProject ? `/du-an/${property.slug}` : `/bds/${property.slug}`;
 ---
 
 <a href={detailUrl} class="block bg-white rounded-lg shadow-sm overflow-hidden hover:shadow-md transition-shadow group">
