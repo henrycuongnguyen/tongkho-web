@@ -1,0 +1,49 @@
+---
+/**
+ * Project Sidebar List
+ * Display related projects in sidebar (matching v1 style)
+ */
+import type { FeaturedProject } from '@/services/featured-project-service';
+
+interface Props {
+  title?: string;
+  projects: FeaturedProject[];
+}
+
+const { title = 'Các dự án khác', projects } = Astro.props;
+const PLACEHOLDER = '/images/placeholder-project.jpg';
+---
+
+{projects.length > 0 && (
+  <div class="bg-white rounded-xl shadow-sm border border-secondary-100 p-4">
+    <h4 class="text-lg font-semibold text-secondary-800 mb-4">{title}</h4>
+    <ul class="space-y-4">
+      {projects.map((project) => (
+        <li class="flex gap-3 group">
+          <div class="flex-shrink-0 w-20 h-16 rounded-lg overflow-hidden bg-secondary-100">
+            <img
+              src={project.mainImage || PLACEHOLDER}
+              alt={project.title}
+              class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+              loading="lazy"
+              onerror={`this.src='${PLACEHOLDER}'`}
+            />
+          </div>
+          <div class="flex-1 min-w-0">
+            <a
+              href={`/du-an/${project.slug}`}
+              class="block text-sm font-medium text-secondary-800 hover:text-primary-600 line-clamp-2 transition-colors"
+            >
+              {project.title}
+            </a>
+            {project.description && (
+              <p class="text-xs text-secondary-500 mt-1 line-clamp-1">
+                {project.description}
+              </p>
+            )}
+          </div>
+        </li>
+      ))}
+    </ul>
+  </div>
+)}

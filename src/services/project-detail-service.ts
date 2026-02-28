@@ -482,3 +482,45 @@ export async function getProjectProperties(
 
   return result;
 }
+
+/**
+ * Get related projects from same district
+ */
+export async function getRelatedProjects(
+  districtId: string | null,
+  excludeId: number,
+  limit: number = 6
+): Promise<Array<{ id: number; title: string; slug: string; mainImage: string | null; description: string | null }>> {
+  if (!districtId) return [];
+
+  try {
+    const rows = await db
+      .select({
+        id: project.id,
+        projectName: project.projectName,
+        slug: project.slug,
+        mainImage: project.mainImage,
+        streetAddress: project.streetAddress,
+      })
+      .from(project)
+      .where(and(
+        eq(project.districtId, districtId),
+        eq(project.aactive, true)
+      ))
+      .limit(limit + 1);
+
+    return rows
+      .filter(r => r.id !== excludeId)
+      .slice(0, limit)
+      .map(r => ({
+        id: r.id,
+        title: r.projectName || '',
+        slug: r.slug || String(r.id),
+        mainImage: parseImageUrl(r.mainImage),
+        description: r.streetAddress,
+      }));
+  } catch (error) {
+    console.error('[ProjectDetailService] Failed to get related projects:', error);
+    return [];
+  }
+}

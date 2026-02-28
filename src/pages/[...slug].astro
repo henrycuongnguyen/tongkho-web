@@ -25,10 +25,6 @@ import { trackZeroResults, trackFallbackSuccess } from '@/services/analytics/fal
 import { fallbackCache } from '@/services/cache/fallback-cache';
 import { getPriceHistoryForLocation } from '@/services/price-history-service';
 import PriceHistorySection from '@/components/listing/price-history-section.astro';
-import { getProjectBySlug, getProjectById, getProjectProperties } from '@/services/project-detail-service';
-import ProjectDetailContent from '@/components/project/project-detail-content.astro';
-import ContactCard from '@/components/shared/contact-card.astro';
-import FeaturedProjectBanner from '@/components/listing/sidebar/featured-project-banner.astro';
 
 // Valid transaction slugs
 const VALID_TRANSACTIONS = ['mua-ban', 'cho-thue', 'du-an'];
@@ -41,63 +37,6 @@ const slugParts = slug?.split('/').filter(Boolean) || [];
 // Exit early if no slug parts
 if (slugParts.length === 0) {
   return Astro.redirect('/404');
-}
-
-// Handle /duan/{slug} - redirect to project detail page (v1 compatibility)
-if (slugParts[0] === 'duan' && slugParts.length >= 2) {
-  const projectSlug = slugParts.slice(1).join('/');
-  return Astro.redirect(`/du-an/${projectSlug}`, 301);
-}
-
-// Handle /du-an/{project-slug} - check if it's a project detail
-// This route only handles /du-an (listing) or /du-an with location filters
-let projectDetailData: Awaited<ReturnType<typeof getProjectBySlug>> = null;
-let isProjectDetailPage = false;
-
-if (slugParts[0] === 'du-an' && slugParts.length >= 2) {
-  const secondSegment = slugParts[1];
-
-  // Property type slugs that indicate listing (not project detail)
-  const isPropertyTypeSlug = secondSegment.startsWith('ban-') ||
-                              secondSegment.startsWith('cho-thue-') ||
-                              secondSegment.startsWith('du-an-');
-
-  if (!isPropertyTypeSlug) {
-    // First check if it's a location
-    const resolved = await resolveLocationSlugs([secondSegment]);
-
-    if (resolved.length === 0) {
-      // Not a location - check if it's a valid project
-      projectDetailData = await getProjectBySlug(secondSegment);
-      if (!projectDetailData && /^\d+$/.test(secondSegment)) {
-        projectDetailData = await getProjectById(parseInt(secondSegment, 10));
-      }
-
-      if (projectDetailData) {
-        isProjectDetailPage = true;
-        console.log('[ProjectDetail] Found project:', projectDetailData.projectName);
-        console.log('[ProjectDetail] Images:', projectDetailData.galleryImages);
-        console.log('[ProjectDetail] MainImage:', projectDetailData.mainImage);
-      }
-      // If not a project, continue with listing (will likely show no results)
-    }
-  }
-}
-
-// If this is a project detail page, fetch additional data and skip listing logic
-let projectPropertiesData: Awaited<ReturnType<typeof getProjectProperties>> | null = null;
-let projectFeaturedProjects: Awaited<ReturnType<typeof getFeaturedProjects>> = [];
-
-if (isProjectDetailPage && projectDetailData) {
-  // Fetch properties at this project and featured projects in parallel
-  [projectPropertiesData, projectFeaturedProjects] = await Promise.all([
-    getProjectProperties(
-      projectDetailData.projectName,
-      projectDetailData.districtId,
-      6
-    ),
-    getFeaturedProjects(5),
-  ]);
 }
 
 // Check if first segment is a valid transaction type OR a property type slug (v1 format)
@@ -489,129 +428,109 @@ const priceTrendData = priceHistoryData ? {
 } : null;
 ---
 
-{isProjectDetailPage && projectDetailData && projectPropertiesData ? (
-  <!-- Project Detail Page -->
-  <ListingWithSidebarLayout
-    title={`${projectDetailData.projectName} | TongkhoBDS`}
-    description={projectDetailData.description?.slice(0, 160) || `Thông tin dự án ${projectDetailData.projectName}`}
-    image={projectDetailData.mainImage || undefined}
-  >
-    <ProjectDetailContent
-      project={projectDetailData}
-      projectProperties={projectPropertiesData}
-    />
+<ListingWithSidebarLayout title={pageTitle} description={description}>
+  <!-- Horizontal Search Bar -->
+  <HorizontalSearchBar
+    transactionType={filters.transactionType}
+    propertyTypes={propertyTypes.map(pt => ({
+      id: pt.id,
+      title: pt.vietnamese || pt.title || '',
+      slug: pt.slug || '',
+      vietnamese: pt.vietnamese
+    }))}
+    provinces={provinces}
+    currentProvince={currentProvinceSlug}
+    currentDistricts={currentDistrictSlugs}
+    currentFilters={{
+      propertyTypes: filters.propertyTypes,
+      minPrice: filters.minPrice?.toString(),
+      maxPrice: filters.maxPrice?.toString(),
+      keyword: filters.keyword,
+      minArea: filters.minArea?.toString(),
+      maxArea: filters.maxArea?.toString(),
+      radius: filters.radius?.toString(),
+      bedrooms: filters.bedrooms?.toString(),
+      bathrooms: filters.bathrooms?.toString(),
+    }}
+    currentPath={url.pathname}
+  />
 
-    <div slot="sidebar" class="space-y-4">
-      <ContactCard />
-      <FeaturedProjectBanner projects={projectFeaturedProjects} />
-    </div>
-  </ListingWithSidebarLayout>
-) : (
-  <!-- Listing Page -->
-  <ListingWithSidebarLayout title={pageTitle} description={description}>
-    <!-- Horizontal Search Bar -->
-    <HorizontalSearchBar
-      transactionType={filters.transactionType}
-      propertyTypes={propertyTypes.map(pt => ({
-        id: pt.id,
-        title: pt.vietnamese || pt.title || '',
-        slug: pt.slug || '',
-        vietnamese: pt.vietnamese
-      }))}
-      provinces={provinces}
-      currentProvince={currentProvinceSlug}
-      currentDistricts={currentDistrictSlugs}
-      currentFilters={{
-        propertyTypes: filters.propertyTypes,
-        minPrice: filters.minPrice?.toString(),
-        maxPrice: filters.maxPrice?.toString(),
-        keyword: filters.keyword,
-        minArea: filters.minArea?.toString(),
-        maxArea: filters.maxArea?.toString(),
-        radius: filters.radius?.toString(),
-        bedrooms: filters.bedrooms?.toString(),
-        bathrooms: filters.bathrooms?.toString(),
-      }}
-      currentPath={url.pathname}
-    />
+  <!-- Breadcrumb -->
+  <ListingBreadcrumb
+    filters={filters}
+    selectedLocations={selectedLocations}
+    propertyTypeName={propertyTypeName}
+  />
 
-    <!-- Breadcrumb -->
-    <ListingBreadcrumb
-      filters={filters}
-      selectedLocations={selectedLocations}
-      propertyTypeName={propertyTypeName}
-    />
+  <!-- Results Header -->
+  <div class="py-4 mb-4">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+      <div>
+        <h1 class="text-xl font-semibold text-slate-900">
+          {pageTitle.replace(' - Tongkho BĐS', '')}
+        </h1>
+        <p class="text-sm text-slate-500 mt-1">
+          Tìm thấy <span class="font-medium text-slate-700">{total.toLocaleString('vi-VN')}</span> kết quả
+        </p>
+      </div>
 
-    <!-- Results Header -->
-    <div class="py-4 mb-4">
-      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 class="text-xl font-semibold text-slate-900">
-            {pageTitle.replace(' - Tongkho BĐS', '')}
-          </h1>
-          <p class="text-sm text-slate-500 mt-1">
-            Tìm thấy <span class="font-medium text-slate-700">{total.toLocaleString('vi-VN')}</span> kết quả
-          </p>
-        </div>
-
-        <!-- Sort Dropdown -->
-        <div class="flex items-center gap-2">
-          <label for="sort" class="text-sm text-slate-600">Sắp xếp:</label>
-          <select
-            id="sort"
-            class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-            onchange="if (window.location.pathname + window.location.search !== this.value) window.location.href = this.value"
-          >
-            <option value={buildSortUrl('newest')} selected={filters.sort === 'newest'}>Mới nhất</option>
-            <option value={buildSortUrl('oldest')} selected={filters.sort === 'oldest'}>Cũ nhất</option>
-            <option value={buildSortUrl('price_asc')} selected={filters.sort === 'price_asc'}>Giá thấp đến cao</option>
-            <option value={buildSortUrl('price_desc')} selected={filters.sort === 'price_desc'}>Giá cao đến thấp</option>
-            <option value={buildSortUrl('area_asc')} selected={filters.sort === 'area_asc'}>Diện tích nhỏ đến lớn</option>
-            <option value={buildSortUrl('area_desc')} selected={filters.sort === 'area_desc'}>Diện tích lớn đến nhỏ</option>
-          </select>
-        </div>
+      <!-- Sort Dropdown -->
+      <div class="flex items-center gap-2">
+        <label for="sort" class="text-sm text-slate-600">Sắp xếp:</label>
+        <select
+          id="sort"
+          class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
+          onchange="if (window.location.pathname + window.location.search !== this.value) window.location.href = this.value"
+        >
+          <option value={buildSortUrl('newest')} selected={filters.sort === 'newest'}>Mới nhất</option>
+          <option value={buildSortUrl('oldest')} selected={filters.sort === 'oldest'}>Cũ nhất</option>
+          <option value={buildSortUrl('price_asc')} selected={filters.sort === 'price_asc'}>Giá thấp đến cao</option>
+          <option value={buildSortUrl('price_desc')} selected={filters.sort === 'price_desc'}>Giá cao đến thấp</option>
+          <option value={buildSortUrl('area_asc')} selected={filters.sort === 'area_asc'}>Diện tích nhỏ đến lớn</option>
+          <option value={buildSortUrl('area_desc')} selected={filters.sort === 'area_desc'}>Diện tích lớn đến nhỏ</option>
+        </select>
       </div>
     </div>
+  </div>
 
-    <!-- Property Grid -->
-    <ListingGrid
-      properties={properties}
-      isFallback={isFallback}
-      relaxationMetadata={relaxationMetadata}
+  <!-- Property Grid -->
+  <ListingGrid
+    properties={properties}
+    isFallback={isFallback}
+    relaxationMetadata={relaxationMetadata}
+  />
+
+  <!-- Pagination -->
+  {totalPages > 1 && (
+    <ListingPagination
+      currentPage={currentPage}
+      totalPages={totalPages}
+      baseUrl={url.pathname}
+      totalResults={total}
+      pageSize={pageSize}
     />
+  )}
 
-    <!-- Pagination -->
-    {totalPages > 1 && (
-      <ListingPagination
-        currentPage={currentPage}
-        totalPages={totalPages}
-        baseUrl={url.pathname}
-        totalResults={total}
-        pageSize={pageSize}
-      />
-    )}
+  <!-- Price History Section (only when price filter active and data available) -->
+  {priceHistoryData && (priceHistoryData.twoYear || priceHistoryData.fiveYear) && (
+    <PriceHistorySection
+      twoYear={priceHistoryData.twoYear}
+      fiveYear={priceHistoryData.fiveYear}
+      analyzedData={priceHistoryData.analyzedData}
+      chartTitle={priceHistoryData.chartTitle}
+      chartUnit={priceHistoryData.chartUnit}
+    />
+  )}
 
-    <!-- Price History Section (only when price filter active and data available) -->
-    {priceHistoryData && (priceHistoryData.twoYear || priceHistoryData.fiveYear) && (
-      <PriceHistorySection
-        twoYear={priceHistoryData.twoYear}
-        fiveYear={priceHistoryData.fiveYear}
-        analyzedData={priceHistoryData.analyzedData}
-        chartTitle={priceHistoryData.chartTitle}
-        chartUnit={priceHistoryData.chartUnit}
-      />
-    )}
+  <!-- SEO Content Below (only if properties exist and content available) -->
+  {properties.length > 0 && seoMetadata?.contentBelow && (
+    <div class="mt-20 prose prose-slate max-w-none">
+      <div set:html={seoMetadata.contentBelow} />
+    </div>
+  )}
 
-    <!-- SEO Content Below (only if properties exist and content available) -->
-    {properties.length > 0 && seoMetadata?.contentBelow && (
-      <div class="mt-20 prose prose-slate max-w-none">
-        <div set:html={seoMetadata.contentBelow} />
-      </div>
-    )}
-
-    <!-- Sidebar -->
-    <Fragment slot="sidebar">
-      <SidebarWrapper filters={filters} featuredProjects={featuredProjects} sideBlocks={sideBlocks} priceTrend={priceTrendData} />
-    </Fragment>
-  </ListingWithSidebarLayout>
-)}
+  <!-- Sidebar -->
+  <Fragment slot="sidebar">
+    <SidebarWrapper filters={filters} featuredProjects={featuredProjects} sideBlocks={sideBlocks} priceTrend={priceTrendData} />
+  </Fragment>
+</ListingWithSidebarLayout>

@@ -18,8 +18,9 @@ import ListingWithSidebarLayout from '@/layouts/listing-with-sidebar-layout.astr
 import ImageGalleryCarousel from '@/components/property/property-detail-image-gallery-carousel.astro';
 import ContactCard from '@/components/shared/contact-card.astro';
 import FeaturedProjectBanner from '@/components/listing/sidebar/featured-project-banner.astro';
+import ProjectSidebarList from '@/components/project/project-sidebar-list.astro';
 import PropertyCard from '@/components/cards/property-card.astro';
-import { getProjectBySlug, getProjectById, getProjectProperties } from '@/services/project-detail-service';
+import { getProjectBySlug, getProjectById, getProjectProperties, getRelatedProjects } from '@/services/project-detail-service';
 import { getFeaturedProjects } from '@/services/featured-project-service';
 import { mapPropertyDocumentsToProperties } from '@/utils/property-mapper';
 
@@ -51,7 +52,11 @@ const sellPropertiesMapped = mapPropertyDocumentsToProperties(projectProperties.
 const rentPropertiesMapped = mapPropertyDocumentsToProperties(projectProperties.rentProperties);
 
 // Fetch featured projects for sidebar (exclude current)
-const featuredProjects = await getFeaturedProjects(5);
+// Fetch featured projects and related projects (same district) in parallel
+const [featuredProjects, relatedProjects] = await Promise.all([
+  getFeaturedProjects(5),
+  getRelatedProjects(project.districtId, project.id, 6),
+]);
 
 // SEO
 const pageTitle = `${project.projectName} | TongkhoBDS`;
@@ -338,8 +343,11 @@ const hasMap = project.lat !== null && project.lng !== null;
     <!-- Quick Contact -->
     <ContactCard />
 
-    <!-- Featured Projects -->
+    <!-- Related Projects (same district) -->
+    <ProjectSidebarList title="Các dự án khác" projects={relatedProjects} />
+    <!-- Featured Projects Banner -->
     <FeaturedProjectBanner projects={featuredProjects} />
+
   </div>
 </ListingWithSidebarLayout>
 
