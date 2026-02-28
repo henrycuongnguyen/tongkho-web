@@ -42,7 +42,7 @@ export async function getSeoMetadata(slug: string): Promise<SeoMetadata> {
 
   // 3. Use default SEO if still not found
   if (!seoResult) {
-    console.info('[SeoMetadata] No SEO found for slug:', baseSlug, '- using default');
+    // console.info('[SeoMetadata] No SEO found for slug:', baseSlug, '- using default');
     const defaultSeo = await getDefaultSeoMetadata();
     if (defaultSeo) {
       seoResult = defaultSeo;
