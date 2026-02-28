@@ -5,7 +5,7 @@
 
 import type { PropertySearchFilters, ESQuery, SortOption } from './types';
 
-// Fields to return from ES
+// Fields to return from ES - real_estate index
 const SOURCE_FIELDS = [
   'id', 'title', 'slug', 'transaction_type', 'property_type_id',
   'property_type_name', 'price', 'price_description', 'area',
@@ -14,6 +14,17 @@ const SOURCE_FIELDS = [
   'province_id', 'district_id', 'main_image', 'thumbnail',
   'images', 'created_on', 'created_time', 'updated_on',
   'location', 'is_verified', 'is_featured', 'source_post'
+];
+
+// Fields to return from ES - project index
+const PROJECT_SOURCE_FIELDS = [
+  'id', 'project_name', 'slug', 'project_code', 'project_type',
+  'price', 'price_description', 'project_area',
+  'street_address', 'address', 'district', 'district_name',
+  'city', 'city_name', 'city_id', 'district_id', 'ward_id',
+  'main_image', 'gallery_images', 'master_plan_images',
+  'created_on', 'created_time', 'updated_on',
+  'location', 'is_verified', 'is_featured', 'developer_name', 'developer_logo'
 ];
 
 /**
@@ -40,11 +51,16 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     pageSize = 24
   } = filters;
 
+  // Check if querying project index (transaction_type=3)
+  const isProjectQuery = transactionType === 3;
+
   // Must conditions (required)
-  const must: unknown[] = [
-    // Transaction type is always required
-    { term: { transaction_type: transactionType } }
-  ];
+  const must: unknown[] = [];
+
+  // Transaction type filter - only for real_estate index, not project index
+  if (!isProjectQuery) {
+    must.push({ term: { transaction_type: transactionType } });
+  }
 
   // Property types filter
   if (propertyTypes.length > 0) {
@@ -144,7 +160,7 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     from: (page - 1) * pageSize,
     size: pageSize,
     sort: sortConfig,
-    _source: SOURCE_FIELDS
+    _source: isProjectQuery ? PROJECT_SOURCE_FIELDS : SOURCE_FIELDS
   };
 
   // console.log('[ES Query Builder] Final ES query:', JSON.stringify(finalQuery, null, 2));
