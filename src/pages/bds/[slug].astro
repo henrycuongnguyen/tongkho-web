@@ -108,6 +108,9 @@ if (actualPropertyTypeId) {
 const baseSlug = propertyTypeSlug || (property.transactionType === 'sale' ? 'mua-ban' : 'cho-thue');
 const listingBasePath = `/${baseSlug}/${locationSlug}`;
 
+// Map transaction type to numeric value for sidebar filters (1=mua bán, 2=cho thuê)
+const transactionTypeNum = property.transactionType === 'sale' ? 1 : 2;
+
 // Fetch featured projects for sidebar
 const featuredProjects = await getFeaturedProjects(5);
 ---
@@ -162,10 +165,10 @@ const featuredProjects = await getFeaturedProjects(5);
     <ContactCard />
 
     <!-- Price Range Filter -->
-    <PriceRangeFilterCard currentMin={undefined} currentMax={undefined} basePath={listingBasePath} />
+    <PriceRangeFilterCard currentMin={undefined} currentMax={undefined} basePath={listingBasePath} transactionType={transactionTypeNum} />
 
     <!-- Area Range Filter -->
-    <AreaRangeFilterCard currentMin={undefined} currentMax={undefined} basePath={listingBasePath} />
+    <AreaRangeFilterCard currentMin={undefined} currentMax={undefined} basePath={listingBasePath} transactionType={transactionTypeNum} />
 
     <!-- Side Block Filters (Related Filters) -->
     <SideBlockFiltersCard propertyId={property.id} />

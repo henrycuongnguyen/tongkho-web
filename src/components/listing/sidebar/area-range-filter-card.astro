@@ -1,30 +1,58 @@
 ---
 /**
  * Area Range Filter Card
- * 10 predefined area ranges + custom input
+ * Different area ranges per transaction type (v1 alignment)
+ * - Type 1 (mua bán): Dưới 30 - trên 500 m²
+ * - Type 2 (cho thuê): Dưới 30 - Trên 500 m²
+ * - Type 3 (dự án): No area filter (hidden)
  */
 
 interface Props {
   currentMin?: number;
   currentMax?: number;
-  basePath?: string; // Override base path for detail pages (e.g., '/mua-ban/ha-noi')
+  basePath?: string; // Override base path for detail pages
+  transactionType?: number; // 1=mua bán, 2=cho thuê, 3=dự án
 }
 
-const { currentMin, currentMax, basePath } = Astro.props;
+const { currentMin, currentMax, basePath, transactionType = 1 } = Astro.props;
 
-// Area ranges in m² (v1 format)
-const AREA_RANGES = [
-  { label: 'Dưới 30 m²', min: 0, max: 30 },
-  { label: '30 - 50 m²', min: 30, max: 50 },
-  { label: '50 - 80 m²', min: 50, max: 80 },
-  { label: '80 - 100 m²', min: 80, max: 100 },
-  { label: '100 - 150 m²', min: 100, max: 150 },
-  { label: '150 - 200 m²', min: 150, max: 200 },
-  { label: '200 - 250 m²', min: 200, max: 250 },
-  { label: '250 - 300 m²', min: 250, max: 300 },
-  { label: '300 - 500 m²', min: 300, max: 500 },
-  { label: 'trên 500 m²', min: 500, max: null },
-];
+// Area ranges by transaction type (v1 format)
+const AREA_RANGES_BY_TYPE: Record<number, Array<{ label: string; min: number; max: number | null }>> = {
+  // Mua bán (Buy/Sell)
+  1: [
+    { label: 'Dưới 30 m²', min: 0, max: 29 },
+    { label: '30 - 50 m²', min: 30, max: 50 },
+    { label: '50 - 80 m²', min: 50, max: 80 },
+    { label: '80 - 100 m²', min: 80, max: 100 },
+    { label: '100 - 150 m²', min: 100, max: 150 },
+    { label: '150 - 200 m²', min: 150, max: 200 },
+    { label: '200 - 250 m²', min: 200, max: 250 },
+    { label: '250 - 300 m²', min: 250, max: 300 },
+    { label: '300 - 500 m²', min: 300, max: 500 },
+    { label: 'trên 500 m²', min: 500, max: null },
+  ],
+  // Cho thuê (Rent)
+  2: [
+    { label: 'Dưới 30 m²', min: 0, max: 30 },
+    { label: '30 - 50 m²', min: 30, max: 50 },
+    { label: '50 - 80 m²', min: 50, max: 80 },
+    { label: '80 - 100 m²', min: 80, max: 100 },
+    { label: '100 - 150 m²', min: 100, max: 150 },
+    { label: '150 - 200 m²', min: 150, max: 200 },
+    { label: '200 - 250 m²', min: 200, max: 250 },
+    { label: '250 - 300 m²', min: 250, max: 300 },
+    { label: '300 - 500 m²', min: 300, max: 500 },
+    { label: 'Trên 500 m²', min: 500, max: null },
+  ],
+  // Dự án (Project) - no area filter
+  3: [],
+};
+
+// Get area ranges for current transaction type
+const AREA_RANGES = AREA_RANGES_BY_TYPE[transactionType] || AREA_RANGES_BY_TYPE[1];
+
+// Don't render if no ranges available (e.g., dự án)
+const shouldRender = AREA_RANGES.length > 0;
 
 // Check if range is active
 function isActive(range: typeof AREA_RANGES[0]): boolean {
@@ -63,23 +91,24 @@ function getClearAreaUrl(): string {
 }
 ---
 
-<div class="bg-white rounded-lg shadow-sm border border-secondary-100 p-4">
-  <h3 class="font-semibold text-secondary-900 mb-4 text-base">Lọc theo diện tích</h3>
+{shouldRender && (
+  <div class="bg-white rounded-lg shadow-sm border border-secondary-100 p-4">
+    <h3 class="font-semibold text-secondary-900 mb-4 text-base">Lọc theo diện tích</h3>
 
-  <div class="space-y-1.5">
-    {AREA_RANGES.map((range) => (
-      <a
-        href={getRangeUrl(range)}
-        class:list={[
-          'block px-3 py-2 text-sm rounded-lg transition-all',
-          isActive(range)
-            ? 'bg-primary-50 text-primary-600 font-medium border-primary-500'
-            : 'text-secondary-800 hover:bg-secondary-50 hover:text-primary-600'
-        ]}
-      >
-        {range.label}
-      </a>
-    ))}
+    <div class="space-y-1.5">
+      {AREA_RANGES.map((range) => (
+        <a
+          href={getRangeUrl(range)}
+          class:list={[
+            'block px-3 py-2 text-sm rounded-lg transition-all',
+            isActive(range)
+              ? 'bg-primary-50 text-primary-600 font-medium border-primary-500'
+              : 'text-secondary-800 hover:bg-secondary-50 hover:text-primary-600'
+          ]}
+        >
+          {range.label}
+        </a>
+      ))}
+    </div>
   </div>
-
-</div>
+)}

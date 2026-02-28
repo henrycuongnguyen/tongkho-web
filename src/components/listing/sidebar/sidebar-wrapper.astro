@@ -48,10 +48,10 @@ const { filters, dynamicFilterBlocks = [], featuredProjects = [], sideBlocks = [
   )}
 
   <!-- Price Range Filter -->
-  <PriceRangeFilterCard currentMin={filters.minPrice} currentMax={filters.maxPrice} />
+  <PriceRangeFilterCard currentMin={filters.minPrice} currentMax={filters.maxPrice} transactionType={filters.transactionType} />
 
   <!-- Area Range Filter -->
-  <AreaRangeFilterCard currentMin={filters.minArea} currentMax={filters.maxArea} />
+  <AreaRangeFilterCard currentMin={filters.minArea} currentMax={filters.maxArea} transactionType={filters.transactionType} />
 
   <!-- Dynamic Filters (context-aware) -->
   {dynamicFilterBlocks.length > 0 && (
