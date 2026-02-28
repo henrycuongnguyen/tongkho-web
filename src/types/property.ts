@@ -5,6 +5,7 @@ export interface Property {
   title: string;
   slug: string;
   type: PropertyType;
+  propertyTypeId?: number;
   transactionType: TransactionType;
   price: number;
   priceUnit: PriceUnit;
@@ -14,6 +15,9 @@ export interface Property {
   address: string;
   district: string;
   city: string;
+  wardId?: string;
+  districtId?: string;
+  cityId?: string;
   description: string;
   images: string[];
   thumbnail: string;
@@ -21,6 +25,7 @@ export interface Property {
   createdAt: string;
   isFeatured: boolean;
   isHot: boolean;
+  realEstateCode?: string;
 }
 
 export type PropertyType =

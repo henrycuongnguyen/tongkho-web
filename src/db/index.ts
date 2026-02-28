@@ -2,7 +2,7 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from './schema';
 
-const connectionString = import.meta.env.DATABASE_URL || process.env.DATABASE_URL;
+const connectionString = (typeof import.meta !== 'undefined' && import.meta.env?.DATABASE_URL) || process.env.DATABASE_URL;
 
 if (!connectionString) {
   throw new Error('[DB] DATABASE_URL not configured');

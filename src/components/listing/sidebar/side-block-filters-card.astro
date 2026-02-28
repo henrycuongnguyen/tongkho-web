@@ -1,0 +1,60 @@
+---
+/**
+ * Side Block Filters Card
+ * Display related property filters based on current property
+ * Similar to v1 load_side_block_filters component
+ */
+
+import { getSideBlockFiltersV2 } from '@/services/side-block-filter-service-v2';
+
+interface Props {
+  propertyId: string;
+}
+
+const { propertyId } = Astro.props;
+
+// Fetch side block filters from PostgreSQL
+const sideBlocks = await getSideBlockFiltersV2(propertyId);
+
+// Build URL from filter params
+// v1 format: /{property-type-slug}/{location-slug}
+function buildFilterUrl(params: any): string {
+  const { property_type_slug, selected_addresses } = params;
+
+  // Build path with property type slug and location slug
+  const basePath = property_type_slug || 'mua-ban';
+
+  if (selected_addresses) {
+    return `/${basePath}/${selected_addresses}`;
+  }
+
+  return `/${basePath}`;
+}
+---
+
+{sideBlocks.length > 0 && (
+  <>
+    {sideBlocks.map((block: any) => (
+      <div class="bg-white rounded-lg shadow-md p-6">
+        <!-- Block Title -->
+        <h3 class="text-lg font-semibold text-secondary-800 mb-4">
+          {block.title}
+        </h3>
+
+        <!-- Filter List -->
+        <ul class="space-y-2">
+          {block.filters.map((filter: any) => (
+            <li>
+              <a
+                href={buildFilterUrl(filter.params)}
+                class="text-sm text-secondary-600 hover:text-primary-500 hover:underline transition-colors"
+              >
+                {filter.title}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    ))}
+  </>
+)}
