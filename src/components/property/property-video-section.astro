@@ -1,0 +1,52 @@
+---
+/**
+ * Property Video Section
+ * Displays embedded video (YouTube/Vimeo) if available
+ * Matches v1 views/bds/components/video.html
+ */
+interface Props {
+  videoUrl?: string;
+}
+
+const { videoUrl } = Astro.props;
+
+// Don't render if no video URL
+if (!videoUrl) return;
+
+// Convert YouTube watch URL to embed URL if needed
+function getEmbedUrl(url: string): string {
+  // Already an embed URL
+  if (url.includes('embed')) return url;
+
+  // YouTube watch URL: https://www.youtube.com/watch?v=VIDEO_ID
+  const youtubeMatch = url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]+)/);
+  if (youtubeMatch) {
+    return `https://www.youtube.com/embed/${youtubeMatch[1]}`;
+  }
+
+  // Vimeo URL: https://vimeo.com/VIDEO_ID
+  const vimeoMatch = url.match(/vimeo\.com\/(\d+)/);
+  if (vimeoMatch) {
+    return `https://player.vimeo.com/video/${vimeoMatch[1]}`;
+  }
+
+  return url;
+}
+
+const embedUrl = getEmbedUrl(videoUrl);
+---
+
+<section class="bg-white rounded-xl shadow-sm border border-secondary-100 p-6 md:p-8">
+  <h2 class="text-xl font-bold text-secondary-800 mb-4">Video</h2>
+  <div class="aspect-video w-full rounded-lg overflow-hidden bg-secondary-100">
+    <iframe
+      class="w-full h-full"
+      src={embedUrl}
+      title="Video bất động sản"
+      frameborder="0"
+      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+      referrerpolicy="strict-origin-when-cross-origin"
+      allowfullscreen
+    ></iframe>
+  </div>
+</section>

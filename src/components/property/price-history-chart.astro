@@ -2,15 +2,44 @@
 /**
  * Price History Chart Component
  * Displays property price trends over 2 years and 5 years
+ * Hidden if no valid price data available
  */
 interface Props {
   currentPrice: number;
   priceUnit: string;
+  /** Optional: actual price history data from database */
+  priceHistory?: string | null;
 }
 
-const { currentPrice, priceUnit } = Astro.props;
+const { currentPrice, priceUnit, priceHistory } = Astro.props;
 
-// Generate mock price history data based on current price
+// Don't render if price is invalid (negative = "Thỏa thuận" / "Liên hệ")
+if (!currentPrice || currentPrice <= 0) {
+  return;
+}
+
+// Try to parse actual price history from database
+let hasRealData = false;
+let parsedHistory: { twoYear?: { labels: string[]; data: number[] }; fiveYear?: { labels: string[]; data: number[] } } | null = null;
+
+if (priceHistory) {
+  try {
+    const parsed = JSON.parse(priceHistory);
+    // Check if the parsed data has valid arrays
+    if (parsed && (
+      (parsed.twoYear?.data?.length > 0) ||
+      (parsed.fiveYear?.data?.length > 0) ||
+      (Array.isArray(parsed) && parsed.length > 0)
+    )) {
+      hasRealData = true;
+      parsedHistory = parsed;
+    }
+  } catch {
+    // Invalid JSON, will use mock data
+  }
+}
+
+// Generate mock price history data based on current price (fallback)
 function generatePriceHistory(years: number, currentPrice: number): { labels: string[]; data: number[] } {
   const months = years * 12;
   const labels: string[] = [];
@@ -33,10 +62,11 @@ function generatePriceHistory(years: number, currentPrice: number): { labels: st
   return { labels, data };
 }
 
-const twoYearData = generatePriceHistory(2, currentPrice);
-const fiveYearData = generatePriceHistory(5, currentPrice);
+// Use real data if available, otherwise generate mock data
+const twoYearData = parsedHistory?.twoYear || generatePriceHistory(2, currentPrice);
+const fiveYearData = parsedHistory?.fiveYear || generatePriceHistory(5, currentPrice);
 const unitLabel = priceUnit === 'billion' ? 'tỷ' : priceUnit === 'million' ? 'triệu' : 'VND';
-const chartData = JSON.stringify({ twoYear: twoYearData, fiveYear: fiveYearData, unitLabel });
+const chartData = JSON.stringify({ twoYear: twoYearData, fiveYear: fiveYearData, unitLabel, hasRealData });
 ---
 
 <div class="bg-white rounded-xl shadow-sm border border-secondary-100 p-6" id="price-chart-container" data-chart={chartData}>
@@ -73,7 +103,7 @@ const chartData = JSON.stringify({ twoYear: twoYearData, fiveYear: fiveYearData,
   </div>
 
   <p class="text-xs text-secondary-400 mt-3 italic">
-    * Dữ liệu tham khảo dựa trên biến động thị trường khu vực
+    * {hasRealData ? 'Dữ liệu lịch sử giá thực tế' : 'Dữ liệu tham khảo dựa trên biến động thị trường khu vực'}
   </p>
 </div>
 

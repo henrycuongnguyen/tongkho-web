@@ -6,26 +6,42 @@ export interface Property {
   slug: string;
   type: PropertyType;
   propertyTypeId?: number;
+  propertyTypeName?: string;
   transactionType: TransactionType;
   price: number;
   priceUnit: PriceUnit;
   area: number;
   bedrooms?: number;
   bathrooms?: number;
+  floors?: number;
+  yearBuilt?: string;
   address: string;
+  ward?: string;
   district: string;
   city: string;
   wardId?: string;
   districtId?: string;
   cityId?: string;
+  lat?: number;
+  lng?: number;
   description: string;
+  htmlContent?: string;
   images: string[];
   thumbnail: string;
   features: string[];
+  videoUrl?: string;
+  legalDocuments?: LegalDocument[];
+  priceHistory?: string;
   createdAt: string;
   isFeatured: boolean;
   isHot: boolean;
   realEstateCode?: string;
+}
+
+export interface LegalDocument {
+  url: string;
+  title: string;
+  type: 'pdf' | 'doc' | 'other';
 }
 
 export type PropertyType =
