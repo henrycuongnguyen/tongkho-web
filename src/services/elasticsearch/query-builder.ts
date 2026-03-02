@@ -80,18 +80,15 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     });
   }
 
-  // Price range
-  if (minPrice !== undefined || maxPrice !== undefined) {
-    const priceRange: Record<string, number> = {};
-    if (minPrice !== undefined && minPrice > 0) {
-      priceRange.gte = minPrice;
-    }
-    if (maxPrice !== undefined && maxPrice > 0 && maxPrice < 1_000_000_000_000) {
-      priceRange.lte = maxPrice;
-    }
-    if (Object.keys(priceRange).length > 0) {
-      must.push({ range: { price: priceRange } });
-    }
+  // Price range - v1 compatible
+  // v1 uses 'min_price' field and 'lt' (not 'lte') for max price
+  if (minPrice !== undefined && minPrice > 0) {
+    must.push({ range: { min_price: { gte: minPrice } } });
+    must.push({ exists: { field: 'min_price' } });
+  }
+  if (maxPrice !== undefined && maxPrice > 0 && maxPrice < 1_000_000_000_000) {
+    must.push({ range: { min_price: { lt: maxPrice } } });  // Note: lt, not lte
+    must.push({ exists: { field: 'min_price' } });
   }
 
   // Area range
@@ -146,14 +143,23 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
   // Build sort configuration
   const sortConfig = buildSort(sort);
 
+  // Status filters - v1 compatible
+  // Exclude properties with status_id = "3" (sold/inactive) and require status_id to exist
+  const mustNot: unknown[] = [
+    { term: { status_id: '3' } }
+  ];
+
   // Build final query
   const finalQuery = {
     query: {
       bool: {
         must,
+        must_not: mustNot,
         filter: [
           // Only active properties
-          { term: { aactive: true } }
+          { term: { aactive: true } },
+          // Require status_id field to exist (v1 compatible)
+          { exists: { field: 'status_id' } }
         ]
       }
     },
