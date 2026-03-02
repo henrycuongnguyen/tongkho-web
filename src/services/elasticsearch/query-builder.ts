@@ -160,7 +160,9 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     from: (page - 1) * pageSize,
     size: pageSize,
     sort: sortConfig,
-    _source: isProjectQuery ? PROJECT_SOURCE_FIELDS : SOURCE_FIELDS
+    _source: isProjectQuery ? PROJECT_SOURCE_FIELDS : SOURCE_FIELDS,
+    // Track accurate total hits (ES 7.x+ caps at 10k by default)
+    track_total_hits: true
   };
 
   // console.log('[ES Query Builder] Final ES query:', JSON.stringify(finalQuery, null, 2));
