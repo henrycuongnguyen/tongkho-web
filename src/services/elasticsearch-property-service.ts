@@ -195,8 +195,9 @@ export class ElasticsearchPropertyService {
     if (!path) return "";
     // Already a full URL
     if (path.startsWith("http")) return path;
-    // Prepend base URL for relative paths
-    return `${UPLOADS_BASE_URL}${path}`;
+    // Prepend base URL for relative paths - ensure path starts with '/'
+    const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+    return `${UPLOADS_BASE_URL}${normalizedPath}`;
   }
 }
 

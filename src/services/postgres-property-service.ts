@@ -274,7 +274,9 @@ function extractFeatures(row: RealEstateRow): string[] {
 function getFullImageUrl(path: string | null | undefined): string {
   if (!path) return "";
   if (path.startsWith("http")) return path;
-  return `${UPLOADS_BASE_URL}${path}`;
+  // Ensure path starts with '/' for correct URL construction
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${UPLOADS_BASE_URL}${normalizedPath}`;
 }
 
 /**

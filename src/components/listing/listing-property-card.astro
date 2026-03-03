@@ -20,7 +20,9 @@ const UPLOADS_BASE_URL = 'https://quanly.tongkhobds.com';
 function getImageUrl(path?: string): string {
   if (!path) return '/images/placeholder-property.jpg';
   if (path.startsWith('http')) return path;
-  return `${UPLOADS_BASE_URL}${path}`;
+  // Ensure path starts with '/' for correct URL construction
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${UPLOADS_BASE_URL}${normalizedPath}`;
 }
 
 // Parse price from ES document
