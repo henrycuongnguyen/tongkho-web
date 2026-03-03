@@ -94,6 +94,11 @@ tongkho-web/
 │   │   │   ├── seo-metadata-service.ts      # Main orchestration service (226 LOC) [Phase 5]
 │   │   │   └── seo-metadata-db-service.ts   # PostgreSQL fallback service (142 LOC) [Phase 5]
 │   │   └── elasticsearch/
+│   │       ├── types.ts                     # ES types & interfaces (124 LOC) [Phase 3]
+│   │       ├── query-builder.ts             # v1-compatible ES query builder (238 LOC) [Phase 3]
+│   │       ├── query-builder.test.ts        # Comprehensive ES query tests (839 LOC) [Phase 3]
+│   │       ├── property-search-service.ts   # Property listing search (Phase 3)
+│   │       ├── location-search-service.ts   # Location autocomplete search (Phase 3)
 │   │       └── seo-metadata-search-service.ts # ElasticSearch SEO service (152 LOC) [Phase 5]
 │   ├── layouts/
 │   │   ├── base-layout.astro                # HTML base template (65 LOC)

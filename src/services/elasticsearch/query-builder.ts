@@ -18,7 +18,7 @@ const SOURCE_FIELDS = [
 
 // Fields to return from ES - project index
 const PROJECT_SOURCE_FIELDS = [
-  'id', 'project_name', 'slug', 'project_code', 'project_type',
+  'id', 'project_name', 'slug', 'project_code', 'project_type', 'property_type_id',
   'price', 'price_description', 'project_area',
   'street_address', 'address', 'district', 'district_name',
   'city', 'city_name', 'city_id', 'district_id', 'ward_id',
@@ -57,15 +57,19 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
   // Must conditions (required)
   const must: unknown[] = [];
 
+  // Base conditions - v1 compatible (apply to all queries)
+  must.push({ exists: { field: 'slug' } });
+
   // Transaction type filter - only for real_estate index, not project index
   if (!isProjectQuery) {
     must.push({ term: { transaction_type: transactionType } });
   }
 
-  // Property types filter
+  // Property types filter - use correct field based on index type
   if (propertyTypes.length > 0) {
+    const fieldName = isProjectQuery ? 'project_type' : 'property_type_id';
     must.push({
-      terms: { property_type_id: propertyTypes }
+      terms: { [fieldName]: propertyTypes }
     });
   }
 
@@ -140,26 +144,65 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     });
   }
 
+  // === v1-compatible filters (only for real_estate, not projects) ===
+  if (!isProjectQuery) {
+    // 1. is_featured filter - CMS properties require is_featured=true, external require is_featured=false or missing
+    const isFeaturedCondition = {
+      bool: {
+        should: [
+          {
+            bool: {
+              must: [
+                { term: { source_post: 'cms' } },
+                { term: { is_featured: true } }
+              ]
+            }
+          },
+          {
+            bool: {
+              must_not: [
+                { term: { source_post: 'cms' } }
+              ],
+              should: [
+                { term: { is_featured: false } },
+                { bool: { must_not: { exists: { field: 'is_featured' } } } }
+              ]
+            }
+          }
+        ]
+      }
+    };
+    must.push(isFeaturedCondition);
+
+    // 2. created_time filter - exclude future-dated properties
+    must.push({ range: { created_time: { lt: 'now' } } });
+    must.push({ exists: { field: 'created_time' } });
+    must.push({ exists: { field: 'property_type_id' } });
+
+    // 3. Status filter - allow status_id != 3 OR status_id doesn't exist
+    const statusCondition = {
+      bool: {
+        should: [
+          { bool: { must_not: { term: { status_id: 3 } } } },
+          { bool: { must_not: { exists: { field: 'status_id' } } } }
+        ],
+        minimum_should_match: 1
+      }
+    };
+    must.push(statusCondition);
+  }
+
   // Build sort configuration
   const sortConfig = buildSort(sort);
-
-  // Status filters - v1 compatible
-  // Exclude properties with status_id = "3" (sold/inactive) and require status_id to exist
-  const mustNot: unknown[] = [
-    { term: { status_id: '3' } }
-  ];
 
   // Build final query
   const finalQuery = {
     query: {
       bool: {
         must,
-        must_not: mustNot,
         filter: [
           // Only active properties
-          { term: { aactive: true } },
-          // Require status_id field to exist (v1 compatible)
-          { exists: { field: 'status_id' } }
+          { term: { aactive: true } }
         ]
       }
     },

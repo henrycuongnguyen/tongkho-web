@@ -61,7 +61,7 @@ export async function searchProperties(
           title: source.project_name || source.title || '',
           slug: source.slug || '',
           transaction_type: 3,
-          property_type_id: source.property_type_id || 0,
+          property_type_id: source.property_type_id || source.project_type || 0,
           property_type_name: source.property_type_name,
           price: source.price || 0,
           price_description: source.price_description,

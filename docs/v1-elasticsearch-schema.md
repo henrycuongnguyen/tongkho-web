@@ -14,9 +14,10 @@
 3. [Project Index](#project-index)
 4. [Locations Index](#locations-index)
 5. [Search Query Patterns](#search-query-patterns)
-6. [Script Fields](#script-fields)
-7. [Data Synchronization](#data-synchronization)
-8. [Performance & Security](#performance--security)
+6. [Query Builder Implementation](#query-builder-implementation)
+7. [Script Fields](#script-fields)
+8. [Data Synchronization](#data-synchronization)
+9. [Performance & Security](#performance--security)
 
 ---
 
@@ -460,6 +461,190 @@ Geographic autocomplete and area lookup. Used for:
 ```
 
 **Result:** All districts in city ID=1.
+
+---
+
+## Query Builder Implementation
+
+The v2 codebase implements a TypeScript-based ES query builder at `src/services/elasticsearch/query-builder.ts` that programmatically constructs v1-compatible ES queries from filter objects.
+
+### Purpose
+
+Instead of manually writing ES JSON for each search scenario, the query builder:
+- Accepts `PropertySearchFilters` (structured TypeScript interface)
+- Generates complete ES query with all required v1-compatible conditions
+- Handles transaction type differentiation (real_estate vs project index)
+- Applies conditional logic for complex filters (is_featured, status_id, created_time)
+- Provides type safety and testability
+
+### Core Function: `buildPropertyQuery(filters: PropertySearchFilters): ESQuery`
+
+**Location:** `src/services/elasticsearch/query-builder.ts:33`
+
+**Input Filters:**
+```typescript
+interface PropertySearchFilters {
+  transactionType: 1 | 2 | 3;        // 1=buy/sell, 2=rent, 3=projects
+  propertyTypes?: number[];           // [12, 13, 14]
+  provinceIds?: string[];             // ["VN-HN", "VN-SG"]
+  districtIds?: string[];             // ["VN-HN-HBT", "VN-HN-HKM"]
+  minPrice?: number;                  // VND amount
+  maxPrice?: number;                  // VND amount
+  minArea?: number;                   // m²
+  maxArea?: number;                   // m²
+  bedrooms?: number;
+  bathrooms?: number;
+  radius?: number;                    // km for geo-distance
+  centerLat?: number;
+  centerLon?: number;
+  keyword?: string;                   // Text search
+  sort?: 'newest'|'oldest'|'price_asc'|'price_desc'|'area_asc'|'area_desc';
+  page?: number;                      // 1-based pagination
+  pageSize?: number;                  // Default: 24
+}
+```
+
+**Output:** Complete ES query object with:
+- Transaction type filter (real_estate vs project handling)
+- Property type terms filter
+- Location filters (districts prioritized over provinces)
+- Price range (uses `min_price` field, `lt` for max)
+- Area range
+- Bedroom/bathroom exact match
+- Multi-field keyword search
+- Geo-distance radius search
+- Pagination
+- Sorting
+
+### V1-Compatible Filters (Real Estate Only)
+
+For `transactionType` 1 or 2 (not projects), query builder includes three critical conditions:
+
+#### 1. is_featured Logic (Lines 145-171)
+```typescript
+// CMS posts require is_featured=true
+// External posts allow is_featured=false or missing
+```
+
+**ES Pattern:**
+```json
+{
+  "bool": {
+    "should": [
+      {
+        "bool": {
+          "must": [
+            {"term": {"source_post": "cms"}},
+            {"term": {"is_featured": true}}
+          ]
+        }
+      },
+      {
+        "bool": {
+          "must_not": [{"term": {"source_post": "cms"}}],
+          "should": [
+            {"term": {"is_featured": false}},
+            {"bool": {"must_not": [{"exists": {"field": "is_featured"}}]}}
+          ]
+        }
+      }
+    ]
+  }
+}
+```
+
+#### 2. created_time Filter (Lines 173-176)
+```typescript
+// Exclude future-dated properties
+must.push({ range: { created_time: { lt: 'now' } } });
+must.push({ exists: { field: 'created_time' } });
+```
+
+**Purpose:** Ensures only published/visible properties appear.
+
+#### 3. status_id Filter (Lines 178-188)
+```typescript
+// Exclude status_id=3 (inactive) OR allow missing status field
+{
+  "bool": {
+    "should": [
+      {"bool": {"must_not": [{"term": {"status_id": 3}}]}},
+      {"bool": {"must_not": [{"exists": {"field": "status_id"}}]}}
+    ],
+    "minimum_should_match": 1
+  }
+}
+```
+
+**Rationale:** Status "3" = inactive/archived listings.
+
+### Source Fields Selection
+
+Query builder automatically selects appropriate `_source` fields:
+
+**Real Estate Index (transactionType 1, 2):**
+```typescript
+['id', 'title', 'slug', 'transaction_type', 'property_type_id',
+ 'price', 'area', 'bedrooms', 'bathrooms', 'district_id', 'city_name',
+ 'is_featured', 'created_on', 'created_time', ...]
+```
+
+**Project Index (transactionType 3):**
+```typescript
+['id', 'project_name', 'slug', 'project_code', 'project_type',
+ 'price', 'project_area', 'district_id', 'city_name',
+ 'is_featured', 'created_time', 'developer_name', ...]
+```
+
+### Sorting Logic (buildSort function)
+
+| Sort Option | ES Sort |
+|-------------|---------|
+| `newest` | `[{created_on: desc}]` |
+| `oldest` | `[{created_on: asc}]` |
+| `price_asc` | `[{price: asc}, {created_on: desc}]` |
+| `price_desc` | `[{price: desc}, {created_on: desc}]` |
+| `area_asc` | `[{area: asc}, {created_on: desc}]` |
+| `area_desc` | `[{area: desc}, {created_on: desc}]` |
+
+Default: `newest`
+
+### Testing & Validation
+
+Comprehensive test suite in `src/services/elasticsearch/query-builder.test.ts`:
+- 40+ test cases covering all filter combinations
+- v1 compatibility tests
+- Edge case handling (zero values, unrealistic max prices, etc.)
+- Complex multi-filter scenarios
+- Project index differentiation
+
+**Run tests:**
+```bash
+npm test src/services/elasticsearch/query-builder.test.ts
+```
+
+### Usage in Services
+
+Query builder consumed by:
+1. **property-search-service.ts** - Main property listing search
+2. **project-search-service.ts** - Project queries (transaction_type=3)
+3. **elasticsearch-property-service.ts** - Direct ES queries
+
+**Example:**
+```typescript
+import { buildPropertyQuery } from './query-builder';
+
+const filters: PropertySearchFilters = {
+  transactionType: 1,
+  provinceIds: ['VN-HN'],
+  minPrice: 1_000_000_000,
+  sort: 'newest',
+  page: 1
+};
+
+const esQuery = buildPropertyQuery(filters);
+// Send esQuery to ES API
+```
 
 ---
 
