@@ -4,4 +4,5 @@ export * from './project';
 export * from './menu';
 export * from './location';
 export * from './location-with-count';
+export * from './consultation';
 // export * from './auth'; // Removed - auth feature disabled
