@@ -43,7 +43,7 @@ const FALLBACK_MENU: NavItem[] = [
     children: [],
   },
   { label: 'Liên hệ', href: '/lien-he' },
-  { label: 'Mạng lưới', href: '/mang-luoi' },
+  { label: 'Mạng lưới', href: '/maps' },
   { label: 'Tiện ích', href: '/tien-ich' },
 ];
 

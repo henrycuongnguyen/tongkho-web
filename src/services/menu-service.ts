@@ -370,7 +370,7 @@ export async function buildMainNav(): Promise<NavItem[]> {
 
     // Static menu items
     { label: "Liên hệ", href: "/lien-he" },
-    { label: "Mạng lưới", href: "/mang-luoi" },
+    { label: "Mạng lưới", href: "/maps" },
     { label: "Tiện ích", href: "/tien-ich" },
   ];
 
@@ -395,7 +395,7 @@ export function getFallbackMenu(): NavItem[] {
     { label: "Dự án", href: "/du-an" },
     { label: "Tin tức", href: "/tin-tuc" },
     { label: "Liên hệ", href: "/lien-he" },
-    { label: "Mạng lưới", href: "/mang-luoi" },
+    { label: "Mạng lưới", href: "/maps" },
     { label: "Tiện ích", href: "/tien-ich" },
   ];
 }
