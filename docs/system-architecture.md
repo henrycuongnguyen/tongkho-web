@@ -1258,6 +1258,154 @@ Tin Tức (parent=11)
 - Indexes on propertyType.transaction_type, folder.parent, folder.display_order
 - No runtime database calls (data resolved at build time)
 
+## 4. Maps/Network Page Architecture
+
+**Purpose:** Display TongKhoBDS office locations on interactive Google Maps with office list sidebar
+
+**URL Route:** `/maps`
+
+**Data Flow (Hybrid SSG + Client-side):**
+
+```
+Build Time:
+  ↓
+src/pages/maps.astro
+  ├─ Import getActiveOffices() from office-service.ts
+  ├─ Call getActiveOffices() → Promise<OfficeLocation[]>
+  │   │
+  │   └─ office-service.ts
+  │       ├─ Query: SELECT * FROM post_office WHERE aactive=true AND status=1
+  │       │   (Drizzle ORM, type-safe query)
+  │       ├─ For each office:
+  │       │   └─ parseCoordinate(addressLatitude) → number | null
+  │       │   └─ parseCoordinate(addressLongitude) → number | null
+  │       ├─ Return: OfficeLocation[] sorted by name
+  │       │
+  │       └─ Error handling: Return fallbackOffices if DB unavailable
+  │           (Demo data: Hà Nội + TP.HCM offices with valid coords)
+  │
+  ├─ Validate: hasValidOffices = offices.some(o => o.lat && o.lng)
+  ├─ Serialize: offices → JSON string for client injection
+  │   (camelCase → snake_case for v1 compatibility)
+  ├─ Inline scripts:
+  │   └─ window.__OFFICE_DATA__ = JSON.parse(officesJSON)
+  │   └─ window.GOOGLE_MAPS_KEY = PUBLIC_GOOGLE_MAPS_KEY
+  │
+  └─ Output: Static HTML with embedded office data + hero section
+
+Client-side:
+  ↓
+Browser loads maps.html
+  ├─ Hero section renders (network vision + mockup image)
+  ├─ Office locator section renders (list + map containers)
+  ├─ DOMContentLoaded event
+  │   └─ OfficeLocator.init(window.__OFFICE_DATA__)
+  │
+  ├─ office-locator.js initialization
+  │   ├─ renderList(offices) → populate #office-list with clickable items
+  │   │   └─ For each office:
+  │   │       ├─ Create <li> with name, address, phone
+  │   │       ├─ If coordinates valid: Direction button (opens Google Maps)
+  │   │       └─ Click handler: setMapLocation() + setActiveOffice()
+  │   │
+  │   ├─ initGoogleMap(callback)
+  │   │   ├─ Check if google.maps already loaded
+  │   │   ├─ If not: Load asynchronously via script tag
+  │   │   │   └─ <script src="https://maps.googleapis.com/maps/api/js?key={KEY}">
+  │   │   └─ On load: callback() → initMap(offices)
+  │   │
+  │   └─ initMap(offices)
+  │       ├─ Find first office with valid coordinates
+  │       ├─ Create google.maps.Map in #office-map div
+  │       ├─ setMapLocation(first office coords)
+  │       │   ├─ Create Marker with orange icon
+  │       │   ├─ Create InfoWindow with office details
+  │       │   └─ Center map + zoom to 15
+  │       ├─ renderList(offices)
+  │       └─ setActiveOffice(firstOffice.id)
+  │
+  └─ User interactions:
+      ├─ Click office in list
+      │   └─ setMapLocation(coords) → map centers + info window opens
+      ├─ Click direction button
+      │   └─ window.open('https://www.google.com/maps/dir/?api=1&destination={lat},{lng}')
+      └─ Click marker on map
+          └─ InfoWindow opens (info window already visible)
+```
+
+**Key Components:**
+
+1. **maps.astro** - Page component
+   - Imports office data at build time
+   - Serializes JSON for client injection
+   - Sets up HTML structure + loading spinner
+   - Imports styles from network-hero.css
+
+2. **office-service.ts** - Data layer
+   - `getActiveOffices()` - Query, parse, return OfficeLocation[]
+   - `parseCoordinate()` - Convert VARCHAR → number | null
+   - `getFallbackOffices()` - Demo data for resilience
+
+3. **office.ts schema** - Database
+   - Drizzle ORM table definition for `post_office`
+   - Fields: id, name, address, phone, coordinates, representative info, status
+
+4. **office-locator.js** - Client-side module
+   - IIFE pattern (no globals)
+   - `window.OfficeLocator.init(offices)` - Public API
+   - Private: initGoogleMap(), setMapLocation(), renderList(), etc.
+   - Event delegation for direction buttons
+   - HTML escaping (escapeHtml) for XSS prevention
+
+5. **network-hero.css** - Styles
+   - Hero section: background, title, description, visual
+   - Office locator: 2-panel layout, list styling, direction button
+   - Map container: flex layout, shadows, rounded corners
+   - Responsive: Single column stack on mobile
+
+**OfficeLocation Interface:**
+```typescript
+interface OfficeLocation {
+  id: number;
+  name: string;
+  address: string;
+  phone: string | null;
+  cityName: string | null;
+  districtName: string | null;
+  wardName: string | null;
+  lat: number | null;
+  lng: number | null;
+  companyRepresentative: string | null;
+  positionRepresentative: string | null;
+  timeWork: string | null;
+}
+```
+
+**Environment Configuration:**
+- `PUBLIC_GOOGLE_MAPS_KEY` - Google Maps API key (public, safe for client)
+- Get from: https://console.cloud.google.com/google/maps-apis
+- Restrict to: tongkhobds.com, *.tongkhobds.com, localhost:*
+
+**Error Handling:**
+- No valid coordinates: Show "Chưa có tọa độ" disabled button
+- Database unavailable: Use fallback demo offices (Hà Nội + TP.HCM)
+- Missing API key: Console error, map doesn't render
+- No JavaScript: <noscript> fallback message
+
+**Performance:**
+- Build-time: Office query ~100ms (cached in subsequent calls)
+- Client-side: Lazy load Google Maps API (only when needed)
+- Fallback prevents build failure if database down
+- No runtime database calls (data baked into HTML)
+
+**Security:**
+- XSS prevention: escapeHtml() for names, addresses, representative info
+- Public API key design: PUBLIC_ prefix enforces visibility intention
+- No user input in URL construction (hardcoded Google Maps URL)
+- Data attribute sanitization where applicable
+
+---
+
 ## Referenced Documentation
 
 See detailed V1 schema documentation for deeper analysis:
@@ -1271,6 +1419,7 @@ See detailed V1 schema documentation for deeper analysis:
 
 | Version | Date | Changes |
 |---|---|---|
+| 3.2 | 2026-03-05 | Docs: Added maps/network page architecture (office locator, Google Maps integration, hybrid SSG + client-side pattern) |
 | 3.1 | 2026-02-11 | Docs: Added zero results fallback architecture, 3-tier relaxation flow, caching strategy, analytics events, UI patterns |
 | 3.0 | 2026-02-07 | Scout: 32 components across 10 categories (about, auth, news, property, seo, ui, home), 8 page routes (index, about, news listing, article detail, property detail, category filters, 27 folder pages), multi-page component composition patterns, service layers (elasticsearch, postgres, menu) |
 | 2.5 | 2026-02-10 | Docs: Added SSR location filter pattern, LocationService, property counts aggregation |

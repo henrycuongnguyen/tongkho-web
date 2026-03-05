@@ -1,16 +1,95 @@
 # Project Roadmap & Development Status
 
-## Current Status: Phase 2 Complete, v1 URL Alignment & Property Details Enhanced
+## Current Status: Phase 2 Complete + Maps/Network Page Complete
 
-**Version:** 2.5.0
+**Version:** 2.6.0
 **Last Updated:** 2026-03-05
-**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Property Detail Features Complete (100%), v1 URL Alignment Complete (100%)
-**Latest Features:** Property type URL structure fix (v1-compatible single-type slugs), property detail breadcrumbs + schema.org, recently viewed properties tracker, batch properties API
-**Recent Feature:** Property type URL standardization via DRY buildSearchUrl() pattern; 38/38 tests passing, 0 TypeScript errors, 9.7/10 code review
+**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Property Detail Features Complete (100%), v1 URL Alignment Complete (100%), Maps/Network Page Complete (100%)
+**Latest Features:** Maps/Network page (/maps route) with Google Maps integration, office location locator, interactive map + office list, hybrid SSG + client-side rendering
+**Recent Feature:** Office network map with 2-panel layout (office list + interactive Google Maps); zero client-side runtime errors, graceful fallback data, full v1 architecture compatibility
 
 ---
 
 ## Recently Completed
+
+### Maps/Network Page - Office Locator (✅ COMPLETE)
+**Branch:** main53
+**Plan:** plans/260305-1420-maps-network-page/
+**Completion Progress:** 100% (4 of 4 features complete)
+**Completion Date:** 2026-03-05
+
+| Feature | Status | Details |
+|---|---|---|
+| Database Schema & Service | ✅ Complete | post_office table, office-service.ts with fallback data ✓ |
+| Maps Page Route & Layout | ✅ Complete | /maps hybrid SSG page, network hero section, responsive grid ✓ |
+| Google Maps Integration | ✅ Complete | Dynamic API loading, marker placement, info windows, directions ✓ |
+| Office List & Interactivity | ✅ Complete | 2-panel layout (list + map), click-to-center, direction buttons ✓ |
+
+**Delivery Time:** ~2 hours (efficient)
+**Business Impact:** Users can locate TongKhoBDS offices on interactive map with directions support
+**Quality:** TypeScript strict mode, zero build errors, graceful error handling, XSS-safe rendering
+**Files Created:** 3 (maps.astro, office-service.ts, office.ts schema)
+**Files Modified:** 2 (.env.example for PUBLIC_GOOGLE_MAPS_KEY, network-hero.css added)
+**Assets Added:** office-locator.js (client script), network-hero.css (styles)
+
+**Features Implemented:**
+- ✅ Build-time office data fetch from PostgreSQL post_office table
+- ✅ Graceful fallback: Demo offices when DB unavailable (build resilience)
+- ✅ Coordinate parsing: VARCHAR latitude/longitude → number (with validation)
+- ✅ Dynamic Google Maps API loading via window.GOOGLE_MAPS_KEY
+- ✅ 2-panel responsive layout: Office list (left) + interactive map (right)
+- ✅ Network hero section with company vision + mockup image
+- ✅ Office list with name, full address, phone, direction button
+- ✅ Map markers with info windows: representative, position, hours, address
+- ✅ Click office in list → center map + highlight + show info
+- ✅ Direction button → Google Maps directions in new tab
+- ✅ Fallback UI when no coordinates available
+- ✅ Mobile responsive: Single column stack on <768px
+- ✅ Loading spinner during map initialization
+- ✅ XSS protection: escapeHtml() function for all user data
+- ✅ v1-compatible field names: city_name, district_name, ward_name
+- ✅ Inactive office filtering: aactive=true AND status=1
+
+**Security Implementation:**
+- Public API key via PUBLIC_ env var (safe for client exposure)
+- HTML escaping for office names, addresses (prevents XSS)
+- Data attribute sanitization
+- No user input in info windows
+- Proper Google Maps API error handling
+
+**Environment Setup:**
+- Added `PUBLIC_GOOGLE_MAPS_KEY` to .env.example
+- Get from: https://console.cloud.google.com/google/maps-apis
+- Restrict to: tongkhobds.com, *.tongkhobds.com, localhost:*
+
+**Database Schema:**
+- Table: `post_office` (existing v1 schema)
+- Query: Active offices only (aactive=true, status=1)
+- Fields: id, name, address, phone, city/district/ward names, coordinates, representative info
+- Coordinates stored as VARCHAR, parsed to number by service
+
+**Architecture Pattern:**
+- **Hybrid SSG:** Build-time fetch → static HTML with inlined JSON data
+- **Client-side JS:** office-locator.js module with OfficeLocator.init() API
+- **Graceful Degradation:** Fallback demo data prevents build failure if DB unavailable
+- **Lazy Loading:** Google Maps API loaded asynchronously only when needed
+- **Responsive Design:** CSS Grid/Flexbox, matches v1 UI aesthetic
+
+**Files/Services Affected:**
+- `src/pages/maps.astro` - Main page, data serialization, script bootstrapping
+- `src/services/office-service.ts` - DB fetch, coordinate parsing, fallback logic
+- `src/db/schema/office.ts` - Drizzle post_office table definition
+- `public/js/office-locator.js` - Google Maps integration, event handling, rendering
+- `public/css/network-hero.css` - Hero section + office locator styles
+- `.env.example` - PUBLIC_GOOGLE_MAPS_KEY documented
+
+**Documentation Updates:**
+- ✅ project-roadmap.md: Added completion entry (this section)
+- ✅ system-architecture.md: Added maps page architecture
+- ✅ project-overview-pdr.md: Added feature to roadmap
+- 📋 deployment-guide.md: Google Maps API key setup instructions
+
+---
 
 ### Property Type URL Structure Fix - v1 Alignment (✅ COMPLETE)
 **Branch:** main53

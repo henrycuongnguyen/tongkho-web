@@ -71,6 +71,13 @@ Enable property seekers in Vietnam to discover, compare, and understand the real
 - **27 Dynamic Folder Pages**: Auto-generated news category pages at `/tin-tuc/danh-muc/{folder-name}`
 - **Soft-delete Pattern**: Consistent with V1 architecture for data preservation
 
+#### 7. Maps & Network Page
+- **Office Locator**: Interactive map showing all TongKhoBDS office locations
+- **Google Maps Integration**: Dynamic API loading, markers, info windows, directions
+- **2-Panel Layout**: Office list (left) + interactive map (right), responsive stacking
+- **Hybrid SSG**: Build-time data fetch + client-side interactivity
+- **Graceful Fallback**: Demo offices when database unavailable (build resilience)
+
 ---
 
 ## Functional Requirements
