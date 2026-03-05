@@ -1,16 +1,53 @@
 # Project Roadmap & Development Status
 
-## Current Status: Phase 2 Complete, Phase 3 (Dynamic Pages & SEO) In Progress
+## Current Status: Phase 2 Complete, Dynamic Pages & Property Details Enhanced
 
-**Version:** 2.3.0
-**Last Updated:** 2026-02-11
-**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Dynamic Pages In Progress (50%)
-**Latest Features:** Share popup integration on listing cards, sidebar location filter cards (SSR), province filtering, V1-compatible navigation
-**Recent Feature:** Share functionality (popup with Facebook/Zalo/Twitter/Copy Link) integrated on property cards; 182 tests passing
+**Version:** 2.4.0
+**Last Updated:** 2026-03-03
+**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Property Detail Features Complete (100%)
+**Latest Features:** Property detail breadcrumbs + schema.org, recently viewed properties tracker, batch properties API
+**Recent Feature:** Breadcrumb navigation + recently viewed properties on detail pages; 44/44 tests passing, 0 TypeScript errors
 
 ---
 
 ## Recently Completed
+
+### Property Detail Breadcrumbs & Recently Viewed Properties (✅ COMPLETE)
+**Branch:** main23
+**Plan:** plans/260303-0851-property-detail-enhancements/
+**Completion Progress:** 100% (2 of 2 features complete)
+
+| Feature | Status | Details |
+|---|---|---|
+| Breadcrumb Navigation | ✅ Complete | v1-compatible hierarchy + schema.org structured data ✓ |
+| Recently Viewed Properties | ✅ Complete | localStorage tracker (max 8), batch API, DOM-safe rendering ✓ |
+
+**Delivery Time:** <1 day (efficient)
+**Business Impact:** Users get contextual navigation + see recently viewed properties on detail pages
+**Quality:** 44/44 tests passing, 0 TypeScript errors, 9.5/10 code review, XSS-safe implementation
+**Files Created:** 2 (property-detail-breadcrumb.astro, watched-properties-manager.ts, batch.ts API)
+**Files Modified:** 2 (bds/[slug].astro, du-an/[slug].astro for integration)
+
+**Features Implemented:**
+- ✅ v1-compatible breadcrumb hierarchy (Home > Transaction > Type > Location)
+- ✅ Schema.org BreadcrumbList structured data (SEO)
+- ✅ Smart linking: Only shows links when more granular level available
+- ✅ Recently viewed localStorage tracking (max 8 items, newest first)
+- ✅ Batch API endpoint for property details (/api/properties/batch)
+- ✅ Rate limiting on batch API (30 req/min per IP)
+- ✅ XSS protection via DOM-based rendering
+- ✅ Graceful fallback if localStorage unavailable
+- ✅ Responsive grid layout (1/2/4 columns)
+- ✅ Transaction type awareness (sale vs rent badges)
+
+**Security Implementation:**
+- DOM rendering via textContent + createElement (no innerHTML)
+- Data attribute sanitization with sanitize() utility
+- Input validation on batch API (max 20 IDs, positive integers only)
+- Soft-delete filter enforcement (aactive=true)
+- No user input reflected in HTML
+
+---
 
 ### Share & Compare Functionality on Listing Cards (✅ PHASES 1-2 COMPLETE)
 **Branch:** listing72ui
@@ -485,6 +522,7 @@ Before moving to Phase 2:
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.4.0 | 2026-03-03 | Property detail enhancements: Breadcrumb navigation + schema.org (v1-compatible), recently viewed properties tracker (localStorage, max 8, DOM-safe), batch properties API (rate limited, 5-min cache). 44/44 tests, 0 errors. Updated codebase/architecture/roadmap docs. |
 | 2.3.1 | 2026-02-11 | Compare service complete (Phase 2); localStorage manager, validation, events; 211/211 tests (29 new); 9/10 code review |
 | 2.2.1 | 2026-02-11 | Share functionality complete; Facebook/Zalo/Twitter/Copy Link integrated on property cards; 182/182 tests passing |
 | 2.3 | 2026-02-10 | Sidebar location filters launched (SSR); 4 phases completed, V1 compatibility verified, 8.5/10 code quality |

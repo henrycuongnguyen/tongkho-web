@@ -511,6 +511,165 @@ showLabel: boolean   // Show "Chia sẻ:" label (inline only)
 - Accessible labels and ARIA attributes
 - Event propagation control for card integration
 
+### Property Detail Breadcrumb Pattern (SSR + Schema.org)
+
+**File:** `components/property/property-detail-breadcrumb.astro`
+
+**Purpose:** v1-compatible hierarchical breadcrumb navigation with Schema.org structured data
+
+**Architecture:**
+```
+Client Layer: Breadcrumb Navigation
+├─ Static HTML links for filtering
+├─ URL preserves filters when navigating
+└─ Schema.org markup for SEO
+
+Server Layer (Astro Build):
+├─ Props from parent page: transactionType, propertyType, city, district, ward
+├─ Build breadcrumb hierarchy
+└─ Embed Schema.org BreadcrumbList JSON-LD
+```
+
+**Breadcrumb Hierarchy:**
+```
+Home > Transaction Type > Property Type > City > District > Ward
+/     /mua-ban           /ban-can-ho    /ha-noi /ba-dinh   (current)
+```
+
+**Features:**
+- **v1-Compatible URLs:** Transaction-aware navigation (mua-ban vs cho-thue vs du-an)
+- **Hierarchical:** Shows full navigation path with conditonal links
+- **Schema.org Support:** BreadcrumbList markup for Google rich results
+- **Smart Linking:** City/District link only if more granular level available
+- **Current Level:** Ward (most specific) has no link (current page indicator)
+
+**Props:**
+```typescript
+interface Props {
+  transactionType: 'sale' | 'rent';
+  propertyTypeId?: number;
+  propertyTypeName?: string;
+  propertyTypeSlug?: string;
+  cityName?: string;
+  citySlug?: string;
+  districtName?: string;
+  districtSlug?: string;
+  wardName?: string;
+  wardSlug?: string;
+}
+```
+
+**Schema Output:**
+```json
+{
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": [
+    {"@type": "ListItem", "position": 1, "name": "Trang chủ", "item": "https://tongkhobds.com/"},
+    {"@type": "ListItem", "position": 2, "name": "Mua Bán", "item": "https://tongkhobds.com/mua-ban"},
+    {"@type": "ListItem", "position": 3, "name": "Căn hộ", "item": "https://tongkhobds.com/ban-can-ho"},
+    {"@type": "ListItem", "position": 4, "name": "Hà Nội"},
+    {"@type": "ListItem", "position": 5, "name": "Ba Đình"}
+  ]
+}
+```
+
+**URL Pattern:**
+```
+/{property-type-slug}?selected_addresses={city-slug|district-slug|ward-slug}
+/ban-can-ho?selected_addresses=ba-dinh      # City context
+/cho-thue-phong-tro?selected_addresses=...  # Rental context
+```
+
+**Integration:**
+- Parent page (bds/[slug].astro, du-an/[slug].astro) passes props
+- Rendered at top of detail pages
+- Styled with Tailwind: text-sm, hover effects, semantic HTML
+
+### Recently Viewed Properties Pattern (Client-Side + API)
+
+**File:** `scripts/watched-properties-manager.ts` + `pages/api/properties/batch.ts`
+
+**Purpose:** Track recently viewed properties using localStorage with server-side detail fetching
+
+**Architecture:**
+```
+Client Layer: Browser Storage
+├─ localStorage key: 'watched_properties_list'
+├─ Max 8 items (newest first)
+├─ On page load: track current property
+└─ Render previous properties grid
+
+Server Layer: Batch API
+├─ GET /api/properties/batch?ids=1,2,3
+├─ Rate limiting: 30 req/min per IP
+├─ Database queries via Drizzle ORM
+├─ 5-minute HTTP cache
+└─ Soft-delete filtering (aactive=true)
+
+Data Flow:
+1. User views property detail page
+2. Init script reads H1 data attributes (current property)
+3. Script calls getDisplayIds() → gets stored IDs (excluding current)
+4. Script fetches /api/properties/batch with those IDs
+5. API returns property details
+6. Script renders card grid via DOM methods (XSS-safe)
+7. Script calls trackView() → adds current to localStorage
+```
+
+**localStorage Format:**
+```json
+[
+  {
+    "estateId": "1234",
+    "transactionType": "sale",
+    "title": "Căn hộ cao cấp",
+    "url": "/bds/can-ho-cao-cap",
+    "image": "https://..."
+  }
+]
+```
+
+**Rate Limiting:**
+- Window: 60 seconds
+- Limit: 30 requests per client IP
+- Cleanup: Automatic after window expires
+- Response: 429 with Retry-After header on limit
+
+**Features:**
+- **Newest First:** Move property to front if re-viewed
+- **Max 8:** Prevents localStorage bloat
+- **XSS-Safe:** DOM rendering via textContent + createElement
+- **Fallback:** Silent fail if localStorage unavailable (private mode)
+- **Order Preservation:** API returns properties in request order
+- **Batch Efficiency:** Single API call for all properties (0-8 items)
+
+**Rendered Grid:**
+- Title: "Bất động sản đã xem" (Recently Viewed)
+- Layout: 4 columns (desktop), 2 (tablet), 1 (mobile)
+- Cards: Image + badge + title + price + location
+- Excludes: Current property from display
+
+**API Response:**
+```json
+{
+  "properties": [
+    {
+      "id": "1",
+      "title": "Căn hộ 3PN",
+      "slug": "can-ho-3pn-...",
+      "price": 5500000000,
+      "priceUnit": "total",
+      "transactionType": "sale",
+      "thumbnail": "https://...",
+      "city": "Hà Nội",
+      "district": "Cầu Giấy",
+      "area": 120
+    }
+  ]
+}
+```
+
 ### Client-Side State Management Pattern (Vanilla JS)
 
 **File:** `scripts/compare-manager.ts`

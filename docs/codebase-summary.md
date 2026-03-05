@@ -53,6 +53,7 @@ tongkho-web/
 │   │   │   ├── article-share-buttons.astro  # Social share
 │   │   │   └── news-related-articles-sidebar.astro
 │   │   ├── property/
+│   │   │   ├── property-detail-breadcrumb.astro         # v1-compatible breadcrumb + schema [NEW]
 │   │   │   ├── property-detail-image-gallery-carousel.astro
 │   │   │   ├── property-info-section.astro
 │   │   │   ├── price-history-chart.astro    # Chart.js visualization
@@ -86,7 +87,8 @@ tongkho-web/
 │   │       ├── 0001_add_menu_indexes.sql    # Menu performance indexes
 │   │       └── README-MENU-INDEXES.md       # Migration documentation
 │   ├── scripts/
-│   │   └── compare-manager.ts               # Compare/wishlist localStorage manager (212 LOC) [Phase 2]
+│   │   ├── compare-manager.ts               # Compare/wishlist localStorage manager (212 LOC) [Phase 2]
+│   │   └── watched-properties-manager.ts    # Recently viewed properties tracker (247 LOC) [NEW]
 │   ├── services/
 │   │   ├── menu-service.ts                  # Menu generation service (384 LOC) [Phase 4]
 │   │   ├── seo/
@@ -106,7 +108,11 @@ tongkho-web/
 │   │   ├── tin-tuc/trang/[page].astro       # Paginated news (SSR)
 │   │   ├── tin-tuc/danh-muc/[category].astro # Category filter
 │   │   ├── tin-tuc/danh-muc/[folder].astro  # Dynamic folder pages (27 pages)
-│   │   └── bds/[slug].astro                 # Property detail (SSR)
+│   │   ├── bds/[slug].astro                 # Property detail (SSR)
+│   │   ├── du-an/[slug].astro               # Project detail (SSR)
+│   │   └── api/
+│   │       └── properties/
+│   │           └── batch.ts                 # Batch properties API [NEW]
 │   ├── styles/
 │   │   └── global.css                       # Tailwind + custom styles (118 LOC)
 │   ├── types/
@@ -475,6 +481,101 @@ interface CompareItem {
 
 **Usage:** Bind click handler to `.btn-compare` buttons; manager automatically syncs UI state with storage
 
+### Watched Properties Manager (watched-properties-manager.ts) [NEW]
+**File:** `src/scripts/watched-properties-manager.ts`
+
+**Purpose:** Client-side recently viewed properties tracking using localStorage (max 8 items, newest first)
+
+**Key Functions:**
+- `init()` – Initialize on property detail page load, fetch and render watched properties
+- `trackView(property)` – Add property to watched list (moves to front if exists)
+- `getItems()` – Retrieve all watched properties from storage
+- `getDisplayIds(excludeId)` – Get IDs for display (excluding current property)
+- `renderCards(properties, containerId)` – Render property cards using DOM methods (XSS-safe)
+- `formatPrice(price, unit)` – Format Vietnamese currency for display
+
+**Features:**
+- **Max 8 Items:** localStorage limit prevents unlimited growth
+- **Newest First:** Recently viewed properties appear at front
+- **XSS Protection:** DOM-based rendering via textContent + createElement
+- **Batch API Integration:** Fetches property details via `/api/properties/batch`
+- **Rate Limiting:** 30 requests/min per IP on batch API
+- **Graceful Degradation:** Returns empty array if localStorage unavailable (private browsing)
+- **Vietnamese UX:** Price formatting (tỷ, triệu, triệu/tháng) and section title in Vietnamese
+
+**Data Structure:**
+```typescript
+interface WatchedProperty {
+  estateId: string;
+  transactionType: string;  // 'sale' | 'rent'
+  title: string;
+  url: string;
+  image: string;
+}
+```
+
+**Integration:**
+- Property detail pages set data attributes on H1: `data-estate-id`, `data-transaction-type`, `data-title`, `data-url`, `data-image`
+- Script runs on page load via base-layout.astro
+- Container element: `<div id="watched-properties"></div>` at bottom of property detail
+- Renders 4-column grid (responsive: 1 col mobile, 2 col tablet, 4 col desktop)
+
+**localStorage Key:** `watched_properties_list` (JSON stringified array)
+
+### Batch Properties API (`pages/api/properties/batch.ts`) [NEW]
+**Purpose:** Server-side API endpoint for fetching multiple properties by IDs
+
+**Endpoint:** `GET /api/properties/batch?ids=1,2,3`
+
+**Features:**
+- **Batch Queries:** Fetch up to 20 properties in single request
+- **Rate Limiting:** 30 req/min per IP (429 on limit)
+- **Caching:** 5-minute HTTP cache for responses
+- **Order Preservation:** Returns properties in request order
+- **Input Validation:** Sanitizes ID list (integers only, 0 < count <= 20)
+- **Database Safety:** Soft-delete filter (`aactive=true`), parameterized queries via Drizzle
+- **Error Handling:** 400/429/500 responses with JSON messages
+
+**Request:**
+```
+GET /api/properties/batch?ids=1,2,3
+```
+
+**Response (200):**
+```json
+{
+  "properties": [
+    {
+      "id": "1",
+      "title": "Căn hộ cao cấp Hà Nội",
+      "slug": "can-ho-cao-cap-ha-noi",
+      "price": 5500000000,
+      "priceUnit": "total",
+      "transactionType": "sale",
+      "thumbnail": "https://...",
+      "city": "Hà Nội",
+      "district": "Cầu Giấy",
+      "area": 120
+    }
+  ]
+}
+```
+
+**Query Limits:**
+- Max 20 IDs per request (412 error if exceeded)
+- Must provide at least 1 ID (400 error if missing)
+- IDs must be positive integers (400 error if invalid)
+
+**Rate Limiting:**
+- Window: 60 seconds
+- Max requests: 30 per IP
+- Cleanup: Automatic entry removal after window expires
+- Response header: `Retry-After: 60` on 429
+
+**Used By:**
+- `watched-properties-manager.ts` – Fetches property details for display
+- Future: Compare functionality, similar properties sidebar
+
 ### Formatting Utilities (format.ts)
 **Purpose:** Vietnamese localization & text formatting
 
@@ -667,12 +768,13 @@ npm run astro    # Astro CLI commands
 
 | Version | Date | Changes |
 |---|---|---|
-| 1.0 | 2026-01-28 | Initial codebase documentation |
-| 1.1 | 2026-02-06 | Phase 1 complete: Added menu service layer, database schema (propertyType, folder), Drizzle ORM integration |
-| 1.2 | 2026-02-06 | Phase 2 complete: Added menu-data.ts, build-time menu generation with fallback support |
-| 1.3 | 2026-02-06 | Phase 3 complete: Extracted static-data.ts for filter options; database-driven header navigation |
-| 1.4 | 2026-02-11 | Phase 5 complete: SEO metadata integration (ES→DB→Default flow, price context injection, dynamic content rendering) |
-| 1.4 | 2026-02-06 | Phase 4 complete: Hierarchical news folders, dynamic folder pages (27 total), recursive data structures |
-| 2.2 | 2026-02-11 | Phase 2 compare service: Created compare-manager.ts (localStorage-based, max 2 items, transaction type validation, toast notifications, XSS protection). Updated property cards with compare buttons. All 211 tests passing |
-| 2.1 | 2026-02-11 | Phase 1 share functionality: Integrated ShareButtons component (popup variant) into property-card.astro and listing-property-card.astro; Share button row added to action buttons |
+| 2.4 | 2026-03-03 | [NEW] Property detail breadcrumbs + recently viewed: Added property-detail-breadcrumb.astro (v1-compatible navigation + schema.org), watched-properties-manager.ts (localStorage tracker, max 8 items, DOM-safe rendering), batch properties API (rate limited, 5-min cache, order preserved). All 44/44 tests passing, 0 TypeScript errors. |
+| 2.3 | 2026-02-11 | Phase 2 compare service: Created compare-manager.ts (localStorage-based, max 2 items, transaction type validation, toast notifications, XSS protection). Updated property cards with compare buttons. All 211 tests passing |
+| 2.2 | 2026-02-11 | Phase 1 share functionality: Integrated ShareButtons component (popup variant) into property-card.astro and listing-property-card.astro; Share button row added to action buttons |
+| 2.1 | 2026-02-11 | Phase 5 complete: SEO metadata integration (ES→DB→Default flow, price context injection, dynamic content rendering) |
 | 2.0 | 2026-02-07 | Scout report: Added 32 components (8 new sections), 8 page routes, dynamic detail pages, authentication modal, SEO schemas, image gallery, news system, price history chart. Total ~3,500 LOC |
+| 1.4 | 2026-02-06 | Phase 4 complete: Hierarchical news folders, dynamic folder pages (27 total), recursive data structures |
+| 1.3 | 2026-02-06 | Phase 3 complete: Extracted static-data.ts for filter options; database-driven header navigation |
+| 1.2 | 2026-02-06 | Phase 2 complete: Added menu-data.ts, build-time menu generation with fallback support |
+| 1.1 | 2026-02-06 | Phase 1 complete: Added menu service layer, database schema (propertyType, folder), Drizzle ORM integration |
+| 1.0 | 2026-01-28 | Initial codebase documentation |
