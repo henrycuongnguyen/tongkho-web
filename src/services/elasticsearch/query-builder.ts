@@ -18,7 +18,7 @@ const SOURCE_FIELDS = [
 
 // Fields to return from ES - project index
 const PROJECT_SOURCE_FIELDS = [
-  'id', 'project_name', 'slug', 'project_code', 'project_type',
+  'id', 'project_name', 'slug', 'project_code', 'project_type', 'property_type_id',
   'price', 'price_description', 'project_area',
   'street_address', 'address', 'district', 'district_name',
   'city', 'city_name', 'city_id', 'district_id', 'ward_id',
@@ -57,15 +57,19 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
   // Must conditions (required)
   const must: unknown[] = [];
 
+  // Base conditions - v1 compatible (apply to all queries)
+  must.push({ exists: { field: 'slug' } });
+
   // Transaction type filter - only for real_estate index, not project index
   if (!isProjectQuery) {
     must.push({ term: { transaction_type: transactionType } });
   }
 
-  // Property types filter
+  // Property types filter - use correct field based on index type
   if (propertyTypes.length > 0) {
+    const fieldName = isProjectQuery ? 'project_type' : 'property_type_id';
     must.push({
-      terms: { property_type_id: propertyTypes }
+      terms: { [fieldName]: propertyTypes }
     });
   }
 
@@ -80,18 +84,15 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     });
   }
 
-  // Price range
-  if (minPrice !== undefined || maxPrice !== undefined) {
-    const priceRange: Record<string, number> = {};
-    if (minPrice !== undefined && minPrice > 0) {
-      priceRange.gte = minPrice;
-    }
-    if (maxPrice !== undefined && maxPrice > 0 && maxPrice < 1_000_000_000_000) {
-      priceRange.lte = maxPrice;
-    }
-    if (Object.keys(priceRange).length > 0) {
-      must.push({ range: { price: priceRange } });
-    }
+  // Price range - v1 compatible
+  // v1 uses 'min_price' field and 'lt' (not 'lte') for max price
+  if (minPrice !== undefined && minPrice > 0) {
+    must.push({ range: { min_price: { gte: minPrice } } });
+    must.push({ exists: { field: 'min_price' } });
+  }
+  if (maxPrice !== undefined && maxPrice > 0 && maxPrice < 1_000_000_000_000) {
+    must.push({ range: { min_price: { lt: maxPrice } } });  // Note: lt, not lte
+    must.push({ exists: { field: 'min_price' } });
   }
 
   // Area range
@@ -143,6 +144,54 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     });
   }
 
+  // === v1-compatible filters (only for real_estate, not projects) ===
+  if (!isProjectQuery) {
+    // 1. is_featured filter - CMS properties require is_featured=true, external require is_featured=false or missing
+    const isFeaturedCondition = {
+      bool: {
+        should: [
+          {
+            bool: {
+              must: [
+                { term: { source_post: 'cms' } },
+                { term: { is_featured: true } }
+              ]
+            }
+          },
+          {
+            bool: {
+              must_not: [
+                { term: { source_post: 'cms' } }
+              ],
+              should: [
+                { term: { is_featured: false } },
+                { bool: { must_not: { exists: { field: 'is_featured' } } } }
+              ]
+            }
+          }
+        ]
+      }
+    };
+    must.push(isFeaturedCondition);
+
+    // 2. created_time filter - exclude future-dated properties
+    must.push({ range: { created_time: { lt: 'now' } } });
+    must.push({ exists: { field: 'created_time' } });
+    must.push({ exists: { field: 'property_type_id' } });
+
+    // 3. Status filter - allow status_id != 3 OR status_id doesn't exist
+    const statusCondition = {
+      bool: {
+        should: [
+          { bool: { must_not: { term: { status_id: 3 } } } },
+          { bool: { must_not: { exists: { field: 'status_id' } } } }
+        ],
+        minimum_should_match: 1
+      }
+    };
+    must.push(statusCondition);
+  }
+
   // Build sort configuration
   const sortConfig = buildSort(sort);
 
@@ -160,7 +209,9 @@ export function buildPropertyQuery(filters: PropertySearchFilters): ESQuery {
     from: (page - 1) * pageSize,
     size: pageSize,
     sort: sortConfig,
-    _source: isProjectQuery ? PROJECT_SOURCE_FIELDS : SOURCE_FIELDS
+    _source: isProjectQuery ? PROJECT_SOURCE_FIELDS : SOURCE_FIELDS,
+    // Track accurate total hits (ES 7.x+ caps at 10k by default)
+    track_total_hits: true
   };
 
   // console.log('[ES Query Builder] Final ES query:', JSON.stringify(finalQuery, null, 2));

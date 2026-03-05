@@ -330,15 +330,68 @@ function convertNumberToPriceSlug(amount: number): string {
 
 /**
  * Get page title based on filters
+ * Format matches v1: "Mua bán bất động sản tại Hà Nội giá 800 triệu - 1 tỷ"
  */
-export function getPageTitle(filters: PropertySearchFilters): string {
+export function getPageTitle(
+  filters: PropertySearchFilters,
+  locationName?: string
+): string {
   const typeNames: Record<number, string> = {
-    1: 'Mua Bán',
-    2: 'Cho Thuê',
-    3: 'Dự Án'
+    1: 'Mua bán',
+    2: 'Cho thuê',
+    3: 'Dự án'
   };
-  const base = typeNames[filters.transactionType] || 'Bất Động Sản';
-  return `${base} - Tongkho BĐS`;
+
+  let title = typeNames[filters.transactionType] || 'Bất động sản';
+  title += ' bất động sản';
+
+  // Add location if provided
+  if (locationName) {
+    title += ` tại ${locationName}`;
+  }
+
+  // Add price if exists
+  if (filters.minPrice !== undefined || filters.maxPrice !== undefined) {
+    const priceText = formatPriceForTitle(filters.minPrice, filters.maxPrice);
+    if (priceText) {
+      title += ` giá ${priceText}`;
+    }
+  }
+
+  return title;
+}
+
+/**
+ * Format price range for title display
+ * Examples: "800 triệu - 1 tỷ", "dưới 500 triệu", "trên 5 tỷ"
+ */
+function formatPriceForTitle(min?: number, max?: number): string {
+  if (min === 0 && max === 0) {
+    return 'thỏa thuận';
+  }
+
+  const formatPrice = (amount: number): string => {
+    if (amount >= 1_000_000_000) {
+      const ty = amount / 1_000_000_000;
+      return ty % 1 === 0 ? `${ty} tỷ` : `${ty.toFixed(1)} tỷ`;
+    }
+    const trieu = amount / 1_000_000;
+    return trieu % 1 === 0 ? `${trieu} triệu` : `${trieu.toFixed(0)} triệu`;
+  };
+
+  if (!min && max && max < 1_000_000_000_000) {
+    return `dưới ${formatPrice(max)}`;
+  }
+
+  if (min && (!max || max >= 1_000_000_000_000)) {
+    return `trên ${formatPrice(min)}`;
+  }
+
+  if (min && max && min < max) {
+    return `${formatPrice(min)} - ${formatPrice(max)}`;
+  }
+
+  return '';
 }
 
 /**

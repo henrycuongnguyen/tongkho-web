@@ -363,8 +363,18 @@ if (properties.length === 0) {
   }
 }
 
-// Build metadata - prioritize SEO metadata over generated title
-const pageTitle = seoMetadata?.titleWeb || seoMetadata?.title || getPageTitle(filters);
+// Build metadata - use dynamic title when filters are active (price, property types, etc.)
+// This matches v1 behavior: database SEO is base, filters make it dynamic
+const hasActiveFilters =
+  filters.minPrice !== undefined ||
+  filters.maxPrice !== undefined ||
+  filters.propertyTypes && filters.propertyTypes.length > 0 ||
+  filters.minArea !== undefined ||
+  filters.maxArea !== undefined;
+
+const pageTitle = hasActiveFilters
+  ? getPageTitle(filters, selectedLocation?.name)
+  : (seoMetadata?.titleWeb || seoMetadata?.title || getPageTitle(filters, selectedLocation?.name));
 const description = getPageDescription(filters, total);
 
 // Pagination info
