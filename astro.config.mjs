@@ -40,6 +40,12 @@ export default defineConfig({
     optimizeDeps: {
       include: ["react", "react-dom", "react-dom/client"],
     },
+    server: {
+      // Increase timeout for Tailwind v4 initial compilation
+      hmr: {
+        timeout: 120000, // 2 minutes
+      },
+    },
     // Note: DATABASE_URL is automatically available at build time via import.meta.env
     // No need to expose it to client bundle for security reasons
   },

@@ -187,7 +187,7 @@ async function getDistrictsByProvince(provinceNId: string, version: AddressVersi
     return sortedRows.map(row => ({
       nId: row.nId || '',
       name: row.name || '',
-      slug: row.slug || row.slugV1 || '',
+      slug: row.slugV1 || row.slug || '',
       propertyCount: Number(row.searchCount) || 0,
       displayOrder: row.displayOrder || 100,
       provinceId: provinceNId,
@@ -247,7 +247,7 @@ async function getWardsByDistrict(districtNId: string, version: AddressVersion):
     return sortedRows.map(row => ({
       nId: row.nId || '',
       name: row.name || '',
-      slug: row.slug || row.slugV1 || '',
+      slug: row.slugV1 || row.slug || '',
       propertyCount: Number(row.searchCount) || 0,
       displayOrder: row.displayOrder || 100,
       districtId: districtNId,
@@ -304,20 +304,20 @@ async function generateLocations(): Promise<void> {
       totalDistricts += districts.length;
 
       // 3. Generate wards for each district
-      for (const district of districts) {
-        const wards = await getWardsByDistrict(district.nId, version);
-        if (wards.length > 0) {
-          const wardFile = path.join(OUTPUT_DIR, 'wards', version, `${district.nId}.json`);
-          writeJson(wardFile, wards);
-          totalFiles++;
-          totalWardFiles[version]++;
-        }
-      }
+      // for (const district of districts) {
+      //   const wards = await getWardsByDistrict(district.nId, version);
+      //   if (wards.length > 0) {
+      //     const wardFile = path.join(OUTPUT_DIR, 'wards', version, `${district.nId}.json`);
+      //     writeJson(wardFile, wards);
+      //     totalFiles++;
+      //     totalWardFiles[version]++;
+      //   }
+      // }
     }
 
     totalFiles += districtFileCount;
     console.log(`  ✓ districts/${version}/ (${districtFileCount} files, ${totalDistricts} total districts)`);
-    console.log(`  ✓ wards/${version}/ (${totalWardFiles[version]} files)`);
+    // console.log(`  ✓ wards/${version}/ (${totalWardFiles[version]} files)`);
   }
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(2);
@@ -326,8 +326,8 @@ async function generateLocations(): Promise<void> {
   console.log('Generation Complete!');
   console.log('========================================');
   console.log(`  Total files: ${totalFiles}`);
-  console.log(`  Wards (new): ${totalWardFiles.new} files`);
-  console.log(`  Wards (old): ${totalWardFiles.old} files`);
+  // console.log(`  Wards (new): ${totalWardFiles.new} files`);
+  // console.log(`  Wards (old): ${totalWardFiles.old} files`);
   console.log(`  Time: ${elapsed}s`);
   console.log('');
 }
