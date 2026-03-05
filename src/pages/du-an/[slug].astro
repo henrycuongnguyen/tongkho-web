@@ -16,6 +16,7 @@
  */
 import ListingWithSidebarLayout from '@/layouts/listing-with-sidebar-layout.astro';
 import ImageGalleryCarousel from '@/components/property/property-detail-image-gallery-carousel.astro';
+import PropertyDetailBreadcrumb from '@/components/property/property-detail-breadcrumb.astro';
 import ContactCard from '@/components/shared/contact-card.astro';
 import FeaturedProjectBanner from '@/components/listing/sidebar/featured-project-banner.astro';
 import ProjectSidebarList from '@/components/project/project-sidebar-list.astro';
@@ -23,6 +24,9 @@ import PropertyCard from '@/components/cards/property-card.astro';
 import { getProjectBySlug, getProjectById, getProjectProperties, getRelatedProjects } from '@/services/project-detail-service';
 import { getFeaturedProjects } from '@/services/featured-project-service';
 import { mapPropertyDocumentsToProperties } from '@/utils/property-mapper';
+import { db } from '@/db';
+import { locations } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 // Get slug from URL params
 const { slug } = Astro.params;
@@ -51,6 +55,27 @@ const projectProperties = await getProjectProperties(
 // Map ES documents to Property types for PropertyCard
 const sellPropertiesMapped = mapPropertyDocumentsToProperties(projectProperties.sellProperties);
 const rentPropertiesMapped = mapPropertyDocumentsToProperties(projectProperties.rentProperties);
+
+// Fetch location slugs for breadcrumb
+let citySlug: string | undefined = undefined;
+let districtSlug: string | undefined = undefined;
+let wardSlug: string | undefined = undefined;
+
+if (project.cityId) {
+  const city = await db.select({ slug: locations.nSlugV1 })
+    .from(locations).where(eq(locations.nId, project.cityId)).limit(1);
+  citySlug = city[0]?.slug || undefined;
+}
+if (project.districtId) {
+  const district = await db.select({ slug: locations.nSlugV1 })
+    .from(locations).where(eq(locations.nId, project.districtId)).limit(1);
+  districtSlug = district[0]?.slug || undefined;
+}
+if (project.wardId) {
+  const ward = await db.select({ slug: locations.nSlugV1 })
+    .from(locations).where(eq(locations.nId, project.wardId)).limit(1);
+  wardSlug = ward[0]?.slug || undefined;
+}
 
 // Fetch featured projects for sidebar (exclude current)
 // Fetch featured projects and related projects (same district) in parallel
@@ -83,15 +108,17 @@ const hasMap = project.lat !== null && project.lng !== null;
     />
 
     <!-- 2. Breadcrumb -->
-    <nav class="text-sm text-secondary-500">
-      <ol class="flex flex-wrap items-center gap-2">
-        <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
-        <li class="text-secondary-300">&gt;</li>
-        <li><a href="/du-an" class="hover:text-primary-500 transition-colors">Dự án</a></li>
-        <li class="text-secondary-300">&gt;</li>
-        <li class="text-secondary-700 font-medium line-clamp-1">{project.projectName}</li>
-      </ol>
-    </nav>
+    <PropertyDetailBreadcrumb
+      transactionType="sale"
+      propertyTypeName="Dự Án"
+      propertyTypeSlug="du-an"
+      cityName={project.city || undefined}
+      citySlug={citySlug}
+      districtName={project.district || undefined}
+      districtSlug={districtSlug}
+      wardName={project.ward || undefined}
+      wardSlug={wardSlug}
+    />
 
     <!-- 3. Project Header -->
     <section class="flex items-start gap-4">

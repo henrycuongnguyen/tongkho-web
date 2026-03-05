@@ -15,7 +15,8 @@
  * 8. Related Properties
  */
 import ListingWithSidebarLayout from '@/layouts/listing-with-sidebar-layout.astro';
-import ImageGalleryCarousel from '@/components/property/property-detail-image-gallery-carousel.astro';
+import ImageGalleryHorizontal from '@/components/property/property-detail-image-gallery-horizontal.astro';
+import PropertyDetailBreadcrumb from '@/components/property/property-detail-breadcrumb.astro';
 import PropertyInfoSection from '@/components/property/property-info-section.astro';
 import PropertyVideoSection from '@/components/property/property-video-section.astro';
 import PropertyMapSection from '@/components/property/property-map-section.astro';
@@ -59,48 +60,57 @@ const displayRelated = await postgresPropertyService.getRelatedProperties(
   4
 );
 
-// Generate mock images array from thumbnail (for demo)
-const propertyImages = property.images.length > 1
+// Use actual property images or fallback to thumbnail
+const propertyImages = property.images.length > 0
   ? property.images
-  : [
-      property.thumbnail,
-      property.thumbnail,
-      property.thumbnail,
-      property.thumbnail,
-    ];
+  : [property.thumbnail];
 
 // SEO
 const pageTitle = `${property.title} | TongkhoBDS`;
 const pageDescription = property.description.slice(0, 160);
 
+// Fetch property type details for breadcrumb
+let propertyTypeData: { slug: string | null; vietnamese: string | null } | null = null;
+if (property.propertyTypeId) {
+  const result = await db
+    .select({ slug: propertyType.slug, vietnamese: propertyType.vietnamese })
+    .from(propertyType)
+    .where(eq(propertyType.id, property.propertyTypeId))
+    .limit(1);
+  propertyTypeData = result[0] || null;
+}
+
+// Fetch location slugs and names for breadcrumb
+let citySlug: string | null = null;
+let districtSlug: string | null = null;
+let wardSlug: string | null = null;
+
+if (property.cityId) {
+  const city = await db.select({ slug: locations.nSlugV1, slug2: locations.nSlug })
+    .from(locations).where(eq(locations.nId, property.cityId)).limit(1);
+  citySlug = city[0]?.slug || city[0]?.slug2 || null;
+}
+if (property.districtId) {
+  const district = await db.select({ slug: locations.nSlugV1, slug2: locations.nSlug })
+    .from(locations).where(eq(locations.nId, property.districtId)).limit(1);
+  districtSlug = district[0]?.slug || district[0]?.slug2 || null;
+}
+if (property.wardId) {
+  const ward = await db.select({ slug: locations.nSlugV1, slug2: locations.nSlug })
+    .from(locations).where(eq(locations.nId, property.wardId)).limit(1);
+  wardSlug = ward[0]?.slug || ward[0]?.slug2 || null;
+}
+
 // Build listing page base path for sidebar filters
 // Get location slug from property (priority: ward > district > city)
 let locationSlug = 'toan-quoc'; // fallback
 
-if (property.wardId) {
-  const ward = await db.select({ slug: locations.nSlugV1 })
-    .from(locations)
-    .where(eq(locations.nId, property.wardId))
-    .limit(1);
-  if (ward.length > 0 && ward[0].slug) {
-    locationSlug = ward[0].slug;
-  }
-} else if (property.districtId) {
-  const district = await db.select({ slug: locations.nSlugV1 })
-    .from(locations)
-    .where(eq(locations.nId, property.districtId))
-    .limit(1);
-  if (district.length > 0 && district[0].slug) {
-    locationSlug = district[0].slug;
-  }
-} else if (property.cityId) {
-  const city = await db.select({ slug: locations.nSlugV1 })
-    .from(locations)
-    .where(eq(locations.nId, property.cityId))
-    .limit(1);
-  if (city.length > 0 && city[0].slug) {
-    locationSlug = city[0].slug;
-  }
+if (property.wardId && wardSlug) {
+  locationSlug = wardSlug;
+} else if (property.districtId && districtSlug) {
+  locationSlug = districtSlug;
+} else if (property.cityId && citySlug) {
+  locationSlug = citySlug;
 }
 
 // Get property type slug for URL (prefer property type slug over transaction slug)
@@ -135,23 +145,22 @@ const featuredProjects = await getFeaturedProjects(5);
 >
   <!-- Main Content Slot -->
   <div class="space-y-6">
-    <!-- 1. Image Gallery (first, like v1) -->
-    <ImageGalleryCarousel images={propertyImages} realEstateCode={property.realEstateCode} />
+    <!-- 1. Image Gallery (horizontal row, like v1) -->
+    <ImageGalleryHorizontal images={propertyImages} realEstateCode={property.realEstateCode} />
 
     <!-- 2. Breadcrumb (after gallery, like v1) -->
-    <nav class="text-sm text-secondary-500">
-      <ol class="flex flex-wrap items-center gap-2">
-        <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
-        <li class="text-secondary-300">&gt;</li>
-        <li>
-          <a href={property.transactionType === 'sale' ? '/mua-ban' : '/cho-thue'} class="hover:text-primary-500 transition-colors">
-            {property.transactionType === 'sale' ? 'Mua bán' : 'Cho thuê'}
-          </a>
-        </li>
-        <li class="text-secondary-300">&gt;</li>
-        <li class="text-secondary-700 font-medium line-clamp-1">{property.title}</li>
-      </ol>
-    </nav>
+    <PropertyDetailBreadcrumb
+      transactionType={property.transactionType}
+      propertyTypeId={property.propertyTypeId}
+      propertyTypeName={propertyTypeData?.vietnamese || undefined}
+      propertyTypeSlug={propertyTypeData?.slug || undefined}
+      cityName={property.city}
+      citySlug={citySlug || undefined}
+      districtName={property.district}
+      districtSlug={districtSlug || undefined}
+      wardName={property.ward}
+      wardSlug={wardSlug || undefined}
+    />
 
     <!-- 3. Property Info Section (title, price, address, actions, specs, description, contact) -->
     <PropertyInfoSection property={property} />
@@ -198,6 +207,9 @@ const featuredProjects = await getFeaturedProjects(5);
         </div>
       </section>
     )}
+
+    <!-- 9. Watched Properties Section (client-rendered) -->
+    <div id="watched-properties"></div>
   </div>
 
   <!-- Sidebar Slot -->
@@ -218,3 +230,14 @@ const featuredProjects = await getFeaturedProjects(5);
     <FeaturedProjectBanner projects={featuredProjects} />
   </div>
 </ListingWithSidebarLayout>
+
+<!-- Initialize Watched Properties Manager -->
+<script>
+  import WatchedPropertiesManager from '@/scripts/watched-properties-manager';
+
+  // Use astro:page-load to support View Transitions
+  // This fires on both initial load AND after view transitions
+  document.addEventListener('astro:page-load', () => {
+    WatchedPropertiesManager.init();
+  });
+</script>
