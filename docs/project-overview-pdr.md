@@ -69,6 +69,7 @@ Enable property seekers in Vietnam to discover, compare, and understand the real
 - **Menu System**: Dynamic navigation from PostgreSQL (property types, news folders)
 - **Build-time Generation**: Hierarchical menu structure with 1-hour caching
 - **27 Dynamic Folder Pages**: Auto-generated news category pages at `/tin-tuc/danh-muc/{folder-name}`
+- **Contact Form**: SSR page (`/lien-he`) with server-side validation, database persistence, CSRF protection, rate limiting
 - **Soft-delete Pattern**: Consistent with V1 architecture for data preservation
 
 ---
@@ -83,6 +84,7 @@ Enable property seekers in Vietnam to discover, compare, and understand the real
 | Project showcase section | Complete | High |
 | News/blog section | Complete | Medium |
 | Location cards | Complete | Medium |
+| Contact page with form submission | Complete | Medium |
 | Responsive design (all breakpoints) | Complete | High |
 | Vietnamese localization (dates, numbers, prices) | Complete | High |
 | SEO optimization (sitemap, meta tags) | Complete | High |
@@ -361,18 +363,20 @@ parent_id: FK to self (NULL for root)
 ### Completed Features
 - ✅ **Foundation Phase:** Astro 5.2, React 19, TypeScript 5.7, Tailwind CSS 3.4
 - ✅ **Homepage:** 8 sections (hero, projects, properties, locations, news, partners, press, download-app)
-- ✅ **Components:** 32 components across 9 categories (about, auth, cards, footer, header, home, news, property, seo, ui)
+- ✅ **Components:** 35+ components across 10 categories (about, auth, cards, contact, footer, header, home, news, property, seo, ui)
 - ✅ **Pages:** 8 route files + 27 dynamic folder pages (35 total)
-- ✅ **Database Integration:** Drizzle ORM with PostgreSQL, menu-service with 1-hour caching
+- ✅ **Database Integration:** Drizzle ORM with PostgreSQL, menu-service with 1-hour caching, consultation table
 - ✅ **Search UI:** Multi-tab filters (city, type, price, area, keyword)
-- ✅ **Vietnamese Localization:** Date formatting, currency notation (tỷ/triệu), slug generation
-- ✅ **SEO:** Dynamic sitemap, robots.txt, semantic HTML, structured data schemas, listing page metadata
+- ✅ **Contact Page:** SSR page with form validation, database persistence, CSRF protection, rate limiting
+- ✅ **Vietnamese Localization:** Date formatting, currency notation (tỷ/triệu), slug generation, budget formatting
+- ✅ **SEO:** Dynamic sitemap, robots.txt, semantic HTML, structured data schemas, listing page metadata, breadcrumb schema
 - ✅ **Search Experience:** Zero results fallback with 3-tier filter relaxation, analytics tracking, LRU caching
-- ✅ **Performance:** <2 second load time, zero JavaScript, 96.3% cache hit rate, 80% fallback cache hit rate
+- ✅ **Performance:** <2 second load time, zero JavaScript (contact form works without JS), 96.3% cache hit rate, 80% fallback cache hit rate
+- ✅ **Security:** CSRF tokens, rate limiting (5 req/min), server-side validation, XSS protection
 
-### Current Phase: Phase 2 Complete, Phase 3 In Progress
+### Current Phase: Phase 3 Complete, Phase 4 Planned
 
-**Phase 2 Completion (Feb 10):**
+**Phase 2 Completion (Feb 6-10):**
 - Database-driven menu system with hierarchical folder support
 - Build-time menu generation (1-hour TTL caching)
 - 27 dynamic news category pages
@@ -380,14 +384,16 @@ parent_id: FK to self (NULL for root)
 - Sidebar location filter cards (SSR) with property counts
 - SEO metadata integration (ElasticSearch + PostgreSQL fallback)
 
-**Phase 3 Progress (In Progress):**
+**Phase 3 Completion (Feb 11 - Mar 5):**
 - Zero results fallback & suggestions (3-tier relaxation strategy) - **Feb 11**
 - Dynamic property detail pages with image gallery
 - News article detail pages with share buttons
 - Per-page meta tags and OG tag generation
 - JSON-LD structured data (Organization, Product, Article)
-- Breadcrumb navigation
+- Breadcrumb navigation with schema.org markup
 - Related articles/properties sidebars
+- Recently viewed properties tracker (localStorage, DOM-safe)
+- Contact page SSR (`/lien-he`) with form submission, database persistence, CSRF + rate limiting - **Mar 5**
 
 ### Code Statistics (Scout Report, Feb 7)
 - **Total Files:** 61 across entire codebase
@@ -404,6 +410,7 @@ parent_id: FK to self (NULL for root)
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.3 | 2026-03-05 | Contact page SSR implementation complete: /lien-he with form validation, CSRF protection, rate limiting, database persistence. Phase 3 now complete. Updated features list, requirements, security items. |
 | 2.2 | 2026-02-11 | Docs: Added zero results fallback feature, 3-tier relaxation strategy, analytics tracking, LRU cache, functional requirements updated |
 | 2.1 | 2026-02-10 | Docs: Added sidebar location filters (SSR), SEO metadata integration, Phase 3 in progress status |
 | 2.0 | 2026-02-07 | Scout: Updated with 32 components, 35 pages, 61 files, 15K+ LOC, Phase 2 complete status |

@@ -1,16 +1,62 @@
 # Project Roadmap & Development Status
 
-## Current Status: Phase 2 Complete, Dynamic Pages & Property Details Enhanced
+## Current Status: Phase 3 Complete, Contact Form Implemented
 
-**Version:** 2.4.0
-**Last Updated:** 2026-03-03
-**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Property Detail Features Complete (100%)
-**Latest Features:** Property detail breadcrumbs + schema.org, recently viewed properties tracker, batch properties API
-**Recent Feature:** Breadcrumb navigation + recently viewed properties on detail pages; 44/44 tests passing, 0 TypeScript errors
+**Version:** 2.5.0
+**Last Updated:** 2026-03-05
+**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Property Detail Features Complete (100%), Contact Page Complete (100%)
+**Latest Features:** Contact page SSR with form submission, CSRF protection, rate limiting, database persistence
+**Recent Feature:** Contact page at `/lien-he` with server-side validation; 45/45 tests passing, 0 TypeScript errors
 
 ---
 
 ## Recently Completed
+
+### Contact Page Implementation (✅ COMPLETE)
+**Branch:** detail53
+**Plan:** plans/260305-1023-contact-page/
+**Completion Progress:** 100% (5 of 5 phases complete)
+
+| Phase | Status | Details |
+|---|---|---|
+| Phase 1: Database Service | ✅ Complete | consultation table schema + service ✓ |
+| Phase 2: SSR Page Logic | ✅ Complete | GET/POST handler, CSRF, rate limiting ✓ |
+| Phase 3: Form Components | ✅ Complete | contact-form, info section, CTA section ✓ |
+| Phase 4: Page Assembly | ✅ Complete | All sections integrated, responsive ✓ |
+| Phase 5: Testing & Polish | ✅ Complete | 45/45 tests passing, 0 TypeScript errors ✓ |
+
+**Delivery Time:** <1 day (efficient)
+**Business Impact:** Users can submit contact forms for real estate consultations, data persists to database
+**Quality:** 45/45 tests passing, 0 TypeScript errors, production-ready
+**Files Created:** 8 (schema, service, page, 3 components, csrf, rate-limiter)
+**Files Modified:** 1 (schema index)
+
+**Features Implemented:**
+- ✅ SSR page at `/lien-he` with GET/POST handling
+- ✅ Server-side form validation (email, phone, budget)
+- ✅ Client-side real-time validation with error messages
+- ✅ CSRF protection on all submissions
+- ✅ Rate limiting (5 req/min per IP)
+- ✅ Budget auto-formatting (Vietnamese locale)
+- ✅ Database persistence (consultation table)
+- ✅ Success/error redirects with URL params
+- ✅ Responsive design (mobile/tablet/desktop)
+- ✅ Reusable contact components (form, info, CTA)
+
+**Security Implementation:**
+- CSRF tokens validated on every submission
+- Server-side validation double-checks all inputs
+- Rate limiting prevents spam/abuse
+- Budget formatting removed before DB insert
+- Input length limits enforced
+- RFC 5322 email validation
+
+**New Services & Utilities:**
+- `consultation-service.ts` - Type-safe database service
+- `csrf.ts` - CSRF token generation/validation utility
+- `rate-limiter.ts` - IP-based rate limiting utility
+
+---
 
 ### Property Detail Breadcrumbs & Recently Viewed Properties (✅ COMPLETE)
 **Branch:** main23
@@ -403,7 +449,8 @@ Phase 1 (Foundation) ✅
 |---|---|---|---|
 | **Foundation MVP** | 2026-01-28 | ✅ Complete | Astro SSG, 32 components, 8 pages, localization |
 | **Menu System** | 2026-02-06 | ✅ Complete | PostgreSQL integration, 27 folder pages, build-time caching |
-| **Dynamic Pages & SEO** | 2026-03-15 | 🔵 In Progress | Property/article detail pages, JSON-LD, meta tags |
+| **Dynamic Pages & SEO** | 2026-03-05 | ✅ Complete | Property/article detail pages, breadcrumbs, contact form |
+| **Contact Page** | 2026-03-05 | ✅ Complete | SSR form handling, CSRF, rate limiting, database persistence |
 | **Real Data Integration** | 2026-05-01 | 🔵 Planning | Elasticsearch search, PostgreSQL queries, CDN |
 | **Admin Dashboard** | 2026-06-15 | 🔵 Planning | CMS interface, user auth, workflows |
 | **v2.0 Release** | 2026-07-31 | 🔵 Backlog | Full dynamic pages + admin + real data |
@@ -522,6 +569,7 @@ Before moving to Phase 2:
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.5.0 | 2026-03-05 | Contact page implementation complete: SSR form handling at /lien-he, CSRF protection, rate limiting, database persistence. 45/45 tests, 0 errors. Phase 3 now complete. Updated milestones, roadmap status, recently completed section. |
 | 2.4.0 | 2026-03-03 | Property detail enhancements: Breadcrumb navigation + schema.org (v1-compatible), recently viewed properties tracker (localStorage, max 8, DOM-safe), batch properties API (rate limited, 5-min cache). 44/44 tests, 0 errors. Updated codebase/architecture/roadmap docs. |
 | 2.3.1 | 2026-02-11 | Compare service complete (Phase 2); localStorage manager, validation, events; 211/211 tests (29 new); 9/10 code review |
 | 2.2.1 | 2026-02-11 | Share functionality complete; Facebook/Zalo/Twitter/Copy Link integrated on property cards; 182/182 tests passing |
