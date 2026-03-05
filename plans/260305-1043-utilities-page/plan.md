@@ -1,13 +1,14 @@
 ---
 title: "Utilities Page (Trang Tiện Ích) Implementation"
 description: "Build feng shui calculators and utilities page - database-first approach"
-status: pending
+status: completed
 priority: P2
 effort: 8h
 branch: detail53
 tags: [utilities, feng-shui, calculators, forms, react, database]
 created: 2026-03-05
 updated: 2026-03-05
+completed: 2026-03-05
 ---
 
 # Utilities Page Implementation Plan
@@ -66,16 +67,16 @@ Build `/tienich` page with dynamic feng shui calculators using **database-first 
 
 ## Success Criteria
 
-- [ ] Query `news` table directly for utilities list
-- [ ] Hardcode form configs in TypeScript
-- [ ] Still call external AI API for calculations
-- [ ] All 4 feng shui calculators working
-- [ ] Form validation (required, min/max)
-- [ ] Loading + error states
-- [ ] Sidebar with active state
-- [ ] Breadcrumb navigation
-- [ ] Mobile responsive
-- [ ] v1 URL compatibility
+- [x] Query `news` table directly for utilities list
+- [x] Hardcode form configs in TypeScript
+- [x] Still call external AI API for calculations
+- [x] All 4 feng shui calculators working
+- [x] Form validation (required, min/max)
+- [x] Loading + error states
+- [x] Sidebar with active state
+- [x] Breadcrumb navigation
+- [x] Mobile responsive
+- [x] v1 URL compatibility
 
 ## Dependencies
 

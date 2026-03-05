@@ -70,6 +70,7 @@ Enable property seekers in Vietnam to discover, compare, and understand the real
 - **Build-time Generation**: Hierarchical menu structure with 1-hour caching
 - **27 Dynamic Folder Pages**: Auto-generated news category pages at `/tin-tuc/danh-muc/{folder-name}`
 - **Contact Form**: SSR page (`/lien-he`) with server-side validation, database persistence, CSRF protection, rate limiting
+- **Utilities (Feng Shui Calculators)**: Database-driven utility list (`/tienich/{slug}`) with 4 interactive calculators, AI-powered advice, form validation
 - **Soft-delete Pattern**: Consistent with V1 architecture for data preservation
 
 ---
@@ -85,6 +86,7 @@ Enable property seekers in Vietnam to discover, compare, and understand the real
 | News/blog section | Complete | Medium |
 | Location cards | Complete | Medium |
 | Contact page with form submission | Complete | Medium |
+| Utilities page with feng shui calculators | Complete | Medium |
 | Responsive design (all breakpoints) | Complete | High |
 | Vietnamese localization (dates, numbers, prices) | Complete | High |
 | SEO optimization (sitemap, meta tags) | Complete | High |

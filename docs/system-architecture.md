@@ -101,6 +101,11 @@ src/
 │   ├── property/        # Property detail (gallery, info, contact, price chart, related)
 │   ├── seo/             # JSON-LD structured data
 │   ├── ui/              # Dropdowns (location with 63 provinces, property type), range sliders, checkbox, pagination, share buttons
+│   ├── utility/         # [NEW] Utilities feature (feng shui calculators)
+│   │   ├── utility-sidebar.astro        # Dynamic utilities list with active state
+│   │   ├── utility-form.tsx             # Client-side form validation & submission
+│   │   ├── utility-result.tsx           # HTML result display & print functionality
+│   │   └── utility-container.tsx        # Page layout container
 │   └── scroll-to-top-button.astro
 ├── data/
 │   ├── mock-properties.ts  # All mock data (properties, projects, news)
@@ -131,7 +136,13 @@ src/
 │   ├── tin-tuc/trang/[page].astro # Paginated news (SSR)
 │   ├── tin-tuc/danh-muc/[category].astro # Category filter (5)
 │   ├── tin-tuc/danh-muc/[folder].astro # Dynamic folder pages (27)
-│   └── bds/[slug].astro    # Property detail (SSR)
+│   ├── bds/[slug].astro    # Property detail (SSR)
+│   ├── lien-he.astro       # Contact page (SSR, form submission)
+│   ├── tienich/index.astro # [NEW] Utilities index (redirects to first utility)
+│   ├── tienich/[slug].astro # [NEW] Utility detail page (SSG/SSR, feng shui calculators)
+│   └── api/
+│       ├── properties/batch.ts   # Batch properties fetch (5-min cache, rate limited)
+│       └── utility/calculate.ts  # [NEW] AI calculation API proxy
 ├── styles/
 │   └── global.css          # Global Tailwind + custom styles
 ├── types/
@@ -870,6 +881,139 @@ Rate Limit: Redirect to /lien-he?error=too_many_requests
 Validation Error: Redirect to /lien-he?error={field}_{reason}
                   Display field-specific message
 ```
+
+### Utilities (Feng Shui Calculators) Pattern (Database-First + AI API)
+
+**Files:**
+- `pages/tienich/index.astro` - Utilities index (redirects to first utility)
+- `pages/tienich/[slug].astro` - Utility detail page (SSG/SSR with dynamic routing)
+- `pages/api/utility/calculate.ts` - Server-side API proxy for AI calculations
+- `services/utility/utility-service.ts` - Database queries + AI API integration
+- `services/utility/form-configs.ts` - Hardcoded form configurations
+- `components/utility/utility-sidebar.astro` - Dynamic utilities list
+- `components/utility/utility-form.tsx` - Client-side form + validation
+- `components/utility/utility-result.tsx` - HTML result display + print
+
+**Purpose:** Interactive feng shui calculators with database-driven utility list and external AI API integration
+
+**Architecture:**
+```
+GET /tienich (Index)
+  ↓
+Fetch utilities from news table via utility-service
+  ↓
+Redirect to first non-comparison utility (/tienich/{slug})
+
+GET /tienich/{slug} (Utility Detail)
+  ↓
+Fetch utility metadata from database
+  ↓
+Get form config from hardcoded FORM_CONFIGS
+  ↓
+Render page with sidebar + form + empty result area
+
+POST /api/utility/calculate (Calculation)
+  ↓
+Validate request (required fields, birth year range)
+  ↓
+Forward to AI API (https://resan8n.ecrm.vn/webhook/tkbds-app/ai)
+  ↓
+Return HTML result from AI
+  ↓
+Client displays result in utility-result component
+```
+
+**Database Integration:**
+```typescript
+// Fetch utilities from news table (grouped by utilities folder)
+SELECT id, name, description, avatar, displayOrder
+FROM news
+WHERE folder = 'tien-ich-tong-kho' AND aactive = true
+ORDER BY displayOrder ASC
+
+// Returns hardcoded default if folder not found:
+[
+  { id: 0, name: 'So sánh bất động sản', slug: 'so-sanh', ... },
+  // ... other utilities from DB
+]
+```
+
+**Supported Calculators:**
+1. **HouseConstructionAgeCheck** - Find auspicious construction years
+   - Fields: ownerBirthYear, expectedStartYear, gender
+2. **FengShuiDirectionAdvisor** - House direction recommendations
+   - Fields: ownerBirthYear, houseFacing (8 directions), gender, lengthOption
+3. **ColorAdvisor** - Lucky color recommendations
+   - Fields: ownerBirthYear, gender, lengthOption
+4. **OfficeFengShui** - Office layout recommendations
+   - Fields: ownerBirthYear, gender, lengthOption
+
+**Form Configuration Pattern:**
+```typescript
+// Hardcoded configurations (static, no DB storage)
+export const FORM_CONFIGS: Record<string, UtilityFormConfig> = {
+  HouseConstructionAgeCheck: {
+    type: 'HouseConstructionAgeCheck',
+    title: 'Tư vấn tuổi xây nhà',
+    fields: [
+      { name: 'ownerBirthYear', label: 'Năm sinh', type: 'number', required: true },
+      // ... more fields
+    ]
+  },
+  // ... other calculators
+};
+```
+
+**Client-Side Flow:**
+1. User fills form with their information
+2. Client-side validation (required fields, min/max values)
+3. User clicks "Tính toán" button
+4. Form submits to `/api/utility/calculate` via fetch
+5. Loading spinner displays
+6. Response renders in utility-result component (HTML from AI)
+7. Print button allows saving results to PDF
+
+**Security Implementation:**
+- API credentials (X-API-Key) protected via `/api/utility/calculate` endpoint
+- No hardcoded keys exposed in client code
+- Server-side request validation before forwarding to external API
+- Birth year range enforced (1900-2100)
+- Type-safe form data handling via TypeScript
+
+**API Request/Response:**
+```typescript
+// Client sends:
+POST /api/utility/calculate
+{
+  "type": "HouseConstructionAgeCheck",
+  "ownerBirthYear": 1990,
+  "expectedStartYear": 2026,
+  "gender": "male",
+  "userId": 1
+}
+
+// Server returns:
+{
+  "status": 1,
+  "message": "Success",
+  "data": {
+    "html": "<div class='result-content'>Kết quả tư vấn...</div>"
+  }
+}
+```
+
+**URL Compatibility:**
+- `/tienich` - Redirects to first utility
+- `/tienich/tu-van-tuoi-xay-nha` - House construction age checker
+- `/tienich/tu-van-huong-nha` - Direction advisor
+- `/tienich/tu-van-mau-sac` - Color advisor
+- `/tienich/tu-van-phong-thuy-van-phong` - Office feng shui
+
+**Next Features:**
+- Result history/favoriting
+- Share results via social media
+- Export results as PDF (enhanced print)
+- Integration with property listing recommendations
 
 **Performance:**
 - Page load: < 2 seconds (static HTML with CSRF token)

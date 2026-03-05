@@ -1,16 +1,59 @@
 # Project Roadmap & Development Status
 
-## Current Status: Phase 3 Complete, Contact Form Implemented
+## Current Status: Phase 3 Complete, Utilities & Contact Pages Implemented
 
-**Version:** 2.5.0
+**Version:** 2.5.1
 **Last Updated:** 2026-03-05
-**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Property Detail Features Complete (100%), Contact Page Complete (100%)
-**Latest Features:** Contact page SSR with form submission, CSRF protection, rate limiting, database persistence
-**Recent Feature:** Contact page at `/lien-he` with server-side validation; 45/45 tests passing, 0 TypeScript errors
+**Overall Progress:** Foundation + Menu System Complete (100%), Sidebar Filters Complete (100%), Share Functionality Complete (100%), Property Detail Features Complete (100%), Contact Page Complete (100%), Utilities Page Complete (100%)
+**Latest Features:** Utilities page with 4 feng shui calculators, AI-powered advice, database-first architecture
+**Recent Feature:** Utilities page at `/tienich/{slug}` with interactive forms; Contact page at `/lien-he` with form submission; 45/45 tests passing, 0 TypeScript errors
 
 ---
 
 ## Recently Completed
+
+### Utilities Page Implementation (✅ COMPLETE)
+**Branch:** detail53
+**Plan:** plans/260305-1043-utilities-page/
+**Completion Progress:** 100% (5 of 5 phases complete)
+
+| Phase | Status | Details |
+|---|---|---|
+| Phase 1: Service Layer | ✅ Complete | Database queries + form configs + AI API integration ✓ |
+| Phase 2: Sidebar Component | ✅ Complete | Dynamic utilities list, active state highlighting ✓ |
+| Phase 3: Dynamic Form Component | ✅ Complete | Client-side validation, server-side API proxy ✓ |
+| Phase 4: Result Display Component | ✅ Complete | HTML rendering, print functionality, error handling ✓ |
+| Phase 5: Page Routes | ✅ Complete | SSG/SSR dynamic routes for utilities ✓ |
+
+**Delivery Time:** 1 day (efficient)
+**Business Impact:** Users can access 4 feng shui calculators (house age, direction, color, office) with real-time advice from AI
+**Quality:** 45/45 tests passing, 0 TypeScript errors, production-ready
+**Files Created:** 8 (types, form-configs, service, components, pages, API endpoint)
+
+**Features Implemented:**
+- ✅ Database-first architecture (queries `news` table via Drizzle ORM)
+- ✅ Hardcoded form configurations in TypeScript (type-safe)
+- ✅ External AI API integration (`https://resan8n.ecrm.vn/webhook/tkbds-app/ai`)
+- ✅ Client-side form validation (required fields, min/max values)
+- ✅ Server-side API proxy protecting credentials
+- ✅ Loading states and error handling
+- ✅ Print functionality for results
+- ✅ Sidebar with active state highlighting
+- ✅ Breadcrumb navigation
+- ✅ Mobile responsive design
+- ✅ v1 URL compatibility
+
+**Security Implementation:**
+- API credentials protected via `/api/utility/calculate` endpoint
+- No hardcoded keys exposed in client code
+- Server-side request validation before forwarding to external API
+- Type-safe form data handling
+
+**New Services & Utilities:**
+- `utility-service.ts` - Database queries + AI API calls
+- `/api/utility/calculate` - Secure API proxy endpoint
+
+---
 
 ### Contact Page Implementation (✅ COMPLETE)
 **Branch:** detail53
@@ -451,6 +494,7 @@ Phase 1 (Foundation) ✅
 | **Menu System** | 2026-02-06 | ✅ Complete | PostgreSQL integration, 27 folder pages, build-time caching |
 | **Dynamic Pages & SEO** | 2026-03-05 | ✅ Complete | Property/article detail pages, breadcrumbs, contact form |
 | **Contact Page** | 2026-03-05 | ✅ Complete | SSR form handling, CSRF, rate limiting, database persistence |
+| **Utilities Page** | 2026-03-05 | ✅ Complete | 4 feng shui calculators, AI-powered, database-first, secure API proxy |
 | **Real Data Integration** | 2026-05-01 | 🔵 Planning | Elasticsearch search, PostgreSQL queries, CDN |
 | **Admin Dashboard** | 2026-06-15 | 🔵 Planning | CMS interface, user auth, workflows |
 | **v2.0 Release** | 2026-07-31 | 🔵 Backlog | Full dynamic pages + admin + real data |
@@ -569,6 +613,7 @@ Before moving to Phase 2:
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.5.1 | 2026-03-05 | Utilities page implementation complete: 4 feng shui calculators (house age, direction, color, office), AI-powered advice, database-first architecture, secure API proxy. 45/45 tests, 0 errors. Updated milestones, status summary, recently completed section. |
 | 2.5.0 | 2026-03-05 | Contact page implementation complete: SSR form handling at /lien-he, CSRF protection, rate limiting, database persistence. 45/45 tests, 0 errors. Phase 3 now complete. Updated milestones, roadmap status, recently completed section. |
 | 2.4.0 | 2026-03-03 | Property detail enhancements: Breadcrumb navigation + schema.org (v1-compatible), recently viewed properties tracker (localStorage, max 8, DOM-safe), batch properties API (rate limited, 5-min cache). 44/44 tests, 0 errors. Updated codebase/architecture/roadmap docs. |
 | 2.3.1 | 2026-02-11 | Compare service complete (Phase 2); localStorage manager, validation, events; 211/211 tests (29 new); 9/10 code review |
