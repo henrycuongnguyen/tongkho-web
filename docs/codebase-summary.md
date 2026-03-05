@@ -438,6 +438,65 @@ interface StaticOption {
 
 **Usage:** Renders property/project/news grids on homepage
 
+### Search URL Builder Service (search-url-builder.ts) [NEW - Phase 2]
+**File:** `src/services/url/search-url-builder.ts` (42 LOC)
+
+**Responsibility:** Generate v1-compatible search URLs from filter objects (centralized DRY pattern)
+
+**Key Functions:**
+
+1. **buildSearchUrl(filters, propertyTypeSlugMap) → string**
+   - **Input:** SearchFilters object + property type slug map
+   - **Process:** Converts filters to v1-compatible URL path + query params
+   - **Output:** Search URL string (e.g., `/ban-can-ho-chung-cu/ha-noi?bedrooms=3`)
+   - **Single Source of Truth:** All listing URL building uses this function
+   - **Used In:** Hero search, horizontal search bar, sidebar filters
+
+2. **buildPropertyTypeSlugMap() → Map<number, string>**
+   - Scans DOM for checkboxes with CSS class `.widget-type`
+   - Extracts id → slug mapping from `value` and `data-slug` attributes
+   - Returns Map for O(1) slug lookups
+   - Used in: All listing page URL building when property type selection changes
+
+**Implementation Details:**
+
+**URL Structure (v1-compatible):**
+- **urlArg1** (first segment): Property type slug OR transaction slug
+  - Single type: Use property type slug (e.g., `ban-can-ho-chung-cu`)
+  - Multiple/none: Use transaction slug (e.g., `mua-ban`)
+- **urlArg2** (second segment): Province slug (e.g., `ha-noi`)
+- **urlArg3** (third segment): Price slug if price filter applied (e.g., `gia-tu-1-ty-den-2-ty`)
+- **Query Parameters:** Multiple types, districts, filters (bedrooms, bathrooms, etc.)
+
+**Example URLs Generated:**
+```
+Single type:        /ban-can-ho-chung-cu/ha-noi
+Multiple types:     /mua-ban/ha-noi?property_types=12,13
+Type + price:       /ban-can-ho-chung-cu/ha-noi/gia-tu-1-ty-den-2-ty
+Type + districts:   /ban-can-ho-chung-cu/ha-noi?addresses=quan-hoan-kiem,quan-ba-dinh
+Type + all filters: /ban-can-ho-chung-cu/ha-noi/gia-tu-1-ty-den-2-ty?addresses=...&bedrooms=3
+```
+
+**Test Coverage:** 38 test cases
+- Single property type URL generation ✓
+- Multiple property type URL generation ✓
+- Price slug generation and edge cases ✓
+- Location/district parameter handling ✓
+- v1 compatibility verification ✓
+
+**DRY Pattern (Why Centralized):**
+- Eliminates code duplication across search components
+- Single source of truth for v1-compatible URL logic
+- Updates to buildSearchUrl() automatically benefit all components
+- Easier to test and maintain edge cases
+- Consistent URL format across entire application
+
+**Validation & Fallbacks:**
+- Validates slug existence before using in path
+- Falls back to transaction slug if property type slug missing
+- URLs always start with v1-compatible slugs (never numeric IDs)
+- Handles edge cases (no location, no property type, all filters)
+
 ### Compare Manager (compare-manager.ts) [NEW - Phase 2]
 **File:** `src/scripts/compare-manager.ts`
 

@@ -27,7 +27,7 @@ function getPropertyTypeSlug(
   // Try to get from property type checkboxes in the filter
   if (typeof document !== 'undefined') {
     const checkbox = document.querySelector(
-      `.widget-type input[value="${propertyTypeId}"]`
+      `input.widget-type[value="${propertyTypeId}"]`
     ) as HTMLInputElement;
     if (checkbox) {
       const slug = checkbox.dataset.slug;
@@ -52,7 +52,7 @@ export function buildPropertyTypeSlugMap(): PropertyTypeSlugMap {
   if (typeof document === 'undefined') return map;
 
   const checkboxes = document.querySelectorAll<HTMLInputElement>(
-    '.widget-type input[type="checkbox"]'
+    'input.widget-type[type="checkbox"]'
   );
   checkboxes.forEach((checkbox) => {
     const typeId = checkbox.value;

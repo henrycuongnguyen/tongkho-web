@@ -262,10 +262,11 @@ const stripProvincePrefix = (name: string): string => {
                   </div>
                   <input
                     type="checkbox"
-                    class="w-4 h-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500"
+                    class="w-4 h-4 rounded border-secondary-300 text-primary-600 focus:ring-primary-500 widget-type"
                     value={type.id}
                     checked={isChecked}
                     data-property-type-checkbox
+                    data-slug={type.slug}
                   />
                 </label>
               );
@@ -561,6 +562,10 @@ const stripProvincePrefix = (name: string): string => {
 
   import { getDistricts, getVersion } from '@/lib/location-fetcher';
   import type { DistrictItem } from '@/lib/location-types';
+  import {
+    buildSearchUrl,
+    buildPropertyTypeSlugMap
+  } from '@/services/url/search-url-builder';
 
   // Store handler reference for cleanup (prevent duplicate listeners on re-init)
   let provinceSelectedHandler: ((event: CustomEvent) => void) | null = null;
@@ -1774,108 +1779,59 @@ const stripProvincePrefix = (name: string): string => {
 
       console.log('[HorizontalSearchBar] Search clicked, property types:', selectedPropertyTypeIds);
 
-      // Build search URL with filters (v1 compatible format)
-      const params = new URLSearchParams();
+      // Build property type slug map from checkboxes with data-slug attributes
+      const propertyTypeSlugMap = buildPropertyTypeSlugMap();
+      console.log('[HorizontalSearchBar] Property type slug map:', propertyTypeSlugMap);
 
-      const keyword = districtSearchInput?.value.trim();
-      if (keyword) params.set('keyword', keyword);
+      // Determine transaction type from baseUrl
+      const transactionType = baseUrl.includes('cho-thue') ? '2' :
+                              baseUrl.includes('du-an') ? '3' : '1';
 
-      // Get area values from RangeSliderDropdown hidden input
-      const areaInput = container?.querySelector('[name="area"]') as HTMLInputElement;
-      if (areaInput?.value) {
-        const [minArea, maxArea] = areaInput.value.split('-');
-        if (minArea) params.set('dtnn', minArea);
-        if (maxArea) params.set('dtcn', maxArea);
-      }
-
-      // Add other advanced filters
-      if (selectedRadius) params.set('radius', selectedRadius);
-      if (selectedBathrooms) params.set('bathrooms', selectedBathrooms);
-      if (selectedBedrooms) params.set('bedrooms', selectedBedrooms);
-
-      // Build URL: /[transaction]/[province]/[price-slug]?[other-params]
-      const urlParts: string[] = [baseUrl.replace(/^\//, '')];
-
-      // Get price values first
+      // Get current filter values
       const prices = getPriceValues();
+      const areaInput = container?.querySelector('[name="area"]') as HTMLInputElement;
+      const [minArea, maxArea] = areaInput?.value ? areaInput.value.split('-') : ['', ''];
 
-      // Add province slug if selected
-      const provinceSlug = searchBar?.getAttribute('data-current-province-slug');
-      if (provinceSlug && provinceSlug.trim()) {
-        urlParts.push(provinceSlug);
-      } else if (prices.min || prices.max) {
-        // If no province but has price, add "toan-quoc"
-        urlParts.push('toan-quoc');
-      }
+      // Build location addresses
+      const provinceSlug = searchBar?.getAttribute('data-current-province-slug') || '';
+      const districtSlugs = selectedDistricts.map(d => d.slug);
 
-      // Convert price to slug (v1 compatible)
-      if (prices.min || prices.max) {
-        const minTrieu = prices.min ? Number(prices.min) : 0;
-        const maxTrieu = prices.max ? Number(prices.max) : 0;
-        const priceSlug = buildPriceSlug(minTrieu, maxTrieu);
-        if (priceSlug) {
-          urlParts.push(priceSlug);
-        }
-      }
+      // Build selected_addresses: province + districts (comma-separated)
+      const selectedAddresses = [provinceSlug, ...districtSlugs]
+        .filter(Boolean)
+        .join(',');
 
-      let targetUrl = '/' + urlParts.join('/');
+      // Build filters object for buildSearchUrl
+      const filters = {
+        transaction_type: transactionType,
+        selected_addresses: selectedAddresses,
+        property_types: selectedPropertyTypeIds.join(','),
 
-      // Build query string manually to avoid encoding commas (v1 compatible)
-      const queryParts: string[] = [];
+        // Convert price from triệu to VND
+        min_price: prices.min ? String(Number(prices.min) * 1_000_000) : '',
+        max_price: prices.max ? String(Number(prices.max) * 1_000_000) : '',
 
-      // Add property_types WITHOUT encoding (v1 uses plain commas)
-      if (selectedPropertyTypeIds.length > 0) {
-        queryParts.push(`property_types=${selectedPropertyTypeIds.join(',')}`);
-      }
+        // Area (already in m²)
+        min_area: minArea || '',
+        max_area: maxArea || '',
 
-      // Add addresses param WITHOUT encoding (v1 uses plain commas)
-      // Only add if districts are actually selected in UI
-      if (selectedDistricts.length > 0) {
-        const districtSlugs = selectedDistricts.map(d => d.slug).join(',');
-        queryParts.push(`addresses=${districtSlugs}`);
-      }
+        // Other filters
+        radius: selectedRadius || '',
+        bathrooms: selectedBathrooms || '',
+        bedrooms: selectedBedrooms || '',
+        street_name: districtSearchInput?.value.trim() || '',
+      };
 
-      // Add URLSearchParams parts (other params can be encoded normally)
-      const standardParams = params.toString();
-      if (standardParams) {
-        queryParts.push(standardParams);
-      }
+      // Build URL using v1-compatible builder
+      console.log('[HorizontalSearchBar] Filters:', filters);
+      console.log('[HorizontalSearchBar] Slug map:', propertyTypeSlugMap);
+      const url = buildSearchUrl(filters, propertyTypeSlugMap);
 
-      if (queryParts.length > 0) {
-        targetUrl = `${targetUrl}?${queryParts.join('&')}`;
-      }
+      console.log('[HorizontalSearchBar] Generated URL:', url);
 
-      window.location.href = targetUrl;
+      // Navigate to search results
+      window.location.href = url;
     });
-
-    // Helper: Build price slug from min/max in millions
-    function buildPriceSlug(minTrieu: number, maxTrieu: number): string {
-      if (minTrieu === 0 && maxTrieu === 0) return '';
-
-      if (!minTrieu && maxTrieu) {
-        return `gia-duoi-${convertTrieuToPriceSlug(maxTrieu)}`;
-      }
-
-      if (minTrieu && (!maxTrieu || maxTrieu >= 60000)) {
-        return `gia-tren-${convertTrieuToPriceSlug(minTrieu)}`;
-      }
-
-      if (minTrieu && maxTrieu && minTrieu < maxTrieu) {
-        return `gia-tu-${convertTrieuToPriceSlug(minTrieu)}-den-${convertTrieuToPriceSlug(maxTrieu)}`;
-      }
-
-      return '';
-    }
-
-    // Helper: Convert millions to price slug part
-    function convertTrieuToPriceSlug(trieu: number): string {
-      if (trieu >= 1000) {
-        const ty = trieu / 1000;
-        const formatted = ty % 1 === 0 ? ty.toString() : ty.toFixed(1);
-        return `${formatted}-ty`;
-      }
-      return `${trieu.toFixed(0)}-trieu`;
-    }
 
     // Enter key to search
     districtSearchInput?.addEventListener('keypress', (e) => {

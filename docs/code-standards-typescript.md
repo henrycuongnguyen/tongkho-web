@@ -162,6 +162,89 @@ const slug = generateSlug('Căn hộ cao cấp tại Hà Nội');
 
 ---
 
+## URL Building Pattern (Centralized - DRY Principle)
+
+**Location:** `src/services/url/search-url-builder.ts`
+
+**Rule:** All client-side URL building uses centralized `buildSearchUrl()` function. Never build URLs manually in components.
+
+### Pattern Template
+
+```typescript
+// ✅ CORRECT - Reuses buildSearchUrl() for v1 compatibility
+import { buildSearchUrl, buildPropertyTypeSlugMap } from '@/services/url/search-url-builder';
+
+// Build property type slug map from DOM checkboxes
+const propertyTypeSlugMap = buildPropertyTypeSlugMap();
+
+// Create filters object matching SearchFilters interface
+const filters = {
+  transaction_type: '1',           // '1'=sale, '2'=rent, '3'=project
+  selected_addresses: 'ha-noi',    // Province slug or multi-district (comma-separated, no encoding)
+  property_types: '12,13',         // Property type IDs (comma-separated)
+  min_price: '1000000000',         // In VND
+  max_price: '2000000000',         // In VND
+  min_area: '50',                  // Square meters
+  max_area: '200',
+  bedrooms: '3',
+  bathrooms: '2',
+  radius: '5',                     // KM for location-based search
+};
+
+// Build URL using centralized function
+const url = buildSearchUrl(filters, propertyTypeSlugMap);
+window.location.href = url;
+```
+
+```typescript
+// ❌ WRONG - Manual URL building (violation of DRY)
+const urlParts = [baseUrl.replace(/^\//, '')];
+if (selectedPropertyTypes.length > 0) {
+  // Manual slug mapping logic - duplicates buildSearchUrl
+  queryParts.push(`property_types=${selectedPropertyTypes.join(',')}`);
+}
+window.location.href = targetUrl;  // No slug conversion!
+```
+
+### Property Type URL Behavior
+
+**Single Property Type:** Uses property type slug in path (v1-compatible)
+```
+Input:  { property_types: '12', transaction_type: '1' }
+Output: /ban-can-ho-chung-cu/ha-noi  ← property type slug in path, no query param
+```
+
+**Multiple Property Types:** Uses transaction slug + query param
+```
+Input:  { property_types: '12,13', transaction_type: '1' }
+Output: /mua-ban/ha-noi?property_types=12,13  ← transaction slug, types in param
+```
+
+**No Property Type:** Uses transaction slug only
+```
+Input:  { transaction_type: '1' }
+Output: /mua-ban/ha-noi  ← transaction slug only
+```
+
+### Used In Components
+
+- `src/components/home/hero-search.astro` - Homepage search bar ✅
+- `src/components/listing/horizontal-search-bar.astro` - Listing page search bar ✅
+
+### Why This Matters (DRY Principle)
+
+1. **Single Source of Truth** - All URL logic in one place
+2. **Prevents Code Duplication** - No need to reimplement in each component
+3. **Easier Maintenance** - Updates to buildSearchUrl() benefit all components
+4. **v1 Compatibility** - All edge cases already tested (38 test cases)
+5. **Consistency** - All components generate identical URLs for same filters
+
+### Fallback Pattern
+
+If importing buildSearchUrl() is not possible (rare cases), reference its implementation in search-url-builder.ts for consistency checks. Never invent custom URL building logic.
+
+---
+
 ## File Size Limits
 
 | File Type | Max LOC | Rationale |
