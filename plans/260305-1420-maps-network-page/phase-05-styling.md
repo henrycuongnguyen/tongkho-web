@@ -1,0 +1,553 @@
+# Phase 5: Styling
+
+## Context Links
+- [v1 CSS](../../reference/resaland_v1/static/css/network-hero.css)
+- [Code Standards - Styling](../../docs/code-standards.md)
+- [Tailwind Config](../../tailwind.config.mjs)
+
+## Overview
+- **Priority:** P2 (visual polish)
+- **Status:** completed
+- **Effort:** 1h
+- **Dependencies:** Phase 3 (Astro Page)
+- **Completed:** 2026-03-05
+
+## Key Insights
+
+v1 CSS (`network-hero.css`) includes:
+- Hero section: `.network-hero-section`, `.network-title`, `.network-description`
+- Visual elements: `.network-visual`, `.phone-mockup`, `.world-map-bg`
+- Office locator: `.office-locator-section`, `#office-list`, `#office-map`
+- Responsive breakpoints: 991px, 576px
+
+Considerations for v2:
+- Mix v1 CSS with Tailwind utilities
+- Bootstrap classes used: `list-group`, `list-group-item`, `spinner-border`
+- May need to include Bootstrap CSS or replicate styles
+
+## Requirements
+
+### Functional
+- Hero section matches v1 visual design
+- Office list styled with hover/active states
+- Map container has minimum height
+- Direction button styled correctly
+
+### Non-Functional
+- Responsive: mobile/tablet/desktop
+- No conflicts with existing Tailwind styles
+- Consistent with project design system
+
+## Architecture
+
+```
+public/css/network-hero.css
+├── Hero Section Styles
+│   ├── .network-hero-section
+│   ├── .network-content
+│   ├── .network-title
+│   ├── .network-description
+│   ├── .network-visual
+│   └── .phone-mockup
+│
+├── Office Locator Styles
+│   ├── .office-locator-section
+│   ├── .office-locator-row
+│   ├── .office-list-col
+│   ├── .office-map-col
+│   ├── #office-list
+│   ├── #office-map
+│   └── Button styles
+│
+└── Responsive Breakpoints
+    ├── @media (max-width: 991px)
+    └── @media (max-width: 576px)
+```
+
+## Related Code Files
+
+**Create:**
+- `public/css/network-hero.css`
+
+**Potentially Modify:**
+- `src/pages/maps.astro` - May need Tailwind class adjustments
+
+## Implementation Steps
+
+### Step 1: Create network-hero.css
+
+**File:** `public/css/network-hero.css`
+
+Port from v1 with adjustments for Tailwind compatibility:
+
+```css
+/**
+ * Network/Maps Page Styles
+ * Ported from v1 with Tailwind compatibility
+ */
+
+/* ============================================
+   HERO SECTION
+   ============================================ */
+
+.network-hero-section {
+  background: #f8f6f4;
+  padding: 80px 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.network-content {
+  padding: 40px 0;
+}
+
+.network-title {
+  font-size: 48px;
+  font-weight: 700;
+  color: #2d2d2d;
+  margin-bottom: 24px;
+  line-height: 1.2;
+}
+
+.network-description {
+  font-size: 16px;
+  line-height: 1.8;
+  color: #5a5a5a;
+  max-width: 480px;
+}
+
+.network-visual {
+  position: relative;
+  min-height: 400px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.phone-mockup {
+  position: relative;
+  z-index: 3;
+  height: auto;
+  max-width: 100%;
+  filter: drop-shadow(0 20px 40px rgba(0, 0, 0, 0.15));
+}
+
+/* ============================================
+   OFFICE LOCATOR SECTION
+   ============================================ */
+
+.office-locator-section {
+  background: #fff;
+  padding: 2rem 0;
+}
+
+.office-locator-row {
+  display: flex;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+
+.office-list-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.office-list-col #office-list {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 600px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+}
+
+.office-map-col {
+  display: flex;
+}
+
+.office-map-col #office-map {
+  flex: 1;
+  min-height: 500px;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* ============================================
+   OFFICE LIST STYLES (Bootstrap-compatible)
+   ============================================ */
+
+.list-group {
+  display: flex;
+  flex-direction: column;
+  padding-left: 0;
+  margin-bottom: 0;
+}
+
+.list-group-item {
+  position: relative;
+  display: flex;
+  padding: 1rem;
+  text-decoration: none;
+  background-color: #fff;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.125);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+
+.list-group-item:first-child {
+  border-top-left-radius: inherit;
+  border-top-right-radius: inherit;
+}
+
+.list-group-item:last-child {
+  border-bottom: none;
+  border-bottom-right-radius: inherit;
+  border-bottom-left-radius: inherit;
+}
+
+.list-group-item:hover {
+  background-color: #f9fafb;
+}
+
+.list-group-item.active {
+  background-color: #fef3e2;
+  border-color: #f97316;
+}
+
+/* Office name */
+.list-group-item .fw-6 {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 4px;
+}
+
+/* Office address */
+.list-group-item .text-12 {
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+/* ============================================
+   DIRECTION BUTTON
+   ============================================ */
+
+.btn-office-direction {
+  background: transparent;
+  border: none;
+  padding: 0.25rem 0.5rem;
+  min-width: 70px;
+  cursor: pointer;
+  transition: transform 0.15s ease;
+}
+
+.btn-office-direction:hover {
+  transform: scale(1.05);
+}
+
+.office-direction-icon {
+  display: block;
+  margin-bottom: 2px;
+}
+
+.office-direction-label {
+  display: block;
+  font-size: 13px;
+  color: #f97316;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ============================================
+   LOADING SPINNER
+   ============================================ */
+
+.spinner-border {
+  display: inline-block;
+  width: 2rem;
+  height: 2rem;
+  vertical-align: text-bottom;
+  border: 0.25em solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spinner-border 0.75s linear infinite;
+}
+
+.spinner-border.text-primary {
+  color: #f97316;
+}
+
+@keyframes spinner-border {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.d-flex {
+  display: flex;
+}
+
+.align-items-center {
+  align-items: center;
+}
+
+.justify-content-center {
+  justify-content: center;
+}
+
+.justify-content-between {
+  justify-content: space-between;
+}
+
+.flex-column {
+  flex-direction: column;
+}
+
+.h-100 {
+  height: 100%;
+}
+
+.text-center {
+  text-align: center;
+}
+
+.text-muted {
+  color: #6b7280;
+}
+
+.mt-2 {
+  margin-top: 0.5rem;
+}
+
+.mb-3 {
+  margin-bottom: 1rem;
+}
+
+.py-4 {
+  padding-top: 1.5rem;
+  padding-bottom: 1.5rem;
+}
+
+/* ============================================
+   GRID SYSTEM (Bootstrap-compatible)
+   ============================================ */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  margin-right: -0.75rem;
+  margin-left: -0.75rem;
+}
+
+.col-12 {
+  flex: 0 0 100%;
+  max-width: 100%;
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.col-md-4 {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.col-md-8 {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.col-lg-5 {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+.col-lg-7 {
+  padding-right: 0.75rem;
+  padding-left: 0.75rem;
+}
+
+@media (min-width: 768px) {
+  .col-md-4 {
+    flex: 0 0 33.333333%;
+    max-width: 33.333333%;
+  }
+
+  .col-md-8 {
+    flex: 0 0 66.666667%;
+    max-width: 66.666667%;
+  }
+}
+
+@media (min-width: 992px) {
+  .col-lg-5 {
+    flex: 0 0 41.666667%;
+    max-width: 41.666667%;
+  }
+
+  .col-lg-7 {
+    flex: 0 0 58.333333%;
+    max-width: 58.333333%;
+  }
+}
+
+/* ============================================
+   RESPONSIVE BREAKPOINTS
+   ============================================ */
+
+@media (max-width: 991px) {
+  .network-hero-section {
+    padding: 60px 0;
+  }
+
+  .network-title {
+    font-size: 36px;
+  }
+
+  .network-content {
+    text-align: center;
+    padding: 20px 0;
+  }
+
+  .network-description {
+    max-width: 100%;
+    margin: 0 auto;
+  }
+
+  .network-visual {
+    min-height: 300px;
+    margin-top: 40px;
+  }
+}
+
+@media (max-width: 767px) {
+  .office-locator-row {
+    flex-direction: column;
+  }
+
+  .col-md-4,
+  .col-md-8 {
+    flex: 0 0 100%;
+    max-width: 100%;
+  }
+
+  .office-list-col #office-list {
+    max-height: 300px;
+    margin-bottom: 20px;
+  }
+
+  .office-map-col #office-map {
+    min-height: 350px;
+  }
+}
+
+@media (max-width: 576px) {
+  .network-title {
+    font-size: 28px;
+  }
+
+  .network-description {
+    font-size: 14px;
+  }
+
+  .list-group-item {
+    padding: 0.75rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
+  .list-group-item > div:last-child {
+    align-self: flex-end;
+  }
+}
+```
+
+### Step 2: Verify tf-container class exists
+
+Check if `.tf-container` is defined in global CSS. If not, add to `network-hero.css`:
+
+```css
+.tf-container {
+  width: 100%;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 640px) {
+  .tf-container {
+    padding: 0 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .tf-container {
+    padding: 0 2rem;
+  }
+}
+```
+
+### Step 3: Test responsive layout
+
+1. Desktop (>992px): Side-by-side layout
+2. Tablet (768-991px): Adjusted hero, same layout
+3. Mobile (<768px): Stacked layout, list above map
+
+### Step 4: Verify no Tailwind conflicts
+
+Check that custom CSS doesn't conflict with:
+- Tailwind's `py-*`, `mb-*` classes
+- Tailwind's flex utilities
+- Existing global styles
+
+## Todo List
+
+- [x] Create `public/css/network-hero.css`
+- [x] Verify `.tf-container` exists or add it
+- [x] Test hero section appearance
+- [x] Test office list hover/active states
+- [x] Test map container sizing
+- [x] Test responsive layout (desktop/tablet/mobile)
+- [x] Verify no CSS conflicts
+
+## Success Criteria
+
+- [x] Hero section matches v1 design
+- [x] Office list scrollable with max-height
+- [x] Active office highlighted (orange background)
+- [x] Direction button hover effect
+- [x] Map container sized correctly
+- [x] Mobile layout stacks properly
+- [x] No visual glitches or conflicts
+
+## Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| CSS specificity conflicts | Medium | Medium | Use specific selectors, test thoroughly |
+| Missing Bootstrap dependencies | Low | Medium | Include necessary utilities in CSS |
+| Font inconsistencies | Low | Low | Use project's font stack |
+
+## Security Considerations
+
+- No security concerns for CSS files
+- Styles are static, no user input
+
+## Next Steps
+
+After completion: Proceed to [Phase 6: Environment & Testing](./phase-06-environment-testing.md)
