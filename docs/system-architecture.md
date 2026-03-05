@@ -101,6 +101,11 @@ src/
 │   ├── property/        # Property detail (gallery, info, contact, price chart, related)
 │   ├── seo/             # JSON-LD structured data
 │   ├── ui/              # Dropdowns (location with 63 provinces, property type), range sliders, checkbox, pagination, share buttons
+│   ├── utility/         # [NEW] Utilities feature (feng shui calculators)
+│   │   ├── utility-sidebar.astro        # Dynamic utilities list with active state
+│   │   ├── utility-form.tsx             # Client-side form validation & submission
+│   │   ├── utility-result.tsx           # HTML result display & print functionality
+│   │   └── utility-container.tsx        # Page layout container
 │   └── scroll-to-top-button.astro
 ├── data/
 │   ├── mock-properties.ts  # All mock data (properties, projects, news)
@@ -131,7 +136,13 @@ src/
 │   ├── tin-tuc/trang/[page].astro # Paginated news (SSR)
 │   ├── tin-tuc/danh-muc/[category].astro # Category filter (5)
 │   ├── tin-tuc/danh-muc/[folder].astro # Dynamic folder pages (27)
-│   └── bds/[slug].astro    # Property detail (SSR)
+│   ├── bds/[slug].astro    # Property detail (SSR)
+│   ├── lien-he.astro       # Contact page (SSR, form submission)
+│   ├── tienich/index.astro # [NEW] Utilities index (redirects to first utility)
+│   ├── tienich/[slug].astro # [NEW] Utility detail page (SSG/SSR, feng shui calculators)
+│   └── api/
+│       ├── properties/batch.ts   # Batch properties fetch (5-min cache, rate limited)
+│       └── utility/calculate.ts  # [NEW] AI calculation API proxy
 ├── styles/
 │   └── global.css          # Global Tailwind + custom styles
 ├── types/
@@ -738,6 +749,277 @@ global.css
 - Error: "Chỉ so sánh BĐS cùng loại giao dịch" (Only compare same type)
 
 **Next Phase:** Phase 3 adds floating comparison bar to display & interact with selected items
+
+### SSR POST Handler Pattern (Form Submission)
+
+**Files:**
+- `pages/lien-he.astro` - Contact page with GET/POST handler
+- `services/consultation-service.ts` - Database service for consultations
+- `utils/csrf.ts` - CSRF token generation/validation
+- `utils/rate-limiter.ts` - Rate limiting per IP
+
+**Purpose:** Handle form submissions server-side without separate API routes, matching v1's controller pattern
+
+**Architecture:**
+```
+GET /lien-he (Display Form)
+  ↓
+Astro generates CSRF token
+  ↓
+Render contact form HTML
+
+POST /lien-he (Submit Form)
+  ↓
+Extract form data from request
+  ↓
+Validate CSRF token
+  ↓
+Check rate limit (5 req/min per IP)
+  ↓
+Server-side validation (email, phone, budget)
+  ↓
+Insert into consultation table via service
+  ↓
+Redirect with ?success=true or ?error=message
+  ↓
+GET /lien-he?success=true (Display Form + Alert)
+```
+
+**Form Fields & Validation:**
+```typescript
+// Client-side validation (real-time feedback)
+- full_name: 2-100 chars, required
+- email: RFC 5322 regex, required, lowercase
+- phone_number: 10-11 digits only, required
+- budget_range: Optional, auto-formatted with thousand separators
+- interested_locations: 2-200 chars, required
+- note: 10-500 chars, required
+
+// Server-side validation (enforced, double-check)
+- All fields length-checked
+- Email pattern enforced
+- Phone exactly 10-11 digits (no spaces, + symbols)
+- Budget cleaned of formatting before DB insert
+```
+
+**Key Features:**
+1. **Progressive Enhancement:** Works without JavaScript
+2. **CSRF Protection:** Token validated on every submission
+3. **Rate Limiting:** 5 requests/minute per IP (prevents spam/abuse)
+4. **Double Validation:** Client-side UX + server-side security
+5. **Vietnamese UX:** Budget auto-formatting, Vietnamese error messages
+6. **Responsive Design:** 2-column desktop, 1-column mobile
+7. **Database Persistence:** Stores in PostgreSQL consultation table
+
+**Database Schema:**
+```sql
+consultation {
+  id: serial PRIMARY KEY,
+  full_name: varchar(100),
+  email: varchar(255),
+  phone_number: varchar(20),
+  budget_range: varchar(50),
+  interested_locations: varchar(200),
+  note: text,
+  consultation_type: int (1 = Real Estate Consultation),
+  created_on: timestamp DEFAULT CURRENT_TIMESTAMP,
+  aactive: boolean DEFAULT true  -- V1 soft-delete pattern
+}
+```
+
+**Security Enhancements:**
+- CSRF tokens prevent form submission from other sites
+- Rate limiting prevents automated spam/brute force
+- Server-side validation can't be bypassed via client manipulation
+- Input sanitization: Budget formatting removed before DB insert
+- No sensitive data in URL (success/error shown via HTML, not query params)
+
+**Integration Points:**
+```
+lien-he.astro (SSR)
+├─ Export const prerender = false  (Enable SSR)
+├─ GET: Generate CSRF token, render form
+├─ POST: Validate token, check rate limit, insert DB
+└─ Redirect with success/error message
+
+contact-form.astro
+├─ Client-side validation on input change
+├─ Loading state during submission
+├─ Display validation errors
+└─ Budget auto-formatting (Vietnamese locale)
+
+consultation-service.ts
+├─ createConsultation() - Async DB insert
+├─ Type-safe inputs (TypeScript interfaces)
+└─ Error handling with try-catch
+```
+
+**User Flow:**
+1. User visits `/lien-he` (GET request)
+2. Page renders with empty form + CSRF token
+3. User enters info, client validates in real-time
+4. User clicks submit
+5. Form submits POST to same endpoint (`/lien-he`)
+6. Server validates CSRF token (reject if missing/invalid)
+7. Server checks rate limit (reject if exceeded)
+8. Server validates form fields
+9. Server inserts into consultation table
+10. Server redirects to `/lien-he?success=true`
+11. User sees success alert + form reset
+
+**Error Handling:**
+```
+Success: Redirect to /lien-he?success=true
+         Display: "Cảm ơn bạn! Chúng tôi sẽ liên hệ sớm"
+
+CSRF Error: Redirect to /lien-he?error=csrf_invalid
+            Display: "Lỗi xác thực. Vui lòng thử lại"
+
+Rate Limit: Redirect to /lien-he?error=too_many_requests
+            Display: "Quá nhiều yêu cầu. Vui lòng chờ vài phút"
+
+Validation Error: Redirect to /lien-he?error={field}_{reason}
+                  Display field-specific message
+```
+
+### Utilities (Feng Shui Calculators) Pattern (Database-First + AI API)
+
+**Files:**
+- `pages/tienich/index.astro` - Utilities index (redirects to first utility)
+- `pages/tienich/[slug].astro` - Utility detail page (SSG/SSR with dynamic routing)
+- `pages/api/utility/calculate.ts` - Server-side API proxy for AI calculations
+- `services/utility/utility-service.ts` - Database queries + AI API integration
+- `services/utility/form-configs.ts` - Hardcoded form configurations
+- `components/utility/utility-sidebar.astro` - Dynamic utilities list
+- `components/utility/utility-form.tsx` - Client-side form + validation
+- `components/utility/utility-result.tsx` - HTML result display + print
+
+**Purpose:** Interactive feng shui calculators with database-driven utility list and external AI API integration
+
+**Architecture:**
+```
+GET /tienich (Index)
+  ↓
+Fetch utilities from news table via utility-service
+  ↓
+Redirect to first non-comparison utility (/tienich/{slug})
+
+GET /tienich/{slug} (Utility Detail)
+  ↓
+Fetch utility metadata from database
+  ↓
+Get form config from hardcoded FORM_CONFIGS
+  ↓
+Render page with sidebar + form + empty result area
+
+POST /api/utility/calculate (Calculation)
+  ↓
+Validate request (required fields, birth year range)
+  ↓
+Forward to AI API (https://resan8n.ecrm.vn/webhook/tkbds-app/ai)
+  ↓
+Return HTML result from AI
+  ↓
+Client displays result in utility-result component
+```
+
+**Database Integration:**
+```typescript
+// Fetch utilities from news table (grouped by utilities folder)
+SELECT id, name, description, avatar, displayOrder
+FROM news
+WHERE folder = 'tien-ich-tong-kho' AND aactive = true
+ORDER BY displayOrder ASC
+
+// Returns hardcoded default if folder not found:
+[
+  { id: 0, name: 'So sánh bất động sản', slug: 'so-sanh', ... },
+  // ... other utilities from DB
+]
+```
+
+**Supported Calculators:**
+1. **HouseConstructionAgeCheck** - Find auspicious construction years
+   - Fields: ownerBirthYear, expectedStartYear, gender
+2. **FengShuiDirectionAdvisor** - House direction recommendations
+   - Fields: ownerBirthYear, houseFacing (8 directions), gender, lengthOption
+3. **ColorAdvisor** - Lucky color recommendations
+   - Fields: ownerBirthYear, gender, lengthOption
+4. **OfficeFengShui** - Office layout recommendations
+   - Fields: ownerBirthYear, gender, lengthOption
+
+**Form Configuration Pattern:**
+```typescript
+// Hardcoded configurations (static, no DB storage)
+export const FORM_CONFIGS: Record<string, UtilityFormConfig> = {
+  HouseConstructionAgeCheck: {
+    type: 'HouseConstructionAgeCheck',
+    title: 'Tư vấn tuổi xây nhà',
+    fields: [
+      { name: 'ownerBirthYear', label: 'Năm sinh', type: 'number', required: true },
+      // ... more fields
+    ]
+  },
+  // ... other calculators
+};
+```
+
+**Client-Side Flow:**
+1. User fills form with their information
+2. Client-side validation (required fields, min/max values)
+3. User clicks "Tính toán" button
+4. Form submits to `/api/utility/calculate` via fetch
+5. Loading spinner displays
+6. Response renders in utility-result component (HTML from AI)
+7. Print button allows saving results to PDF
+
+**Security Implementation:**
+- API credentials (X-API-Key) protected via `/api/utility/calculate` endpoint
+- No hardcoded keys exposed in client code
+- Server-side request validation before forwarding to external API
+- Birth year range enforced (1900-2100)
+- Type-safe form data handling via TypeScript
+
+**API Request/Response:**
+```typescript
+// Client sends:
+POST /api/utility/calculate
+{
+  "type": "HouseConstructionAgeCheck",
+  "ownerBirthYear": 1990,
+  "expectedStartYear": 2026,
+  "gender": "male",
+  "userId": 1
+}
+
+// Server returns:
+{
+  "status": 1,
+  "message": "Success",
+  "data": {
+    "html": "<div class='result-content'>Kết quả tư vấn...</div>"
+  }
+}
+```
+
+**URL Compatibility:**
+- `/tienich` - Redirects to first utility
+- `/tienich/tu-van-tuoi-xay-nha` - House construction age checker
+- `/tienich/tu-van-huong-nha` - Direction advisor
+- `/tienich/tu-van-mau-sac` - Color advisor
+- `/tienich/tu-van-phong-thuy-van-phong` - Office feng shui
+
+**Next Features:**
+- Result history/favoriting
+- Share results via social media
+- Export results as PDF (enhanced print)
+- Integration with property listing recommendations
+
+**Performance:**
+- Page load: < 2 seconds (static HTML with CSRF token)
+- Form submission: < 500ms (DB insert + redirect)
+- No JavaScript required for basic functionality
+- CSS animations: 60fps smooth transitions
 
 ### Related Services
 

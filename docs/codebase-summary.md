@@ -69,6 +69,11 @@ tongkho-web/
 │   │   │   ├── range-slider-dropdown.astro
 │   │   │   ├── pagination.astro
 │   │   │   └── share-buttons.astro
+│   │   ├── utility/                         # [NEW] Utilities feature components
+│   │   │   ├── utility-sidebar.astro        # Dynamic utilities list, active state highlighting
+│   │   │   ├── utility-form.tsx             # Client-side form validation
+│   │   │   ├── utility-result.tsx           # HTML rendering, print functionality
+│   │   │   └── utility-container.tsx        # Main page layout container
 │   │   └── scroll-to-top-button.astro
 │   ├── data/
 │   │   ├── mock-properties.ts               # Property/project/news mock data (255 LOC)
@@ -95,13 +100,18 @@ tongkho-web/
 │   │   │   ├── types.ts                     # SEO metadata type definitions (140 LOC) [Phase 5]
 │   │   │   ├── seo-metadata-service.ts      # Main orchestration service (226 LOC) [Phase 5]
 │   │   │   └── seo-metadata-db-service.ts   # PostgreSQL fallback service (142 LOC) [Phase 5]
-│   │   └── elasticsearch/
-│   │       ├── types.ts                     # ES types & interfaces (124 LOC) [Phase 3]
-│   │       ├── query-builder.ts             # v1-compatible ES query builder (238 LOC) [Phase 3]
-│   │       ├── query-builder.test.ts        # Comprehensive ES query tests (839 LOC) [Phase 3]
-│   │       ├── property-search-service.ts   # Property listing search (Phase 3)
-│   │       ├── location-search-service.ts   # Location autocomplete search (Phase 3)
-│   │       └── seo-metadata-search-service.ts # ElasticSearch SEO service (152 LOC) [Phase 5]
+│   │   ├── elasticsearch/
+│   │   │   ├── types.ts                     # ES types & interfaces (124 LOC) [Phase 3]
+│   │   │   ├── query-builder.ts             # v1-compatible ES query builder (238 LOC) [Phase 3]
+│   │   │   ├── query-builder.test.ts        # Comprehensive ES query tests (839 LOC) [Phase 3]
+│   │   │   ├── property-search-service.ts   # Property listing search (Phase 3)
+│   │   │   ├── location-search-service.ts   # Location autocomplete search (Phase 3)
+│   │   │   └── seo-metadata-search-service.ts # ElasticSearch SEO service (152 LOC) [Phase 5]
+│   │   └── utility/                         # [NEW] Utilities/Feng Shui calculators
+│   │       ├── types.ts                     # Utility, FormField, AICalculateRequest types
+│   │       ├── form-configs.ts              # Form configs for 4 calculators (hardcoded)
+│   │       ├── utility-service.ts           # Database queries + AI API integration
+│   │       └── index.ts                     # Service exports
 │   ├── layouts/
 │   │   ├── base-layout.astro                # HTML base template (65 LOC)
 │   │   └── main-layout.astro                # Header + main + footer (35 LOC)
@@ -115,9 +125,14 @@ tongkho-web/
 │   │   ├── tin-tuc/danh-muc/[folder].astro  # Dynamic folder pages (27 pages)
 │   │   ├── bds/[slug].astro                 # Property detail (SSR)
 │   │   ├── du-an/[slug].astro               # Project detail (SSR)
+│   │   ├── lien-he.astro                    # Contact page with form submission
+│   │   ├── tienich/index.astro              # [NEW] Utilities index (redirects to first util)
+│   │   ├── tienich/[slug].astro             # [NEW] Utility detail page (SSG/SSR)
 │   │   └── api/
-│   │       └── properties/
-│   │           └── batch.ts                 # Batch properties API [NEW]
+│   │       ├── properties/
+│   │       │   └── batch.ts                 # Batch properties API [NEW]
+│   │       └── utility/
+│   │           └── calculate.ts             # [NEW] AI calculation proxy endpoint
 │   ├── styles/
 │   │   └── global.css                       # Tailwind + custom styles (118 LOC)
 │   ├── types/
@@ -793,6 +808,110 @@ npm run astro    # Astro CLI commands
 - Database error isolation (never throws, logs & returns null)
 - Default fallback support
 
+### Utility Service (utility-service.ts) [NEW - Phase 6]
+**Purpose:** Database-driven utilities (feng shui calculators) with external AI API integration
+
+**Key Functions:**
+- `getUtilities()` – Fetch all utilities from `news` table grouped by utilities folder
+  - Returns hardcoded "So sánh bất động sản" (comparison) at index 0 (v1 behavior)
+  - Orders by `displayOrder` field (database-first)
+  - Fallback if utilities folder not found or database unavailable
+- `getUtilityBySlug(slug)` – Resolve utility by slug
+- `getFormConfigByType(type)` – Get hardcoded form config for utility type
+- `calculateResult(request)` – Call external AI API and return HTML result
+
+**Features:**
+- Database-first architecture (queries `news` table via Drizzle ORM)
+- Hardcoded form configurations in TypeScript (4 calculators: HouseConstructionAgeCheck, FengShuiDirectionAdvisor, ColorAdvisor, OfficeFengShui)
+- External AI API integration (`https://resan8n.ecrm.vn/webhook/tkbds-app/ai`)
+- Type-safe request/response handling
+- Graceful error handling with fallback defaults
+- Vietnamese slug generation from utility names
+
+**Data Structure:**
+```typescript
+interface Utility {
+  id: number;
+  name: string;                    // "Tư vấn tuổi xây nhà"
+  description: string;             // "HouseConstructionAgeCheck"
+  slug: string;                    // "tu-van-tuoi-xay-nha"
+  icon?: string;
+}
+
+interface FormField {
+  name: string;                    // "ownerBirthYear"
+  label: string;                   // "Năm sinh gia chủ"
+  type: 'text' | 'number' | 'select';
+  placeholder?: string;
+  required?: boolean;
+  min?: number;
+  max?: number;
+  options?: Array<{ value: string; label: string }>;
+}
+```
+
+**Database Integration:**
+- Queries `news` table with folder filter (utilities folder = 'tien-ich-tong-kho')
+- Soft-delete aware: filters `aactive = true`
+- Display order respected: `orderBy(asc(news.displayOrder))`
+
+### Utility Form Configs (form-configs.ts) [NEW]
+**Purpose:** Hardcoded form configurations for 4 feng shui calculators
+
+**Supported Calculators:**
+1. **HouseConstructionAgeCheck** - House construction year advisor
+   - Fields: ownerBirthYear (number), expectedStartYear (number), gender (select)
+2. **FengShuiDirectionAdvisor** - House direction recommendation
+   - Fields: ownerBirthYear (number), houseFacing (8 directions), gender (select), lengthOption (short/medium/long)
+3. **ColorAdvisor** - Color palette recommendation
+   - Fields: ownerBirthYear (number), gender (select), lengthOption (short/medium/long)
+4. **OfficeFengShui** - Office feng shui layout
+   - Fields: ownerBirthYear (number), gender (select), lengthOption (short/medium/long)
+
+**Design Pattern:**
+- Static configurations (no database storage needed)
+- Forms map to AI API payload fields
+- Type-safe via TypeScript interfaces (UtilityFormConfig, FormField)
+- Export functions: `getFormConfig(type)`, `hasFormConfig(type)`
+
+### API Utility Calculate Endpoint (pages/api/utility/calculate.ts) [NEW]
+**Purpose:** Server-side API proxy for AI calculation (protects API credentials)
+
+**Endpoint:** `POST /api/utility/calculate`
+
+**Features:**
+- Request validation (required fields: type, ownerBirthYear)
+- Birth year range validation (1900-2100)
+- API credential protection (X-API-Key header never exposed to client)
+- Error handling with user-friendly Vietnamese messages
+- Returns AI API response as-is (JSON with status, message, data.html)
+
+**Request Payload:**
+```json
+{
+  "type": "HouseConstructionAgeCheck",
+  "ownerBirthYear": 1990,
+  "expectedStartYear": 2026,
+  "gender": "male",
+  "userId": 1
+}
+```
+
+**Response (200):**
+```json
+{
+  "status": 1,
+  "message": "Success",
+  "data": {
+    "html": "<div>Kết quả tư vấn...</div>"
+  }
+}
+```
+
+**Error Responses:**
+- 400: Missing/invalid required fields
+- 500: AI API connection failure
+
 ---
 
 ## Dependencies Summary
@@ -832,6 +951,8 @@ npm run astro    # Astro CLI commands
 
 | Version | Date | Changes |
 |---|---|---|
+| 2.6 | 2026-03-05 | [NEW] Utilities page (feng shui calculators): Added utility-service.ts + form-configs.ts (database-first, hardcoded forms), 4 components (sidebar, form, result, container), page routes (/tienich/[slug]), API proxy endpoint. Database-first approach using news table. All 45/45 tests passing, 0 TypeScript errors. |
+| 2.5 | 2026-03-05 | [NEW] Contact page: Added consultation schema, contact-form/info/cta components, SSR page with CSRF + rate limiting, database persistence. 45/45 tests passing. |
 | 2.4 | 2026-03-03 | [NEW] Property detail breadcrumbs + recently viewed: Added property-detail-breadcrumb.astro (v1-compatible navigation + schema.org), watched-properties-manager.ts (localStorage tracker, max 8 items, DOM-safe rendering), batch properties API (rate limited, 5-min cache, order preserved). All 44/44 tests passing, 0 TypeScript errors. |
 | 2.3 | 2026-02-11 | Phase 2 compare service: Created compare-manager.ts (localStorage-based, max 2 items, transaction type validation, toast notifications, XSS protection). Updated property cards with compare buttons. All 211 tests passing |
 | 2.2 | 2026-02-11 | Phase 1 share functionality: Integrated ShareButtons component (popup variant) into property-card.astro and listing-property-card.astro; Share button row added to action buttons |

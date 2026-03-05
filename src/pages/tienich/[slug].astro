@@ -1,0 +1,90 @@
+---
+/**
+ * Dynamic Utility Page
+ * /tienich/{slug}
+ *
+ * SSR: Fetches utilities and form config at request time
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+import UtilitySidebar from '@/components/utility/utility-sidebar.astro';
+import UtilityContainer from '@/components/utility/utility-container';
+import { getUtilities, getUtilityBySlug, getFormConfigByType } from '@/services/utility';
+
+// Disable prerendering for SSR
+export const prerender = false;
+
+// Get slug from URL
+const { slug } = Astro.params;
+
+// Redirect comparison to existing page
+if (slug === 'so-sanh') {
+  return Astro.redirect('/tienich/so-sanh', 302);
+}
+
+// Fetch data
+const utilities = await getUtilities();
+const currentUtility = await getUtilityBySlug(slug || '');
+
+// 404 if utility not found
+if (!currentUtility) {
+  return Astro.redirect('/404', 404);
+}
+
+// Get form config using the utility's description field (which contains the AI type)
+const formConfig = getFormConfigByType(currentUtility.description);
+
+// Page metadata
+const title = `${currentUtility.name} | Tiện ích | TongkhoBDS`;
+const description = formConfig?.description || `Công cụ ${currentUtility.name} - TongkhoBDS`;
+
+// Breadcrumbs
+const breadcrumbs = [
+  { name: 'Trang chủ', url: '/' },
+  { name: 'Tiện ích', url: '/tienich' },
+  { name: currentUtility.name, url: `/tienich/${slug}` },
+];
+---
+
+<MainLayout title={title} description={description}>
+  <div class="container mx-auto px-4 py-6">
+    <!-- Breadcrumb -->
+    <nav class="text-sm text-slate-500 mb-6" aria-label="Breadcrumb">
+      {breadcrumbs.map((crumb, index) => (
+        <>
+          {index > 0 && <span class="mx-2">/</span>}
+          {index === breadcrumbs.length - 1 ? (
+            <span class="text-slate-700">{crumb.name}</span>
+          ) : (
+            <a href={crumb.url} class="hover:text-orange-500">{crumb.name}</a>
+          )}
+        </>
+      ))}
+    </nav>
+
+    <h1 class="text-2xl font-bold text-slate-800 mb-6">{currentUtility.name}</h1>
+
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
+      <!-- Sidebar -->
+      <aside class="lg:col-span-1 order-2 lg:order-1">
+        <UtilitySidebar utilities={utilities} currentSlug={slug || ''} />
+      </aside>
+
+      <!-- Main Content -->
+      <main class="lg:col-span-3 order-1 lg:order-2">
+        {formConfig ? (
+          <UtilityContainer config={formConfig} client:load />
+        ) : (
+          <div class="bg-white rounded-lg shadow-sm p-6 text-center">
+            <svg class="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.172 16.172a4 4 0 015.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <p class="text-slate-600">Không tìm thấy form cho tiện ích này.</p>
+            <a href="/tienich" class="inline-block mt-4 text-orange-500 hover:underline">
+              Quay lại danh sách
+            </a>
+          </div>
+        )}
+      </main>
+    </div>
+  </div>
+</MainLayout>

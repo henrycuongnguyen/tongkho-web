@@ -125,11 +125,176 @@ export default ManagerName;
 3. Re-initialize after HTMX swaps: `document.body.addEventListener('htmx:afterSwap', () => ManagerName.init())`
 4. Define CSS classes & data attributes in `global.css` for styling
 
+### Database-First Service Pattern (Utilities)
+
+**Services:** `services/utility/utility-service.ts`
+
+**Pattern:**
+```typescript
+// Query database first, fallback to defaults
+export async function getUtilities(): Promise<Utility[]> {
+  try {
+    const folderId = await getFolderIdByName('tien-ich-tong-kho');
+    if (!folderId) return getDefaultUtilities();
+
+    const rows = await db.select(...).from(news).where(...);
+    const utilities = rows.map(mapToUtility);
+
+    // Insert default at index 0 (v1 behavior)
+    utilities.unshift(DEFAULT_UTILITY);
+    return utilities;
+  } catch (error) {
+    console.error('Failed to fetch:', error);
+    return getDefaultUtilities();  // Graceful fallback
+  }
+}
+```
+
+**Key Principles:**
+- Always include fallback defaults for service disruption
+- Log errors for debugging but don't expose to client
+- Use type-safe mapping functions
+- Handle soft-delete pattern: filter `aactive = true`
+
+### Form Configuration Pattern (Hardcoded)
+
+**Files:** `services/utility/form-configs.ts`
+
+**Pattern:**
+```typescript
+// Static configuration (no DB storage for static forms)
+export const FORM_CONFIGS: Record<string, UtilityFormConfig> = {
+  CalculatorType: {
+    type: 'CalculatorType',
+    title: 'Vietnamese Title',
+    fields: [
+      {
+        name: 'fieldName',
+        label: 'Vietnamese Label',
+        type: 'text' | 'number' | 'select',
+        required: true,
+        options: [{ value: 'v1', label: 'Label 1' }]
+      }
+    ]
+  }
+};
+
+// Export helper functions
+export function getFormConfig(type: string) { ... }
+export function hasFormConfig(type: string) { ... }
+```
+
+**Use When:**
+- Form structure is static and rarely changes
+- No per-user customization needed
+- Configuration is small enough to hardcode
+
+### API Proxy Pattern (Credential Protection)
+
+**File:** `pages/api/utility/calculate.ts`
+
+**Pattern:**
+```typescript
+export const POST: APIRoute = async ({ request }) => {
+  try {
+    // 1. Validate input
+    const body = await request.json();
+    if (!body.type || !body.ownerBirthYear) {
+      return error400('Missing required fields');
+    }
+
+    // 2. Range validation
+    if (body.ownerBirthYear < 1900 || body.ownerBirthYear > 2100) {
+      return error400('Invalid birth year');
+    }
+
+    // 3. Forward to external API (credentials in server code only)
+    const response = await fetch(EXTERNAL_API_URL, {
+      headers: { 'x-api-key': SECRET_API_KEY }  // Never exposed to client
+    });
+
+    // 4. Return response
+    return new Response(JSON.stringify(data), {
+      status: 200,
+      headers: { 'Content-Type': 'application/json' }
+    });
+  } catch (error) {
+    return error500('Server error');  // Generic message
+  }
+};
+```
+
+**Key Principles:**
+- Validate all inputs before forwarding
+- Keep API credentials in server code only
+- Return generic error messages (no stack traces)
+- Use proper HTTP status codes
+
+### React Component Pattern (Client-Side Logic)
+
+**Files:** `components/utility/utility-form.tsx`, `utility-result.tsx`
+
+**Pattern:**
+```typescript
+// Client-side validation & submission
+export default function UtilityForm({ config }: Props) {
+  const [formData, setFormData] = useState({});
+  const [errors, setErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<string | null>(null);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    // 1. Client-side validation
+    const newErrors = validateForm(formData, config);
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+
+    // 2. Submit to API proxy
+    setLoading(true);
+    try {
+      const response = await fetch('/api/utility/calculate', {
+        method: 'POST',
+        body: JSON.stringify(formData)
+      });
+      const data = await response.json();
+
+      // 3. Display result
+      if (data.status === 1) {
+        setResult(data.data.html);
+      } else {
+        setErrors({ submit: data.message });
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* Form fields with real-time validation */}
+      {/* Loading spinner during submission */}
+      {/* Result display with print button */}
+    </form>
+  );
+}
+```
+
+**Key Principles:**
+- Client-side validation for UX (real-time feedback)
+- Server-side validation for security (always double-check)
+- Loading states during async operations
+- Error display for user feedback (Vietnamese messages)
+- Type-safe form data handling
+
 ---
 
 ## Document Version
 
-- **Version:** 2.3
-- **Last Updated:** 2026-02-11
+- **Version:** 2.4
+- **Last Updated:** 2026-03-05
 - **Structure:** Modular (split into 3 files for maintainability)
-- **Latest Change:** Added compare-manager.ts client-side script pattern (singleton IIFE, event delegation, XSS protection, toast notifications)
+- **Latest Change:** Added utilities patterns - database-first services, hardcoded form configs, API proxy, React form validation

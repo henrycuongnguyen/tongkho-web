@@ -1,0 +1,15 @@
+---
+/**
+ * Utilities Index Page
+ * Redirects to first utility (or comparison if none available)
+ */
+import { getUtilities } from '@/services/utility';
+
+const utilities = await getUtilities();
+
+// Get first non-comparison utility, fallback to comparison
+const firstUtility = utilities.find(u => u.slug !== 'so-sanh') || utilities[0];
+const redirectUrl = `/tienich/${firstUtility?.slug || 'so-sanh'}`;
+
+return Astro.redirect(redirectUrl, 302);
+---
