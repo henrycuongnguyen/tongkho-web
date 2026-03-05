@@ -5,6 +5,7 @@ import { news } from '@/db/schema/news';
 import { folder } from '@/db/schema/menu';
 import { eq, and, asc } from 'drizzle-orm';
 import type { Utility, AICalculateRequest, AICalculateResponse } from './types';
+import { hasFormConfig } from './form-configs';
 
 // Folder name for utilities in database
 const UTILITIES_FOLDER_NAME = 'tien-ich-tong-kho';
@@ -75,15 +76,19 @@ export async function getUtilities(): Promise<Utility[]> {
       icon: row.avatar || undefined,
     }));
 
+    // Filter to only show utilities that have form configs (v1 behavior)
+    // Only show utilities with supported form configs to match v1
+    const filteredUtilities = utilities.filter(u => hasFormConfig(u.description));
+
     // Insert comparison utility at index 0 (v1 behavior)
-    utilities.unshift({
+    filteredUtilities.unshift({
       id: 0,
       name: 'So sánh bất động sản',
       description: 'sosanh',
       slug: 'so-sanh',
     });
 
-    return utilities;
+    return filteredUtilities;
   } catch (error) {
     console.error('[utility-service] Failed to fetch utilities:', error);
     return getDefaultUtilities();
