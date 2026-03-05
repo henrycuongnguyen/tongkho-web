@@ -1,0 +1,117 @@
+---
+/**
+ * Property Detail Breadcrumb
+ * v1-compatible hierarchy: Home > Transaction > Property Type > City > District > Ward
+ */
+interface Props {
+  transactionType: 'sale' | 'rent';
+  propertyTypeId?: number;
+  propertyTypeName?: string;
+  propertyTypeSlug?: string;
+  cityName?: string;
+  citySlug?: string;
+  districtName?: string;
+  districtSlug?: string;
+  wardName?: string;
+  wardSlug?: string;
+}
+
+interface BreadcrumbItem {
+  text: string;
+  url: string;  // Empty string = no link (current page)
+}
+
+const {
+  transactionType,
+  propertyTypeId,
+  propertyTypeName,
+  propertyTypeSlug,
+  cityName,
+  citySlug,
+  districtName,
+  districtSlug,
+  wardName,
+  wardSlug,
+} = Astro.props;
+
+// Build breadcrumb items
+const items: BreadcrumbItem[] = [];
+
+// 1. Home
+items.push({ text: 'Trang chủ', url: '/' });
+
+// 2. Transaction type
+const txLabel = transactionType === 'sale' ? 'Mua Bán' : 'Cho Thuê';
+const txSlug = transactionType === 'sale' ? 'mua-ban' : 'cho-thue';
+const txUrl = `/${txSlug}`;
+items.push({ text: txLabel, url: txUrl });
+
+// 3. Property type (if available)
+if (propertyTypeName && propertyTypeSlug) {
+  items.push({
+    text: propertyTypeName,
+    url: `/${propertyTypeSlug}`
+  });
+}
+
+// Base URL for location links (property type or transaction)
+const baseUrl = propertyTypeSlug ? `/${propertyTypeSlug}` : txUrl;
+
+// 4. City (if available)
+if (cityName && citySlug) {
+  items.push({
+    text: cityName,
+    url: districtSlug || wardSlug ? `${baseUrl}?selected_addresses=${citySlug}` : ''
+  });
+}
+
+// 5. District (if available)
+if (districtName && districtSlug) {
+  items.push({
+    text: districtName,
+    url: wardSlug ? `${baseUrl}?selected_addresses=${districtSlug}` : ''
+  });
+}
+
+// 6. Ward (if available) - always no link (current level)
+if (wardName) {
+  items.push({ text: wardName, url: '' });
+}
+
+// Schema.org BreadcrumbList
+const siteUrl = import.meta.env.PUBLIC_SITE_URL || 'https://tongkhobds.com';
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": items.map((item, index) => ({
+    "@type": "ListItem",
+    "position": index + 1,
+    "name": item.text,
+    ...(item.url ? { "item": `${siteUrl}${item.url}` } : {})
+  }))
+};
+---
+
+<!-- Schema.org Structured Data -->
+<script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
+
+<!-- Breadcrumb Navigation -->
+<nav class="text-sm text-secondary-500" aria-label="Breadcrumb">
+  <ol class="flex flex-wrap items-center gap-2">
+    {items.map((item, index) => (
+      <li class="flex items-center">
+        {item.url ? (
+          <a href={item.url} class="hover:text-primary-500 transition-colors">
+            {item.text}
+          </a>
+        ) : (
+          <span class="text-secondary-700 font-medium">{item.text}</span>
+        )}
+
+        {index < items.length - 1 && (
+          <span class="text-secondary-300 mx-2">&gt;</span>
+        )}
+      </li>
+    ))}
+  </ol>
+</nav>

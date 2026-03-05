@@ -1,0 +1,166 @@
+---
+/**
+ * Horizontal Image Gallery
+ * Large main image with thumbnail row below (matches v1 design)
+ */
+interface Props {
+  images: string[];
+  realEstateCode?: string;
+}
+
+const { images: rawImages, realEstateCode } = Astro.props;
+
+// Ensure we have at least a placeholder image
+const PLACEHOLDER = '/images/placeholder-property.jpg';
+const images = rawImages.length > 0 ? rawImages : [PLACEHOLDER];
+const totalImages = images.length;
+---
+
+<div class="w-full mb-6">
+  <div class="relative bg-secondary-100 rounded-xl overflow-hidden group">
+    <!-- Main Large Image -->
+    <div class="relative aspect-video bg-secondary-100">
+      <img
+        id="gallery-main-image"
+        src={images[0]}
+        alt="Property main image"
+        class="w-full h-full object-cover"
+        loading="eager"
+      />
+
+      <!-- Photo Count Badge (top-left) -->
+      <div class="absolute top-4 left-4">
+        <div class="flex items-center gap-2 px-3 py-1.5 bg-black/70 backdrop-blur-sm rounded-lg">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span class="text-white text-sm font-medium">{totalImages} ảnh</span>
+        </div>
+      </div>
+
+      <!-- Property Code (bottom-right) -->
+      {realEstateCode && (
+        <div class="absolute bottom-4 right-4">
+          <div class="px-3 py-1.5 bg-black/70 backdrop-blur-sm rounded-lg">
+            <span class="text-white text-sm font-medium">{realEstateCode}</span>
+          </div>
+        </div>
+      )}
+
+      <!-- Navigation Arrows -->
+      <button
+        id="gallery-prev"
+        class="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-lg opacity-0 group-hover:opacity-100 hover:bg-white transition-all duration-300"
+        aria-label="Previous image"
+      >
+        <svg class="w-5 h-5 text-secondary-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+      </button>
+
+      <button
+        id="gallery-next"
+        class="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center bg-white/90 backdrop-blur-sm rounded-full shadow-lg opacity-0 group-hover:opacity-100 hover:bg-white transition-all duration-300"
+        aria-label="Next image"
+      >
+        <svg class="w-5 h-5 text-secondary-800" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Thumbnail Row -->
+    <div class="bg-white p-3">
+      <div id="gallery-thumbnails" class="flex gap-2 overflow-x-auto scrollbar-hide">
+        {images.slice(0, 5).map((image, index) => (
+          <button
+            data-index={index}
+            class={`gallery-thumb flex-shrink-0 w-32 h-24 rounded-lg overflow-hidden border-2 transition-all ${
+              index === 0 ? 'border-primary-500' : 'border-transparent hover:border-secondary-300'
+            }`}
+            aria-label={`View image ${index + 1}`}
+          >
+            <img
+              src={image}
+              alt={`Thumbnail ${index + 1}`}
+              class="w-full h-full object-cover"
+              loading="lazy"
+            />
+          </button>
+        ))}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+</style>
+
+<script>
+  const mainImage = document.getElementById('gallery-main-image') as HTMLImageElement;
+  const prevBtn = document.getElementById('gallery-prev');
+  const nextBtn = document.getElementById('gallery-next');
+  const thumbnails = document.querySelectorAll('.gallery-thumb');
+
+  let currentIndex = 0;
+  const totalImages = thumbnails.length;
+
+  function updateImage(index: number) {
+    if (index < 0 || index >= totalImages) return;
+
+    currentIndex = index;
+    const thumbnail = thumbnails[index] as HTMLElement;
+    const img = thumbnail.querySelector('img') as HTMLImageElement;
+
+    // Update main image
+    if (mainImage && img) {
+      mainImage.src = img.src;
+    }
+
+    // Update thumbnail borders
+    thumbnails.forEach((thumb, i) => {
+      if (i === index) {
+        thumb.classList.remove('border-transparent', 'hover:border-secondary-300');
+        thumb.classList.add('border-primary-500');
+      } else {
+        thumb.classList.remove('border-primary-500');
+        thumb.classList.add('border-transparent', 'hover:border-secondary-300');
+      }
+    });
+  }
+
+  // Thumbnail clicks
+  thumbnails.forEach((thumb, index) => {
+    thumb.addEventListener('click', () => updateImage(index));
+  });
+
+  // Navigation buttons
+  prevBtn?.addEventListener('click', () => {
+    const newIndex = currentIndex > 0 ? currentIndex - 1 : totalImages - 1;
+    updateImage(newIndex);
+  });
+
+  nextBtn?.addEventListener('click', () => {
+    const newIndex = currentIndex < totalImages - 1 ? currentIndex + 1 : 0;
+    updateImage(newIndex);
+  });
+
+  // Keyboard navigation
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowLeft') {
+      const newIndex = currentIndex > 0 ? currentIndex - 1 : totalImages - 1;
+      updateImage(newIndex);
+    } else if (e.key === 'ArrowRight') {
+      const newIndex = currentIndex < totalImages - 1 ? currentIndex + 1 : 0;
+      updateImage(newIndex);
+    }
+  });
+</script>
