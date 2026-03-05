@@ -179,27 +179,36 @@ const provinces = await getAllProvincesWithCount(undefined, false);
 let currentProvinceSlug = '';
 let currentDistrictSlugs: string[] = [];
 
+// Collect districts from BOTH path and addresses param (v1 compatible)
+// Path contains the first district, addresses param contains additional districts
+if (selectedLocation && selectedLocation.type === 'district') {
+  // Add district from URL path (first district)
+  currentDistrictSlugs.push(selectedLocation.slug);
+  // Get province from this district
+  if (selectedLocation.provinceId) {
+    const parentProvince = provinces.find(p => p.nId === selectedLocation.provinceId);
+    currentProvinceSlug = parentProvince?.slug || '';
+  }
+}
+
+// Add additional districts from addresses query param
 if (resolvedDistricts.length > 0) {
-  // Multi-district selection from query param
-  currentDistrictSlugs = resolvedDistricts.map(d => d.slug);
-  // Get province from first district
-  if (resolvedDistricts[0].provinceId) {
+  resolvedDistricts.forEach(d => {
+    // Avoid duplicates
+    if (!currentDistrictSlugs.includes(d.slug)) {
+      currentDistrictSlugs.push(d.slug);
+    }
+  });
+  // If no province yet, get from first resolved district
+  if (!currentProvinceSlug && resolvedDistricts[0].provinceId) {
     const parentProvince = provinces.find(p => p.nId === resolvedDistricts[0].provinceId);
     currentProvinceSlug = parentProvince?.slug || '';
   }
-} else if (selectedLocation) {
-  if (selectedLocation.type === 'province') {
-    // User selected province directly
-    currentProvinceSlug = selectedLocation.slug;
-  } else if (selectedLocation.type === 'district') {
-    // User selected single district from URL path
-    currentDistrictSlugs = [selectedLocation.slug];
-    if (selectedLocation.provinceId) {
-      // Find province by nId to get slug
-      const parentProvince = provinces.find(p => p.nId === selectedLocation.provinceId);
-      currentProvinceSlug = parentProvince?.slug || '';
-    }
-  }
+}
+
+// If only province selected (no districts)
+if (selectedLocation && selectedLocation.type === 'province' && currentDistrictSlugs.length === 0) {
+  currentProvinceSlug = selectedLocation.slug;
 }
 
 // Resolve property type name for breadcrumb (prioritize slug-based detection)

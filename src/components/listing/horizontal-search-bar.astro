@@ -106,7 +106,7 @@ const stripProvincePrefix = (name: string): string => {
 
 <div class="horizontal-search-bar relative py-2 top-0 z-[60]">
   <div class="">
-    <div class="flex items-center gap-0 flex-wrap lg:flex-nowrap relative z-10" data-search-bar data-base-url={baseUrl} data-current-province-nid={selectedProvince?.nId || ''} data-current-province-slug={selectedProvince?.slug || ''}>
+    <div class="flex items-center gap-0 flex-wrap lg:flex-nowrap relative z-10" data-search-bar data-base-url={baseUrl} data-current-province-nid={selectedProvince?.nId || ''} data-current-province-slug={selectedProvince?.slug || ''} data-current-districts={JSON.stringify(currentDistricts)}>
       <!-- Unified Search Container: Province Selector + Search Input -->
       <div class="flex items-stretch flex-[4] min-w-[450px] border border-secondary-300 rounded-lg bg-white hover:border-primary-400 transition-all focus-within:border-primary-400">
         <!-- Location Dropdown -->
@@ -599,12 +599,19 @@ const stripProvincePrefix = (name: string): string => {
     selectedSlugs: Set<string>,
     baseUrl: string
   ): string {
+    console.log('[renderDistrictsHtml] Rendering districts:', {
+      districtCount: districts.length,
+      selectedSlugs: Array.from(selectedSlugs),
+      firstDistrictSlug: districts[0]?.slug
+    });
+
     if (districts.length === 0) {
       return '<div class="text-sm text-secondary-500 text-center py-4">Không có quận/huyện</div>';
     }
 
     return districts.map(d => {
       const isSelected = selectedSlugs.has(d.slug);
+      console.log('[renderDistrictsHtml] District:', d.slug, 'selected:', isSelected);
       const btnClass = isSelected
         ? 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group'
         : 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
@@ -753,14 +760,50 @@ const stripProvincePrefix = (name: string): string => {
       }
     }
 
-    // Multi-select districts state - initialize from URL addresses param
-    const urlParams = new URLSearchParams(window.location.search);
-    const addressesParam = urlParams.get('addresses');
-    const selectedDistricts: Array<{ slug: string; name: string }> = addressesParam
-      ? addressesParam.split(',').map(slug => ({ slug: slug.trim(), name: slug.trim() }))
-      : [];
+    // Multi-select districts state - initialize from currentDistricts data attribute (includes districts from both path and query param)
+    const selectedDistricts: Array<{ slug: string; name: string }> = [];
 
-    console.log('[HorizontalSearchBar] Init selectedDistricts from URL:', selectedDistricts);
+    // Read from data attribute
+    const currentDistrictsData = searchBar?.getAttribute('data-current-districts');
+    if (currentDistrictsData) {
+      try {
+        const districtSlugs: string[] = JSON.parse(currentDistrictsData);
+        districtSlugs.forEach(slug => {
+          if (slug && slug.trim()) {
+            selectedDistricts.push({ slug: slug.trim(), name: slug.trim() });
+          }
+        });
+      } catch (e) {
+        console.error('[HorizontalSearchBar] Failed to parse currentDistricts:', e);
+      }
+    }
+
+    console.log('[HorizontalSearchBar] Init selectedDistricts from data attr:', selectedDistricts);
+
+    // Function to update district button states based on selectedDistricts array
+    function updateDistrictButtonStates() {
+      const buttons = districtListContainer?.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+      buttons?.forEach(button => {
+        const slug = button.dataset.slug || '';
+        const isSelected = selectedDistricts.some(d => d.slug === slug);
+
+        if (isSelected) {
+          button.dataset.selected = 'true';
+          button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg bg-primary-50 border border-primary-200 cursor-pointer transition-all group';
+          const icon = button.querySelector('svg');
+          const text = button.querySelector('span');
+          if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
+          if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
+        } else {
+          button.dataset.selected = 'false';
+          button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+          const icon = button.querySelector('svg');
+          const text = button.querySelector('span');
+          if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+          if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+        }
+      });
+    }
 
     // Render selected districts tags on page load (if any)
     // Note: Names will be slugs initially, will be updated when districts are loaded
@@ -768,6 +811,7 @@ const stripProvincePrefix = (name: string): string => {
       // Delay to ensure DOM is ready
       setTimeout(() => {
         renderSelectedDistrictsTags();
+        updateDistrictButtonStates();
       }, 100);
     }
 
@@ -807,8 +851,13 @@ const stripProvincePrefix = (name: string): string => {
             if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
           }
 
-          console.log('[HorizontalSearchBar] Selected districts:', selectedDistricts);
+          console.log('[HorizontalSearchBar] Selected districts before render:', selectedDistricts);
           renderSelectedDistrictsTags();
+
+          // Auto-submit search after district selection
+          console.log('[HorizontalSearchBar] Triggering auto-submit with districts:', selectedDistricts.map(d => d.slug));
+          const searchSubmit = searchBar?.querySelector('[data-search-submit]') as HTMLButtonElement;
+          searchSubmit?.click();
         });
       });
     }
@@ -872,6 +921,10 @@ const stripProvincePrefix = (name: string): string => {
               if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
               if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
             }
+
+            // Auto-submit search after removing district
+            const searchSubmit = searchBar?.querySelector('[data-search-submit]') as HTMLButtonElement;
+            searchSubmit?.click();
           }
         });
       });
@@ -891,6 +944,10 @@ const stripProvincePrefix = (name: string): string => {
         if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
         if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
       });
+
+      // Auto-submit search after clearing all districts
+      const searchSubmit = searchBar?.querySelector('[data-search-submit]') as HTMLButtonElement;
+      searchSubmit?.click();
     });
 
     // Render top 5 most searched districts (v1 compatible)
@@ -952,6 +1009,10 @@ const stripProvincePrefix = (name: string): string => {
                   if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-primary-600');
                   if (text) text.className = 'text-sm text-primary-700 font-medium truncate';
                 }
+
+                // Auto-submit search after district selection
+                const searchSubmit = searchBar?.querySelector('[data-search-submit]') as HTMLButtonElement;
+                searchSubmit?.click();
               }
             });
           });
@@ -1180,6 +1241,10 @@ const stripProvincePrefix = (name: string): string => {
         .filter(cb => cb.checked)
         .map(cb => cb.value);
 
+      // Auto-submit search after applying property types
+      const searchSubmit = searchBar?.querySelector('[data-search-submit]') as HTMLButtonElement;
+      searchSubmit?.click();
+
       // Close dropdown
       isPropertyTypeOpen = false;
       propertyTypePanel?.classList.add('hidden');
@@ -1210,7 +1275,8 @@ const stripProvincePrefix = (name: string): string => {
     let selectedBathrooms = '';
     let selectedBedrooms = '';
 
-    // Initialize from URL params (reuse urlParams declared above)
+    // Initialize from URL params
+    const urlParams = new URLSearchParams(window.location.search);
     const bathroomsParam = urlParams.get('bathrooms');
     const bedroomsParam = urlParams.get('bedrooms');
     const radiusParam = urlParams.get('radius');
@@ -1795,6 +1861,8 @@ const stripProvincePrefix = (name: string): string => {
       // Build location addresses
       const provinceSlug = searchBar?.getAttribute('data-current-province-slug') || '';
       const districtSlugs = selectedDistricts.map(d => d.slug);
+
+      console.log('[HorizontalSearchBar] Building URL with districts:', districtSlugs);
 
       // Build selected_addresses: v1 logic
       // - If districts selected: use districts only (first district in path, rest in query param)
