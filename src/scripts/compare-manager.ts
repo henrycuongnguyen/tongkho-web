@@ -181,6 +181,7 @@ const CompareManager = (() => {
 
     // Use event delegation to prevent memory leaks on HTMX swaps
     // Attach listener only once
+    // Use capture phase (true) to catch event before card wrapper <a> tag
     if (!(document.body as any).__compareListenerAttached) {
       document.body.addEventListener('click', (e) => {
         const target = e.target as HTMLElement;
@@ -191,7 +192,7 @@ const CompareManager = (() => {
           e.stopPropagation();
           toggle(btn as HTMLElement);
         }
-      });
+      }, true); // Capture phase - catch event early
 
       (document.body as any).__compareListenerAttached = true;
     }

@@ -144,11 +144,14 @@ export async function calculateResult(
 
     const data: AICalculateResponse = await response.json();
 
-    if (data.status !== 1) {
-      return `<p class="text-red-600">${data.message || 'Không thể tính toán. Vui lòng thử lại.'}</p>`;
+    // Check if response has article content (v1 format)
+    if (data.article) {
+      return data.article;
     }
 
-    return data.data?.html || '<p>Không có kết quả.</p>';
+    // Return error message if no article
+    const errorMsg = data.error || data.message || 'Không có kết quả từ AI';
+    return `<p class="text-red-600">${errorMsg}</p>`;
   } catch (error) {
     console.error('[utility-service] AI API failed:', error);
     return '<p class="text-red-600">Đã xảy ra lỗi khi kết nối đến máy chủ. Vui lòng thử lại sau.</p>';
