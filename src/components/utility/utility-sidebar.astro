@@ -1,0 +1,50 @@
+---
+/**
+ * Utility Sidebar - Navigation menu for utilities page
+ *
+ * @example
+ * <UtilitySidebar utilities={utilities} currentSlug="tu-van-tuoi-xay-nha" />
+ *
+ * @prop utilities - Array of utility items
+ * @prop currentSlug - Currently active utility slug
+ */
+import type { Utility } from '@/services/utility/types';
+
+interface Props {
+  utilities: Utility[];
+  currentSlug: string;
+}
+
+const { utilities, currentSlug } = Astro.props;
+---
+
+<aside class="bg-white rounded-lg shadow-sm overflow-hidden">
+  <h2 class="px-4 py-3 bg-slate-50 text-slate-800 font-semibold border-b border-slate-100">
+    Tiện ích
+  </h2>
+
+  <nav class="divide-y divide-slate-100">
+    {utilities.length === 0 ? (
+      <p class="px-4 py-3 text-slate-500 text-sm">
+        Không có tiện ích nào.
+      </p>
+    ) : (
+      utilities.map((utility) => {
+        const isActive = utility.slug === currentSlug;
+        return (
+          <a
+            href={`/tienich/${utility.slug}`}
+            class:list={[
+              'block px-4 py-3 text-sm transition-colors',
+              isActive
+                ? 'bg-orange-50 text-orange-600 font-medium border-l-4 border-orange-500'
+                : 'text-slate-700 hover:bg-slate-50 hover:text-orange-500',
+            ]}
+          >
+            {utility.name}
+          </a>
+        );
+      })
+    )}
+  </nav>
+</aside>
