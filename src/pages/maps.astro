@@ -1,0 +1,126 @@
+---
+/**
+ * Maps/Network Page
+ * Office network locator with Google Maps integration
+ * URL: /maps
+ *
+ * Architecture: Hybrid SSG + Client JS
+ * - Build-time: Fetch offices from DB, generate static HTML
+ * - Client-side: Google Maps API for interactive map
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+import { getActiveOffices } from '@/services/office-service';
+
+// Build-time data fetch
+const offices = await getActiveOffices();
+const hasValidOffices = offices.some((o) => o.lat && o.lng);
+
+// Serialize for client-side JS (camelCase → snake_case for v1 compat)
+const officesForClient = offices.map((o) => ({
+  id: o.id,
+  name: o.name,
+  address: o.address,
+  phone: o.phone,
+  city_name: o.cityName,
+  district_name: o.districtName,
+  ward_name: o.wardName,
+  lat: o.lat,
+  lng: o.lng,
+  time_work: o.timeWork,
+  company_representative: o.companyRepresentative,
+  position_representative: o.positionRepresentative,
+}));
+const officesJSON = JSON.stringify(officesForClient);
+
+// Google Maps API key (PUBLIC_ prefix for client exposure)
+const GOOGLE_MAPS_KEY = import.meta.env.PUBLIC_GOOGLE_MAPS_KEY || '';
+
+const pageTitle = 'Mạng lưới văn phòng - TongkhoBDS.com';
+const pageDescription = 'Danh sách và bản đồ vị trí các văn phòng của TongkhoBDS.com trên toàn quốc';
+---
+
+<MainLayout title={pageTitle} description={pageDescription}>
+  <!-- Network Hero Section -->
+  <section class="bg-[#f8f6f4] py-20 overflow-hidden">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex flex-col lg:flex-row items-center gap-8">
+        <div class="lg:w-5/12 text-center lg:text-left py-10">
+          <h1 class="text-5xl lg:text-6xl font-bold text-gray-800 mb-6 leading-tight">
+            Mạng lưới
+          </h1>
+          <p class="text-base text-gray-600 leading-relaxed max-w-lg mx-auto lg:mx-0">
+            TongKhoBDS xây dựng hệ sinh thái kết nối bất động sản dựa trên công nghệ và dữ liệu,
+            liên kết đội ngũ môi giới, cộng tác viên và đối tác trên nhiều khu vực.
+            Mọi hoạt động được chuẩn hóa quy trình, đồng bộ thông tin nguồn hàng,
+            giúp khách hàng và nhà đầu tư tiếp cận – đánh giá – giao dịch bất động sản minh bạch, hiệu quả.
+          </p>
+        </div>
+        <div class="lg:w-7/12 relative min-h-[400px] flex items-center justify-center">
+          <img
+            src="/images/element.png"
+            alt="TongKhoBDS Network"
+            class="relative z-10 max-w-full h-auto drop-shadow-2xl"
+            loading="lazy"
+          />
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Office Locator Section -->
+  <section id="officeLocatorSection" class="bg-white py-8">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <h2 class="text-2xl font-semibold text-gray-800 mb-6">Văn phòng Tổng kho BDS</h2>
+
+      <div class="flex flex-col md:flex-row gap-6">
+        <!-- Office List Panel -->
+        <div class="w-full md:w-1/3">
+          <div id="office-list" class="space-y-0 border border-gray-200 rounded-lg overflow-hidden max-h-[600px] overflow-y-auto">
+            {!hasValidOffices && (
+              <div class="p-4 text-gray-500 text-center">
+                <span>Đang tải danh sách văn phòng...</span>
+              </div>
+            )}
+          </div>
+          <noscript>
+            <div class="p-4 bg-yellow-50 text-yellow-800 rounded mt-4">
+              Vui lòng bật JavaScript để xem bản đồ và danh sách văn phòng.
+            </div>
+          </noscript>
+        </div>
+
+        <!-- Map Panel -->
+        <div class="w-full md:w-2/3">
+          <div id="office-map" class="w-full h-[500px] md:h-[600px] rounded-lg overflow-hidden shadow-md">
+            <div class="flex items-center justify-center h-full">
+              <div class="text-center">
+                <div class="inline-block w-8 h-8 border-4 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                <div class="mt-2 text-gray-600">Đang tải bản đồ...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Inline Office Data for Client JS -->
+  <script is:inline define:vars={{ officesJSON }}>
+    window.__OFFICE_DATA__ = JSON.parse(officesJSON);
+  </script>
+
+  <!-- Google Maps API Key -->
+  <script is:inline define:vars={{ GOOGLE_MAPS_KEY }}>
+    window.GOOGLE_MAPS_KEY = GOOGLE_MAPS_KEY;
+  </script>
+
+  <!-- Office Locator Client Script -->
+  <script src="/js/office-locator.js" defer></script>
+  <script is:inline>
+    document.addEventListener('DOMContentLoaded', function() {
+      if (window.OfficeLocator && window.__OFFICE_DATA__) {
+        window.OfficeLocator.init(window.__OFFICE_DATA__);
+      }
+    });
+  </script>
+</MainLayout>
