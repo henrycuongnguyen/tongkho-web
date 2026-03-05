@@ -6,7 +6,7 @@
  */
 import type { Property, PropertyType } from '@/types/property';
 import { formatPrice, formatRelativeTime } from '@/utils/format';
-import ShareButtons from '@/components/ui/share-buttons.astro';
+import ShareButtonPopup from '@/components/ui/share-button-popup.astro';
 
 interface Props {
   property: Property;
@@ -46,7 +46,7 @@ const isLongDescription = property.description.length > 300;
 ---
 
 <section class="bg-white rounded-xl shadow-sm border border-secondary-100 p-6 md:p-8">
-  <!-- Title + Price Row (v1 style) -->
+  <!-- Title + Price Row -->
   <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
     <!-- Title -->
     <h1
@@ -61,12 +61,12 @@ const isLongDescription = property.description.length > 300;
       {property.title}
     </h1>
 
-    <!-- Price -->
+    <!-- Price (orange color) -->
     <div class="shrink-0 text-right" id="property-price">
-      <div class="text-2xl md:text-3xl font-bold text-primary-500">
+      <div class="text-2xl font-bold text-center text-orange-500">
         {formatPrice(property.price, property.priceUnit)}
       </div>
-      <div class="text-sm text-secondary-500">
+      <div class="text-base font-bold text-orange-500">
         {property.area > 0 && (
           <span>{property.area} m²</span>
         )}
@@ -121,7 +121,9 @@ const isLongDescription = property.description.length > 300;
         </svg>
       </button>
       <!-- Share -->
-      <ShareButtons url={`/bds/${property.slug}`} title={property.title} variant="inline" size="sm" showLabel={false} />
+      <div onclick="event.preventDefault(); event.stopPropagation();">
+        <ShareButtonPopup url={`/bds/${property.slug}`} title={property.title} variant="detail" />
+      </div>
     </div>
   </div>
 

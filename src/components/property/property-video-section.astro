@@ -10,8 +10,14 @@ interface Props {
 
 const { videoUrl } = Astro.props;
 
-// Don't render if no video URL
-if (!videoUrl) return;
+// Don't render if no video URL or invalid URL
+if (!videoUrl || !videoUrl.trim()) return;
+
+// Validate that URL is from supported platforms (YouTube or Vimeo)
+const isYouTube = /(?:youtube\.com\/watch\?v=|youtu\.be\/)/i.test(videoUrl);
+const isVimeo = /vimeo\.com\/\d+/i.test(videoUrl);
+
+if (!isYouTube && !isVimeo) return;
 
 // Convert YouTube watch URL to embed URL if needed
 function getEmbedUrl(url: string): string {
