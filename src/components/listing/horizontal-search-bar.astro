@@ -1796,10 +1796,12 @@ const stripProvincePrefix = (name: string): string => {
       const provinceSlug = searchBar?.getAttribute('data-current-province-slug') || '';
       const districtSlugs = selectedDistricts.map(d => d.slug);
 
-      // Build selected_addresses: province + districts (comma-separated)
-      const selectedAddresses = [provinceSlug, ...districtSlugs]
-        .filter(Boolean)
-        .join(',');
+      // Build selected_addresses: v1 logic
+      // - If districts selected: use districts only (first district in path, rest in query param)
+      // - If no districts: use province only
+      const selectedAddresses = districtSlugs.length > 0
+        ? districtSlugs.join(',')
+        : provinceSlug;
 
       // Build filters object for buildSearchUrl
       const filters = {
