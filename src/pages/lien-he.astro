@@ -1,0 +1,201 @@
+---
+/**
+ * Contact Page - SSR enabled
+ * URL: /lien-he
+ * Handles both GET (display) and POST (form submission)
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+import ContactForm from '@/components/contact/contact-form.astro';
+import ContactInfoSection from '@/components/contact/contact-info-section.astro';
+import ContactCtaSection from '@/components/contact/contact-cta-section.astro';
+import PartnersSection from '@/components/home/partners-section.astro';
+import { createConsultation } from '@/services/consultation-service';
+import { generateCSRFToken, validateCSRFToken } from '@/utils/csrf';
+import { checkRateLimit, getClientIP } from '@/utils/rate-limiter';
+
+// Enable SSR for this page
+export const prerender = false;
+
+// State for success/error messages
+let successMessage = '';
+let errorMessage = '';
+
+// Generate CSRF token for GET requests
+const csrfToken = generateCSRFToken(Astro.request);
+
+// Handle POST request (form submission)
+if (Astro.request.method === 'POST') {
+  try {
+    const formData = await Astro.request.formData();
+
+    // CSRF validation
+    const token = formData.get('csrf_token')?.toString() || '';
+    if (!validateCSRFToken(Astro.request, token)) {
+      return Astro.redirect('/lien-he?error=Yêu cầu không hợp lệ. Vui lòng thử lại');
+    }
+
+    // Rate limiting (3 submissions per IP per hour)
+    const clientIP = getClientIP(Astro.request);
+    const rateLimitOk = await checkRateLimit(clientIP, 'contact_form', {
+      maxAttempts: 3,
+      windowMs: 60 * 60 * 1000, // 1 hour
+    });
+
+    if (!rateLimitOk) {
+      return Astro.redirect('/lien-he?error=Bạn đã gửi quá nhiều yêu cầu. Vui lòng chờ 1 giờ trước khi gửi lại');
+    }
+
+    // Extract form fields
+    const fullName = formData.get('full_name')?.toString().trim() || '';
+    const email = formData.get('email')?.toString().trim() || '';
+    const phoneNumber = formData.get('phone_number')?.toString().trim() || '';
+    const budgetRange = formData.get('budget_range')?.toString().trim() || '';
+    const location = formData.get('location')?.toString().trim() || '';
+    const note = formData.get('note')?.toString().trim() || '';
+
+    // Server-side validation
+    const errors: string[] = [];
+
+    // Stronger email validation (RFC 5322 compliant)
+    const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
+    if (!fullName) {
+      errors.push('Vui lòng nhập họ và tên');
+    } else if (fullName.length > 100) {
+      errors.push('Họ và tên không được quá 100 ký tự');
+    }
+
+    if (!email) {
+      errors.push('Vui lòng nhập email');
+    } else if (!emailRegex.test(email) || email.length > 254) {
+      errors.push('Email không hợp lệ');
+    }
+
+    if (!phoneNumber) {
+      errors.push('Vui lòng nhập số điện thoại');
+    } else if (!/^(0[1-9])[0-9]{8,9}$/.test(phoneNumber)) {
+      errors.push('Số điện thoại không hợp lệ (phải bắt đầu bằng 0 và có 10-11 số)');
+    } else if (phoneNumber.length > 20) {
+      errors.push('Số điện thoại không được quá 20 ký tự');
+    }
+
+    if (location && location.length > 200) {
+      errors.push('Khu vực quan tâm không được quá 200 ký tự');
+    }
+
+    if (!note) {
+      errors.push('Vui lòng nhập nội dung quan tâm');
+    } else if (note.length > 1000) {
+      errors.push('Nội dung quan tâm không được quá 1000 ký tự');
+    }
+
+    // Budget validation
+    if (budgetRange) {
+      const cleanBudget = budgetRange.replace(/[.,\s]/g, '');
+      const budgetNumber = parseFloat(cleanBudget);
+      if (isNaN(budgetNumber) || budgetNumber < 0 || budgetNumber > Number.MAX_SAFE_INTEGER) {
+        errors.push('Ngân sách không hợp lệ');
+      }
+    }
+
+    // If validation errors, redirect with error message
+    if (errors.length > 0) {
+      const errorParam = encodeURIComponent(errors.join('. '));
+      return Astro.redirect(`/lien-he?error=${errorParam}`);
+    }
+
+    // Clean budget range (remove dots, commas)
+    const cleanBudget = budgetRange.replace(/[.,\s]/g, '');
+    const budgetNumber = cleanBudget ? parseFloat(cleanBudget) : null;
+
+    // Insert to database
+    const result = await createConsultation({
+      fullName,
+      email: email.toLowerCase(),
+      phoneNumber,
+      budgetRange: budgetNumber,
+      location: location || undefined,
+      note,
+    });
+
+    if (result.success) {
+      // Redirect with success message
+      return Astro.redirect('/lien-he?success=true');
+    } else {
+      // Redirect with error message
+      return Astro.redirect('/lien-he?error=Có lỗi xảy ra. Vui lòng thử lại sau');
+    }
+
+  } catch (error) {
+    console.error('[Contact Page] POST error:', error);
+    return Astro.redirect('/lien-he?error=Có lỗi xảy ra. Vui lòng thử lại sau');
+  }
+}
+
+// GET request - check for success/error params
+const urlParams = new URL(Astro.request.url).searchParams;
+
+if (urlParams.get('success') === 'true') {
+  successMessage = 'Cảm ơn bạn đã liên hệ với chúng tôi. Chúng tôi sẽ liên hệ lại với bạn trong thời gian sớm nhất!';
+}
+
+const errorParam = urlParams.get('error');
+if (errorParam) {
+  errorMessage = decodeURIComponent(errorParam);
+}
+
+// Page metadata
+const pageTitle = 'Liên hệ | TongkhoBDS';
+const pageDescription = 'Liên hệ với TongkhoBDS để được tư vấn miễn phí về mua bán, cho thuê bất động sản. Đội ngũ chuyên viên hỗ trợ tận tâm 24/7.';
+---
+
+<MainLayout title={pageTitle} description={pageDescription}>
+  <!-- Success/Error Messages -->
+  {successMessage && (
+    <div class="bg-green-50 border-l-4 border-green-500 p-4 my-4 container-custom">
+      <div class="flex items-center">
+        <svg class="w-6 h-6 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="text-green-700 font-medium">{successMessage}</p>
+      </div>
+    </div>
+  )}
+
+  {errorMessage && (
+    <div class="bg-red-50 border-l-4 border-red-500 p-4 my-4 container-custom">
+      <div class="flex items-center">
+        <svg class="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <p class="text-red-700 font-medium">{errorMessage}</p>
+      </div>
+    </div>
+  )}
+
+  <!-- Contact Form Section -->
+  <ContactForm csrfToken={csrfToken} />
+
+  <!-- Contact Info Section -->
+  <ContactInfoSection />
+
+  <!-- Partners Section (with custom styling for contact page) -->
+  <section class="bg-secondary-900 py-16">
+    <div class="container-custom">
+      <div class="text-center mb-8">
+        <h2 class="text-2xl lg:text-3xl font-bold text-white mb-3">
+          Hãy cùng làm việc với chúng tôi
+        </h2>
+        <p class="text-secondary-300">
+          Hàng nghìn khách hàng bất động sản cao cấp giống bạn đã thăm trang web của chúng tôi.
+        </p>
+      </div>
+
+      <!-- Reuse partners slider -->
+      <PartnersSection />
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <ContactCtaSection />
+</MainLayout>
