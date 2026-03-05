@@ -54,8 +54,23 @@ export const POST: APIRoute = async ({ request }) => {
 
     const data: AICalculateResponse = await response.json();
 
-    // Return response to client
-    return new Response(JSON.stringify(data), {
+    // Check if response has article content (v1 format)
+    if (data.article) {
+      // Return in expected format with status and data.html
+      return new Response(JSON.stringify({
+        status: 1,
+        data: { html: data.article }
+      }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Return error if no article
+    return new Response(JSON.stringify({
+      status: 0,
+      message: data.error || data.message || 'Không có kết quả từ AI',
+    }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

@@ -50,11 +50,10 @@ export interface AICalculateRequest {
 
 /**
  * AI calculation API response
+ * API returns 'article' field with HTML content (v1 format)
  */
 export interface AICalculateResponse {
-  status: number;
+  article?: string;
+  error?: string;
   message?: string;
-  data?: {
-    html?: string;
-  };
 }
