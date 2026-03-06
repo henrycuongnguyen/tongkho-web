@@ -29,13 +29,37 @@
   }
 
   /**
+   * Wait for Google Maps API to be fully ready
+   * Checks not just namespace, but actual Map and InfoWindow classes
+   */
+  function waitForGoogleMapsReady(callback, maxAttempts = 50) {
+    let attempts = 0;
+
+    function check() {
+      // Verify API is fully loaded with all required components
+      if (window.google?.maps?.Map && window.google?.maps?.InfoWindow && window.google?.maps?.Marker) {
+        callback();
+      } else if (attempts < maxAttempts) {
+        attempts++;
+        setTimeout(check, 100); // Poll every 100ms
+      } else {
+        console.error('[OfficeLocator] Google Maps API failed to fully initialize');
+        hideLoading();
+      }
+    }
+
+    check();
+  }
+
+  /**
    * Load Google Maps JavaScript API dynamically
    * Uses window.GOOGLE_MAPS_KEY set by Astro page
    */
   function initGoogleMap(callback) {
-    // Check if already loaded
+    // Check if already loaded - use readiness check instead of namespace check
     if (window.google && window.google.maps) {
-      callback();
+      // API script loaded, but verify it's fully ready
+      waitForGoogleMapsReady(callback);
       return;
     }
 
@@ -49,7 +73,8 @@
     // Create callback for async load
     window.initMapCallback = function() {
       delete window.initMapCallback;
-      callback();
+      // Wait for API to be fully ready after script load
+      waitForGoogleMapsReady(callback);
     };
 
     // Load script
@@ -90,7 +115,7 @@
     const rep = company_representative || '';
     const pos = position_representative || '';
     const repHtml = (rep || pos) ? `<div style='margin-bottom:3px; font-size: 13px;'><span style='font-weight:500;'>${escapeHtml(rep)}</span>${pos ? ' - ' + escapeHtml(pos) : ''}</div>` : '';
-    const phoneHtml = phone ? `<div style='font-size:12px; color:#888; margin-bottom:3px;line-height: 18px;'>Điện thoại: ${phone}</div>` : '';
+    const phoneHtml = phone ? `<div style='font-size:12px; color:#888; margin-bottom:3px;line-height: 18px;'>Điện thoại: ${escapeHtml(phone)}</div>` : '';
     const addressHtml = address ? `<div style='font-size:12px; color:#888; margin-bottom:3px;line-height: 18px;'>Địa chỉ: ${escapeHtml(address)}</div>` : '';
     const timeWorkHtml = time_work ? `<div style='font-size:12px; color:#888; margin-bottom:0;line-height: 18px;'>${escapeHtml(time_work)}</div>` : '';
 
@@ -140,20 +165,28 @@
   }
 
   /**
-   * Set active office in list (highlight)
+   * Set active office in list (highlight and scroll into view)
    */
   function setActiveOffice(officeId) {
     const listItems = document.querySelectorAll('#office-list > div[data-office-id]');
     listItems.forEach(function(item) {
-      item.classList.remove('bg-orange-50', 'border-l-4', 'border-orange-500');
-      item.classList.add('bg-white');
+      // Reset to default style
+      item.style.backgroundColor = '';
+      item.style.borderLeft = '';
     });
 
     if (officeId) {
       const activeItem = document.querySelector('#office-list > div[data-office-id="' + officeId + '"]');
       if (activeItem) {
-        activeItem.classList.remove('bg-white');
-        activeItem.classList.add('bg-orange-50', 'border-l-4', 'border-orange-500');
+        // Apply active style with inline CSS (higher specificity than classes)
+        activeItem.style.backgroundColor = '#fff7ed'; // bg-orange-50 equivalent
+        activeItem.style.borderLeft = '4px solid #f97316'; // border-l-4 border-orange-500 equivalent
+
+        // Scroll item into view (centered)
+        activeItem.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center'
+        });
       }
     }
 
@@ -273,25 +306,29 @@
       const addressParts = [firstValid.address, firstValid.ward_name, firstValid.district_name, firstValid.city_name].filter(Boolean);
       const fullAddress = addressParts.join(', ');
 
-      // Show first office
-      setMapLocation(
-        firstValid.lat,
-        firstValid.lng,
-        firstValid.name,
-        fullAddress,
-        firstValid.company_representative,
-        firstValid.position_representative,
-        firstValid.time_work,
-        firstValid.phone
-      );
+      // Wait for map to be fully loaded before showing InfoWindow
+      // This ensures all map tiles and styles are ready
+      google.maps.event.addListenerOnce(map, 'idle', function() {
+        // Show first office after map is fully rendered
+        setMapLocation(
+          firstValid.lat,
+          firstValid.lng,
+          firstValid.name,
+          fullAddress,
+          firstValid.company_representative,
+          firstValid.position_representative,
+          firstValid.time_work,
+          firstValid.phone
+        );
 
-      // Render list
+        // Set first as active
+        setActiveOffice(firstValid.id);
+
+        hideLoading();
+      });
+
+      // Render list (can happen immediately)
       renderList(offices);
-
-      // Set first as active
-      setActiveOffice(firstValid.id);
-
-      hideLoading();
     });
   }
 
@@ -348,6 +385,32 @@
 
       showLoading();
       initMap(offices);
+    },
+
+    /**
+     * Cleanup when navigating away from maps page
+     * Resets state to allow fresh initialization on return
+     */
+    cleanup: function() {
+      // Close info window
+      if (infoWindow) {
+        infoWindow.close();
+        infoWindow = null;
+      }
+
+      // Remove marker
+      if (currentMarker) {
+        currentMarker.setMap(null);
+        currentMarker = null;
+      }
+
+      // Clear map reference (DOM will be destroyed by View Transitions)
+      map = null;
+
+      // Reset state flags
+      initialized = false;
+      activeOfficeId = null;
+      isLoading = false;
     }
   };
 })();
