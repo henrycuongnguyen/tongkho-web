@@ -73,6 +73,7 @@ export default function HeaderMobileMenu({ navItems }: Props) {
                 ) : (
                   <a
                     href={item.href}
+                    data-astro-reload={item.href === '/maps' ? 'true' : undefined}
                     className="block py-3 text-secondary-700 font-medium hover:text-primary-500"
                   >
                     {item.label}

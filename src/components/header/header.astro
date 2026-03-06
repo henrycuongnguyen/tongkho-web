@@ -21,6 +21,7 @@ const mainNavItems = await getMainNavItems();
           <div class="relative group">
             <a
               href={item.href}
+              data-astro-reload={item.href === '/maps' ? 'true' : undefined}
               class="flex items-center gap-1 py-2 text-secondary-700 hover:text-primary-500 transition-colors duration-200 font-medium text-sm whitespace-nowrap cursor-pointer"
             >
               {item.label}
