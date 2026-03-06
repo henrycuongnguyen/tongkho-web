@@ -16,6 +16,18 @@ export default defineConfig({
   integrations: [react(), sitemap()],
   output: "server",
   adapter: node({ mode: "standalone" }),
+  redirects: {
+    // Phase 0: Redirect old v2 news detail URLs to v1 pattern
+    '/tin-tuc/[...slug]': {
+      status: 301,
+      destination: '/tin/[...slug]',
+    },
+    // Phase 2: Redirect old v2 folder URLs to v1 pattern
+    '/tin-tuc/danh-muc/[...slug]': {
+      status: 301,
+      destination: '/chuyenmuc/[...slug]',
+    },
+  },
   build: {
     inlineStylesheets: "auto",
   },

@@ -2,7 +2,7 @@
 /**
  * News Article Detail Page
  * Dynamic route for individual news articles
- * URL: /tin-tuc/{slug}
+ * URL: /tin/{slug}
  */
 import MainLayout from '@/layouts/main-layout.astro';
 import ArticleShareButtons from '@/components/news/article-share-buttons.astro';
@@ -45,7 +45,7 @@ const categoryColors: Record<NewsCategory, string> = {
 // SEO
 const pageTitle = `${article.title} | TongkhoBDS`;
 const pageDescription = article.excerpt;
-const articleUrl = `/tin-tuc/${article.slug}`;
+const articleUrl = `/tin/${article.slug}`;
 ---
 
 <MainLayout
@@ -85,7 +85,7 @@ const articleUrl = `/tin-tuc/${article.slug}`;
         <ol class="flex flex-wrap items-center gap-2">
           <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
           <li class="text-secondary-300">&gt;</li>
-          <li><a href="/tin-tuc" class="hover:text-primary-500 transition-colors">Tin tức</a></li>
+          <li><a href="/tin" class="hover:text-primary-500 transition-colors">Tin tức</a></li>
           <li class="text-secondary-300">&gt;</li>
           <li class="text-secondary-700 font-medium line-clamp-1">{article.title}</li>
         </ol>
@@ -156,10 +156,10 @@ const articleUrl = `/tin-tuc/${article.slug}`;
             <div class="mt-6 pt-6 border-t border-secondary-100">
               <div class="flex flex-wrap items-center gap-2">
                 <span class="text-secondary-500 text-sm">Tags:</span>
-                <a href={`/tin-tuc?category=${article.category}`} class="px-3 py-1 text-sm bg-secondary-100 text-secondary-600 rounded-full hover:bg-primary-100 hover:text-primary-600 transition-colors">
+                <a href={`/tin?category=${article.category}`} class="px-3 py-1 text-sm bg-secondary-100 text-secondary-600 rounded-full hover:bg-primary-100 hover:text-primary-600 transition-colors">
                   {categoryLabels[article.category]}
                 </a>
-                <a href="/tin-tuc" class="px-3 py-1 text-sm bg-secondary-100 text-secondary-600 rounded-full hover:bg-primary-100 hover:text-primary-600 transition-colors">
+                <a href="/tin" class="px-3 py-1 text-sm bg-secondary-100 text-secondary-600 rounded-full hover:bg-primary-100 hover:text-primary-600 transition-colors">
                   Tin tức BDS
                 </a>
               </div>

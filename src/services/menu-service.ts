@@ -326,8 +326,8 @@ function propertyTypeToNavItem(pt: MenuPropertyType, basePath: string): NavItem 
 function folderToNavItem(folder: MenuFolder): NavItem {
   // Use folder name for URL slug
   const slug = folder.name || folder.label?.toLowerCase().replace(/\s+/g, "-") || "";
-  // Use /tin-tuc/danh-muc/ prefix to avoid conflicts with article URLs
-  const href = `/tin-tuc/danh-muc/${slug}`;
+  // Phase 2: v1-compatible folder URLs
+  const href = `/chuyenmuc/${slug}`;
 
   const navItem: NavItem = {
     label: folder.label || folder.name || "",
@@ -384,10 +384,10 @@ export async function buildMainNav(): Promise<NavItem[]> {
       ),
     },
 
-    // Tin tức
+    // Tin tức (dropdown only, no direct link)
     {
       label: "Tin tức",
-      href: "/tin-tuc",
+      href: "#",
       children: structure.newsFolders.map(folderToNavItem),
     },
 
@@ -416,7 +416,7 @@ export function getFallbackMenu(): NavItem[] {
     { label: "Mua bán", href: "/mua-ban" },
     { label: "Cho thuê", href: "/cho-thue" },
     { label: "Dự án", href: "/du-an" },
-    { label: "Tin tức", href: "/tin-tuc" },
+    { label: "Tin tức", href: "/tin" },
     { label: "Liên hệ", href: "/lien-he" },
     { label: "Mạng lưới", href: "/maps" },
     { label: "Tiện ích", href: "/tienich" },

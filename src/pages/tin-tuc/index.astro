@@ -89,14 +89,14 @@ const pageDescription = 'Cập nhật tin tức bất động sản mới nhất
               <h2 class="font-semibold text-secondary-800 mb-3">Danh mục</h2>
               <ul class="space-y-1">
                 <li>
-                  <a href="/tin-tuc" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm bg-primary-50 text-primary-600 font-medium">
+                  <a href="/tin" class="flex items-center justify-between px-3 py-2 rounded-lg text-sm bg-primary-50 text-primary-600 font-medium">
                     <span>Tất cả</span>
                     <span class="text-xs">{allNews.length}</span>
                   </a>
                 </li>
                 {categories.map((cat) => (
                   <li>
-                    <a href={`/tin-tuc/danh-muc/${cat.slug}`} class="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-secondary-600 hover:bg-secondary-50 transition-colors">
+                    <a href={`/chuyenmuc/${cat.slug}`} class="flex items-center justify-between px-3 py-2 rounded-lg text-sm text-secondary-600 hover:bg-secondary-50 transition-colors">
                       <span>{cat.label}</span>
                       <span class="text-xs text-secondary-400">{categoryCounts[cat.key]}</span>
                     </a>
@@ -111,7 +111,7 @@ const pageDescription = 'Cập nhật tin tức bất động sản mới nhất
               <ul class="space-y-3">
                 {popularArticles.map((article) => (
                   <li>
-                    <a href={`/tin-tuc/${article.slug}`} class="group flex gap-3">
+                    <a href={`/tin/${article.slug}`} class="group flex gap-3">
                       <img src={article.thumbnail} alt={article.title} class="w-16 h-12 object-cover rounded" loading="lazy" />
                       <div class="flex-1 min-w-0">
                         <h3 class="text-sm text-secondary-700 line-clamp-2 group-hover:text-primary-500 transition-colors leading-snug">{article.title}</h3>
@@ -130,9 +130,9 @@ const pageDescription = 'Cập nhật tin tức bất động sản mới nhất
           <!-- Mobile Category Links -->
           <div class="lg:hidden mb-4 overflow-x-auto">
             <div class="flex gap-2 pb-2">
-              <a href="/tin-tuc" class="whitespace-nowrap px-3 py-1.5 rounded-full text-sm bg-primary-500 text-white">Tất cả</a>
+              <a href="/tin" class="whitespace-nowrap px-3 py-1.5 rounded-full text-sm bg-primary-500 text-white">Tất cả</a>
               {categories.map((cat) => (
-                <a href={`/tin-tuc/danh-muc/${cat.slug}`} class="whitespace-nowrap px-3 py-1.5 rounded-full text-sm bg-white text-secondary-600 hover:bg-secondary-100 transition-colors">{cat.label}</a>
+                <a href={`/chuyenmuc/${cat.slug}`} class="whitespace-nowrap px-3 py-1.5 rounded-full text-sm bg-white text-secondary-600 hover:bg-secondary-100 transition-colors">{cat.label}</a>
               ))}
             </div>
           </div>
@@ -140,7 +140,7 @@ const pageDescription = 'Cập nhật tin tức bất động sản mới nhất
           <!-- News Grid -->
           <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-5">
             {paginatedNews.map((article) => (
-              <a href={`/tin-tuc/${article.slug}`} class="bg-white rounded-xl overflow-hidden hover:shadow-md transition-shadow">
+              <a href={`/tin/${article.slug}`} class="bg-white rounded-xl overflow-hidden hover:shadow-md transition-shadow">
                 <div class="aspect-[16/10] overflow-hidden">
                   <img src={article.thumbnail} alt={article.title} class="w-full h-full object-cover hover:scale-105 transition-transform duration-500" loading="lazy" />
                 </div>
@@ -163,7 +163,7 @@ const pageDescription = 'Cập nhật tin tức bất động sản mới nhất
           </div>
 
           <!-- Pagination -->
-          <Pagination currentPage={currentPage} totalPages={totalPages} baseUrl="/tin-tuc" />
+          <Pagination currentPage={currentPage} totalPages={totalPages} baseUrl="/tin" />
         </main>
       </div>
     </div>

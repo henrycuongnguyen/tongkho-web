@@ -134,8 +134,7 @@ src/
 │   ├── tin-tuc.astro       # News listing (static, 9 per page)
 │   ├── tin-tuc/[slug].astro # News article detail (SSR)
 │   ├── tin-tuc/trang/[page].astro # Paginated news (SSR)
-│   ├── tin-tuc/danh-muc/[category].astro # Category filter (5)
-│   ├── tin-tuc/danh-muc/[folder].astro # Dynamic folder pages (27)
+│   └── chuyenmuc/[folder].astro # News folder pages with pagination (SSR) [Phase 2]
 │   ├── bds/[slug].astro    # Property detail (SSR)
 │   ├── lien-he.astro       # Contact page (SSR, form submission)
 │   ├── tienich/index.astro # [NEW] Utilities index (redirects to first utility)
@@ -215,20 +214,24 @@ pages/tin-tuc/[slug].astro (News Article, SSR)
 ├── Related articles sidebar
 ├── Author & date info
 
-pages/tin-tuc/danh-muc/[folder].astro (Folder Pages, SSG)
-├── 27 dynamic category pages auto-generated
-├── News articles filtered by folder
-├── Hierarchical navigation
+pages/chuyenmuc/[folder].astro (Folder Pages, SSR) [Phase 2]
+├── Dynamic news articles filtered by folder
+├── Query param pagination (?page=2)
+├── Breadcrumb navigation
+└── SEO metadata per folder
 ```
 
-**Database-Driven Menu Generation (Phase 4):**
+**Database-Driven Menu & Routing (Phases 2-4):**
 ```
-Astro Build Process
-  ├─ Folder Pages Generation (Phase 4)
-  │   └─ /tin-tuc/danh-muc/[folder].astro
-  │       ├─ Fetch all newsFolders via buildMenuStructure()
-  │       ├─ Generate dynamic routes for each folder
-  │       └─ Output: /dist/tin-tuc/danh-muc/{folder-name}/index.html (27 pages)
+Astro Build & Runtime Process
+  ├─ Folder Pages Rendering (Phase 2)
+  │   └─ /chuyenmuc/[folder].astro (SSR mode: prerender=false)
+  │       ├─ Fetch folder data via getNewsByFolder(folder, page, itemsPerPage)
+  │       ├─ Render on-demand per request (enables ?page query params)
+  │       └─ Output: /chuyenmuc/{folder-name}?page=N
+  │
+  ├─ Menu Generation at Build Time (Phase 2)
+  │   └─ Folder URLs generated as `/chuyenmuc/{slug}` (not `/tin-tuc/danh-muc/`)
   │
   ├─ Navigation Menu Generation
   │   └─ header.astro
@@ -246,7 +249,7 @@ Astro Build Process
   │               └─ Transform to NavItem[] with nested children
   │                   ├─ folderToNavItem() recursively builds children
   │                   ├─ label: folder.label | folder.name
-  │                   ├─ href: /tin-tuc/danh-muc/{folder.name}
+  │                   ├─ href: /chuyenmuc/{folder.name} [Phase 2, v1-compatible]
   │                   └─ children?: NavItem[] (sub-folders)
   │       └─ Error handling: Return FALLBACK_MENU if DB unavailable
   │
@@ -257,8 +260,13 @@ Astro Build Process
   │       ├─ priceRanges[] (500M-1T, 1-2T, etc.)
   │       └─ areaRanges[] (<30m², 30-50m², etc.)
   │
-  └─ Build outputs static HTML with embedded menu + 27 folder pages
-     └─ No runtime database calls (data baked into HTML)
+  ├─ Build outputs menu with `/chuyenmuc/` links [Phase 2]
+  │   └─ Menu generation: static at build time
+  │   └─ Folder pages: dynamic rendering on request (SSR, prerender=false)
+  │
+  └─ Database calls strategy:
+     ├─ Menu data: Build time only (fetched once, cached, no runtime calls)
+     └─ Folder pages: Request time (SSR fetches folder content + articles for pagination)
 ```
 
 ### 2a. Header Navigation Rendering (Desktop vs Mobile)
@@ -1574,19 +1582,20 @@ menu-service.ts
 │   └─ Parallel data fetching with Promise.all()
 ├─ folderToNavItem()         # Recursively transform MenuFolder → NavItem
 │   ├─ Map folder.name to slug
-│   ├─ Generate href: /tin-tuc/danh-muc/{slug}
+│   ├─ Generate href: /chuyenmuc/{slug} [Phase 2, v1-compatible]
 │   └─ Recursively map subFolders[] to children[]
 └─ buildMainNav()            # Generate NavItem[] with nested children
     ↓
-[folder].astro Dynamic Page Generation (Phase 4)
-├─ Get all newsFolders via buildMenuStructure()
-├─ Generate static paths for each folder
-├─ Render: /tin-tuc/danh-muc/{folder-name}/
-└─ Output: 27 static HTML files
+chuyenmuc/[folder].astro Dynamic Page Rendering (Phase 2+)
+├─ Fetch folder data via getNewsByFolder(folder, page, itemsPerPage)
+├─ Support query param pagination (?page=N)
+├─ Render: /chuyenmuc/{folder-name}?page=1
+└─ Output: Dynamic HTML (SSR, prerender=false)
     ↓
-Static HTML Generation (Astro output)
-    ↓
-Browser (No runtime database calls)
+Browser (Dynamic requests → SSR folder pages)
+├─ Menu links point to /chuyenmuc/{folder}
+├─ Pagination: ?page=2, ?page=3, etc.
+└─ 301 redirects: /tin-tuc/danh-muc/* → /chuyenmuc/*
 ```
 
 ### Data Structure: MenuFolder Hierarchy

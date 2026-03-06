@@ -1,7 +1,7 @@
 # Menu Management Guide
 
-**Last Updated:** 2026-02-06
-**Version:** 2.0.0
+**Last Updated:** 2026-03-06
+**Version:** 2.1.0
 
 ---
 
@@ -143,9 +143,11 @@ npm run deploy
 - Pattern: `/{transaction-slug}/{property-slug}`
 - Example: `/mua-ban/can-ho-chung-cu`
 
-### News Folder Pages
-- Pattern: `/tin-tuc/danh-muc/{folder-name}`
-- Example: `/tin-tuc/danh-muc/tin-thi-truong`
+### News Folder Pages (Phase 2+)
+- Pattern: `/chuyenmuc/{folder-name}`
+- Example: `/chuyenmuc/tin-thi-truong`
+- Pagination: `/chuyenmuc/tin-thi-truong?page=2`
+- **Legacy Pattern (deprecated):** `/tin-tuc/danh-muc/{folder-name}` → Redirects via 301 to new pattern
 
 ### News Article Pages
 - Pattern: `/tin-tuc/{article-slug}`
@@ -219,6 +221,49 @@ npm run deploy
    ```sql
    GRANT SELECT ON property_type, folder TO astro_build_user;
    ```
+
+### Old news folder URLs return 404
+
+**Background:** Phase 2 migrated news folder URLs from `/tin-tuc/danh-muc/{folder}` to `/chuyenmuc/{folder}` for v1 compatibility.
+
+**Cause:** 301 redirects not configured or expired
+
+**Solution:** Configure server-side 301 redirects
+
+**Nginx:**
+```nginx
+# Add to nginx config (before routing to app)
+rewrite ^/tin-tuc/danh-muc/(.*)$ /chuyenmuc/$1 permanent;
+```
+
+**Apache (.htaccess):**
+```apache
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteRule ^tin-tuc/danh-muc/(.*)$ /chuyenmuc/$1 [R=301,L]
+</IfModule>
+```
+
+**Astro/Cloudflare Pages (middleware):**
+```typescript
+// middleware.ts
+export const onRequest = (context, next) => {
+  if (context.request.url.pathname.startsWith('/tin-tuc/danh-muc/')) {
+    const newPath = context.request.url.pathname.replace('/tin-tuc/danh-muc/', '/chuyenmuc/');
+    return new Response(null, {
+      status: 301,
+      headers: { Location: newPath }
+    });
+  }
+  return next();
+};
+```
+
+**Why This Matters:**
+- ✅ Preserves SEO (301 = permanent redirect, passes link equity)
+- ✅ Old bookmarks still work
+- ✅ Social share links remain valid
+- ✅ Crawlers update index to new URLs
 
 ---
 

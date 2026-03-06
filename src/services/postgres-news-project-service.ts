@@ -1,19 +1,122 @@
 /**
  * PostgreSQL News & Project Service
  * Fetches news articles and projects from PostgreSQL database using Drizzle ORM
+ *
+ * Phase 1: v1-compatible dynamic folder queries
  */
 import { db } from "@/db";
 import { news, project, type NewsRow, type ProjectRow } from "@/db/schema";
-import { eq, and, ne, desc, inArray, isNull, isNotNull, sql } from "drizzle-orm";
-import type { NewsArticle, Project } from "@/types/property";
+import { folder as folderTable } from "@/db/schema/menu";
+import { eq, and, ne, desc, asc, inArray, isNull, isNotNull, sql } from "drizzle-orm";
+import type { NewsArticle, Project, Folder, NewsCategory } from "@/types/property";
 import { generateSlug } from "@/utils/format";
 
 // Base URL for uploaded images
 const UPLOADS_BASE_URL = "https://quanly.tongkhobds.com";
 
-// News folder IDs for website articles (based on actual content analysis)
-// 26: quy-hoach-phap-ly, 27: noi-ngoai-that, 37: phong-thuy-nha-o
-const NEWS_FOLDERS = [26, 27, 37];
+/**
+ * Get category by folder ID (temporary mapping until Phase 2)
+ * Phase 2 will use folder.label directly for category mapping
+ */
+function getCategoryByFolderId(folderId: number | null): NewsCategory {
+  if (!folderId) return 'tips';
+
+  const categoryMap: Record<number, NewsCategory> = {
+    26: 'policy',      // quy-hoach-phap-ly (planning & legal)
+    27: 'tips',        // noi-ngoai-that (interior/exterior design)
+    37: 'tips',        // phong-thuy-nha-o (feng shui)
+    // More mappings can be added as discovered
+  };
+
+  return categoryMap[folderId] || 'tips';
+}
+
+/**
+ * Map database row to NewsArticle interface
+ */
+function mapNewsRowToArticle(row: NewsRow): NewsArticle {
+  const slug = generateSlug(row.name || '');
+  const category = getCategoryByFolderId(row.folder);
+
+  return {
+    id: String(row.id),
+    title: row.name || "",
+    slug,
+    excerpt: row.description?.slice(0, 200) || "",
+    content: fixLocalhostUrls(row.htmlcontent || row.description || ""),
+    thumbnail: getFullImageUrl(row.avatar),
+    category,
+    author: "TongkhoBDS",
+    publishedAt: row.publishOn?.toISOString() || new Date().toISOString(),
+    views: Math.floor(Math.random() * 5000) + 500, // Placeholder, DB doesn't have views
+  };
+}
+
+/**
+ * Get news articles by folder slug (v1-compatible)
+ * Matches v1 logic: cms.get_folder(folder) + cms.get_content(tablename='news', folder=folder_id)
+ *
+ * @param folderSlug - Folder slug (e.g., "du-an-noi-bat")
+ * @param page - Page number (1-indexed)
+ * @param itemsPerPage - Items per page (default: 9)
+ * @returns News articles, total count, and folder metadata
+ */
+export async function getNewsByFolder(
+  folderSlug: string,
+  page: number = 1,
+  itemsPerPage: number = 9
+): Promise<{ items: NewsArticle[]; total: number; folder: Folder | null }> {
+  // 1. Get folder by slug (v1: cms.get_folder)
+  const folder = await db
+    .select()
+    .from(folderTable)
+    .where(eq(folderTable.name, folderSlug))
+    .limit(1)
+    .then(rows => rows[0] || null);
+
+  if (!folder) {
+    return { items: [], total: 0, folder: null };
+  }
+
+  // 2. Get news by folder (v1: cms.get_content)
+  const offset = (page - 1) * itemsPerPage;
+  const newsRows = await db
+    .select()
+    .from(news)
+    .where(
+      and(
+        eq(news.folder, folder.id),
+        eq(news.aactive, true),
+        isNotNull(news.avatar),
+        ne(news.avatar, '')
+      )
+    )
+    .orderBy(
+      asc(news.displayOrder),  // v1: display_order ASC
+      desc(news.id)             // v1: id DESC
+    )
+    .limit(itemsPerPage)
+    .offset(offset);
+
+  // 3. Get total count (v1: cms.get_count)
+  const countResult = await db
+    .select({ count: sql<number>`count(*)` })
+    .from(news)
+    .where(
+      and(
+        eq(news.folder, folder.id),
+        eq(news.aactive, true),
+        isNotNull(news.avatar),
+        ne(news.avatar, '')
+      )
+    )
+    .then(rows => rows[0]?.count || 0);
+
+  // 4. Map to NewsArticle type
+  const items = newsRows.map(row => mapNewsRowToArticle(row));
+
+  return { items, total: countResult, folder: folder as Folder };
+}
 
 /**
  * Get news article by slug
@@ -25,12 +128,15 @@ export async function getNewsBySlug(slug: string): Promise<NewsArticle | null> {
     .where(
       and(
         eq(news.aactive, true),
-        inArray(news.folder, NEWS_FOLDERS),
+        // Removed hardcoded folder filter - search all folders
         isNotNull(news.avatar),
         ne(news.avatar, '')
       )
     )
-    .orderBy(sql`${news.publishOn} DESC NULLS LAST`);
+    .orderBy(
+      asc(news.displayOrder),  // v1: display_order ASC
+      desc(news.id)             // v1: id DESC
+    );
 
   // Find article by generated slug
   const matchingRow = result.find(
@@ -41,11 +147,11 @@ export async function getNewsBySlug(slug: string): Promise<NewsArticle | null> {
     return null;
   }
 
-  return mapToNewsArticle(matchingRow);
+  return mapNewsRowToArticle(matchingRow);
 }
 
 /**
- * Get latest news articles
+ * Get latest news articles (v1-compatible sort order)
  */
 export async function getLatestNews(limit: number = 8): Promise<NewsArticle[]> {
   const result = await db
@@ -54,15 +160,18 @@ export async function getLatestNews(limit: number = 8): Promise<NewsArticle[]> {
     .where(
       and(
         eq(news.aactive, true),
-        inArray(news.folder, NEWS_FOLDERS),
+        // Removed hardcoded folder filter - get from ALL folders
         isNotNull(news.avatar),
         ne(news.avatar, '')
       )
     )
-    .orderBy(sql`${news.publishOn} DESC NULLS LAST`, desc(news.id))
+    .orderBy(
+      asc(news.displayOrder),  // v1: display_order ASC
+      desc(news.id)             // v1: id DESC
+    )
     .limit(limit);
 
-  return result.map((row) => mapToNewsArticle(row));
+  return result.map((row) => mapNewsRowToArticle(row));
 }
 
 /**
@@ -99,35 +208,6 @@ export async function getFeaturedProjects(limit: number = 5): Promise<Project[]>
   }
 
   return result.map((row) => mapToProject(row));
-}
-
-/**
- * Map database row to NewsArticle interface
- */
-function mapToNewsArticle(row: NewsRow): NewsArticle {
-  // Generate slug from name
-  const slug = generateSlug(row.name || '');
-
-  // Map folder to category based on actual DB folder structure
-  const categoryMap: Record<number, NewsArticle["category"]> = {
-    26: "policy",        // quy-hoach-phap-ly (planning & legal)
-    27: "tips",          // noi-ngoai-that (interior/exterior design)
-    37: "tips",          // phong-thuy-nha-o (feng shui)
-  };
-  const category = categoryMap[row.folder || 0] || "tips";
-
-  return {
-    id: String(row.id),
-    title: row.name || "",
-    slug,
-    excerpt: row.description?.slice(0, 200) || "",
-    content: row.htmlcontent || row.description || "",
-    thumbnail: getFullImageUrl(row.avatar),
-    category,
-    author: "TongkhoBDS",
-    publishedAt: row.publishOn?.toISOString() || new Date().toISOString(),
-    views: Math.floor(Math.random() * 5000) + 500, // Placeholder, DB doesn't have views
-  };
 }
 
 /**
@@ -213,4 +293,17 @@ function getFullImageUrl(path: string | null | undefined): string {
     return `${UPLOADS_BASE_URL}${cleanPath}`;
   }
   return `${UPLOADS_BASE_URL}/${path}`;
+}
+
+/**
+ * Fix localhost URLs in HTML content
+ * Replaces http://localhost/... with https://quanly.tongkhobds.com/...
+ */
+function fixLocalhostUrls(content: string | null | undefined): string {
+  if (!content) return "";
+  // Replace localhost URLs with production domain
+  return content.replace(
+    /http:\/\/localhost\//g,
+    'https://quanly.tongkhobds.com/'
+  );
 }

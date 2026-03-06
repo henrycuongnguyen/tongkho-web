@@ -99,6 +99,15 @@ export type NewsCategory =
   | "project_news"
   | "investment";
 
+export interface Folder {
+  id: number;
+  parent: number | null;
+  name: string | null;        // URL slug
+  label: string | null;       // Display name
+  publish: 'T' | 'F' | null;
+  displayOrder: number | null;
+}
+
 export interface Location {
   id: string;
   name: string;

@@ -6,7 +6,7 @@
 interface Props {
   currentPage: number;
   totalPages: number;
-  baseUrl: string; // e.g., '/tin-tuc' or '/tin-tuc/danh-muc/thi-truong'
+  baseUrl: string; // e.g., '/tin' or '/chuyenmuc/thi-truong'
 }
 
 const { currentPage, totalPages, baseUrl } = Astro.props;
@@ -14,7 +14,7 @@ const { currentPage, totalPages, baseUrl } = Astro.props;
 // Generate page URL
 function getPageUrl(page: number): string {
   if (page === 1) return baseUrl;
-  return `${baseUrl}/trang/${page}`;
+  return `${baseUrl}?page=${page}`;
 }
 
 // Calculate visible page numbers (show max 5 pages)

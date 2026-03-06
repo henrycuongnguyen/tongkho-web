@@ -55,7 +55,7 @@ const categoryColors: Record<NewsCategory, string> = {
   <div class="space-y-4">
     {relatedArticles.map((article) => (
       <a
-        href={`/tin-tuc/${article.slug}`}
+        href={`/tin/${article.slug}`}
         class="group flex gap-3 p-2 -mx-2 rounded-xl hover:bg-secondary-50 transition-colors duration-200"
       >
         <!-- Thumbnail -->
@@ -92,7 +92,7 @@ const categoryColors: Record<NewsCategory, string> = {
 
   <!-- View All Link -->
   <a
-    href="/tin-tuc"
+    href="/tin"
     class="mt-4 flex items-center justify-center gap-2 py-2.5 text-sm font-medium text-primary-500 hover:text-primary-600 hover:bg-primary-50 rounded-xl transition-colors duration-200"
   >
     Xem tất cả tin tức

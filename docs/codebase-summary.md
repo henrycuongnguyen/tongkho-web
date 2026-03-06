@@ -121,8 +121,7 @@ tongkho-web/
 │   │   ├── tin-tuc.astro                    # News listing (9 per page)
 │   │   ├── tin-tuc/[slug].astro             # News article detail (SSR)
 │   │   ├── tin-tuc/trang/[page].astro       # Paginated news (SSR)
-│   │   ├── tin-tuc/danh-muc/[category].astro # Category filter
-│   │   ├── tin-tuc/danh-muc/[folder].astro  # Dynamic folder pages (27 pages)
+│   │   ├── chuyenmuc/[folder].astro         # News folder pages with pagination (SSR) [Phase 2]
 │   │   ├── bds/[slug].astro                 # Property detail (SSR)
 │   │   ├── du-an/[slug].astro               # Project detail (SSR)
 │   │   ├── lien-he.astro                    # Contact page with form submission

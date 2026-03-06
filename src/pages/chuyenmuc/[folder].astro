@@ -1,0 +1,137 @@
+---
+/**
+ * News Folder Page (SSR)
+ * Dynamic route for database-driven news folders
+ * URL: /chuyenmuc/{folder-name}
+ * Matches v1 URL structure
+ *
+ * Uses SSR for flexibility with pagination and dynamic folder queries.
+ */
+import MainLayout from '@/layouts/main-layout.astro';
+import Pagination from '@/components/ui/pagination.astro';
+import { getNewsByFolder } from '@/services/postgres-news-project-service';
+import { formatRelativeTime } from '@/utils/format';
+
+// SSR mode for dynamic pagination
+export const prerender = false;
+
+// Get folder slug from URL
+const { folder } = Astro.params;
+
+// Get page from query params (default 1)
+const pageParam = Astro.url.searchParams.get('page');
+const currentPage = parseInt(pageParam || '1', 10);
+const itemsPerPage = 9;
+
+// Fetch news from database using Phase 1 service
+const { items, total, folder: folderData } = await getNewsByFolder(
+  folder || '',
+  currentPage,
+  itemsPerPage
+);
+
+// Return 404 if folder not found
+if (!folderData) {
+  return Astro.redirect('/404');
+}
+
+// Calculate pagination
+const totalPages = Math.ceil(total / itemsPerPage);
+
+// SEO metadata
+const pageTitle = `${folderData.label || folderData.name} | Tin tức | TongkhoBDS`;
+const pageDescription = `Danh sách tin tức ${folderData.label || folderData.name} - ${total} bài viết`;
+const canonicalUrl = `/chuyenmuc/${folder}${currentPage > 1 ? `?page=${currentPage}` : ''}`;
+---
+
+<MainLayout
+  title={pageTitle}
+  description={pageDescription}
+  canonicalUrl={canonicalUrl}
+>
+  <!-- Breadcrumb -->
+  <div class="bg-white border-b border-secondary-100">
+    <div class="container-custom py-4">
+      <nav class="text-sm text-secondary-500">
+        <ol class="flex items-center gap-2">
+          <li><a href="/" class="hover:text-primary-500 transition-colors">Trang chủ</a></li>
+          <li class="text-secondary-300">/</li>
+          <li><a href="/tin" class="hover:text-primary-500 transition-colors">Tin tức</a></li>
+          <li class="text-secondary-300">/</li>
+          <li class="text-secondary-700 font-medium">{folderData.label || folderData.name}</li>
+        </ol>
+      </nav>
+    </div>
+  </div>
+
+  <!-- Page Header -->
+  <div class="bg-gradient-to-r from-primary-50 to-primary-100 py-12">
+    <div class="container-custom">
+      <h1 class="text-4xl font-bold text-secondary-900 mb-2">
+        {folderData.label || folderData.name}
+      </h1>
+      <p class="text-lg text-secondary-600">
+        {total} bài viết{currentPage > 1 ? ` - Trang ${currentPage}` : ''}
+      </p>
+    </div>
+  </div>
+
+  <!-- News Articles -->
+  <div class="container-custom py-12">
+    {items.length > 0 ? (
+      <>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+          {items.map((article) => (
+            <article class="bg-white rounded-xl shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+              {article.thumbnail && (
+                <a href={`/tin/${article.slug}`} class="block">
+                  <img
+                    src={article.thumbnail}
+                    alt={article.title}
+                    class="w-full h-48 object-cover"
+                    loading="lazy"
+                  />
+                </a>
+              )}
+              <div class="p-6">
+                <a href={`/tin/${article.slug}`} class="block group">
+                  <h2 class="text-xl font-semibold text-secondary-900 group-hover:text-primary-500 transition-colors mb-2 line-clamp-2">
+                    {article.title}
+                  </h2>
+                </a>
+                {article.excerpt && (
+                  <p class="text-secondary-600 text-sm mb-4 line-clamp-3">
+                    {article.excerpt}
+                  </p>
+                )}
+                <div class="flex items-center justify-between text-sm text-secondary-500">
+                  {article.author && (
+                    <span>Bởi {article.author}</span>
+                  )}
+                  <time datetime={article.publishedAt}>
+                    {formatRelativeTime(article.publishedAt)}
+                  </time>
+                </div>
+              </div>
+            </article>
+          ))}
+        </div>
+
+        <!-- Pagination -->
+        {totalPages > 1 && (
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            baseUrl={`/chuyenmuc/${folder}`}
+          />
+        )}
+      </>
+    ) : (
+      <div class="col-span-full text-center py-12">
+        <p class="text-secondary-500 text-lg">
+          Chưa có bài viết nào trong chuyên mục này
+        </p>
+      </div>
+    )}
+  </div>
+</MainLayout>

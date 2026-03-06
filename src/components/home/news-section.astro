@@ -18,7 +18,7 @@ const { articles } = Astro.props;
         <div class="w-16 h-1 bg-gradient-to-r from-primary-500 to-primary-300 rounded-full mt-3"></div>
       </div>
       <a
-        href="/tin-tuc"
+        href="/tin"
         class="group flex items-center gap-2 px-5 py-2.5 text-primary-500 hover:text-primary-600 font-medium rounded-full hover:bg-primary-50 transition-all duration-300"
         aria-label="Xem thêm tin tức nổi bật"
       >
@@ -33,7 +33,7 @@ const { articles } = Astro.props;
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 lg:gap-6">
       {articles.map((article, index) => (
         <a
-          href={`/tin-tuc/${article.slug}`}
+          href={`/tin/${article.slug}`}
           class="card group block"
           style={`animation-delay: ${index * 100}ms;`}
         >
