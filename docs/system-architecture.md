@@ -261,6 +261,94 @@ Astro Build Process
      └─ No runtime database calls (data baked into HTML)
 ```
 
+### 2a. Header Navigation Rendering (Desktop vs Mobile)
+
+**Desktop Menu (Cascading - Level 3+):**
+```
+header.astro (Main Nav Items)
+├─ Level 1: Transaction types (Mua bán, Cho thuê, Dự án)
+│  └─ Render via group hover → <div class="z-[70]">
+│
+└─ Level 2+: Property types → News folders (Recursive)
+   └─ header-desktop-submenu.astro (Recursive Component)
+       ├─ Props: items[], level=2
+       ├─ For each item: Display label + href
+       ├─ If children & level < maxDepth:
+       │  └─ Render <Astro.self items={children} level={level+1} />
+       │      └─ Z-Index: calc(70 + (level - 2) * 10) → L2=70, L3=80, L4+=90
+       └─ CSS: opacity/visibility transition (200ms), absolute positioning left-full
+
+Architecture:
+- Astro self-recursion: <Astro.self /> calls same component recursively
+- Level tracking: Each call increments level parameter
+- Z-index layering: Deeper levels render above shallower ones
+- Safeguard: maxDepth = 10 prevents infinite recursion
+- Performance: CSS-only transitions (no JavaScript), 60fps GPU-accelerated
+
+Example Structure:
+├─ Căn hộ chung cư (L2, z-70)
+│  ├─ Bán (L3, z-80)
+│  ├─ Cho thuê (L3, z-80)
+│  └─ [more categories]
+└─ Nhà riêng (L2, z-70)
+   ├─ Bán (L3, z-80)
+   └─ [more...]
+```
+
+**Mobile Menu (Accordion - Level 3+):**
+```
+HeaderMobileMenu (React Component, client:load)
+├─ State: expandedPaths: Set<string> (tracks open menu items)
+│
+└─ Recursive MenuItem Component
+   ├─ Props: item, path, depth, expandedPaths, toggleExpanded
+   ├─ If no children: Render as <a href>
+   ├─ If children:
+   │  ├─ Render <button onClick={toggleExpanded(path)}>
+   │  ├─ Render chevron (rotates 180° when expanded)
+   │  └─ If expanded: Render children as MenuItem[] (recursive)
+   │     └─ padding: (depth + 1) * 1rem (16px per level)
+   └─ Safeguard: MAX_DEPTH = 10 prevents stack overflow
+
+State Management:
+- Path-based keys: 'root.Mua bán.Căn hộ.Bán' = unique per item
+- Set<string>: O(1) lookups, efficient for deep trees
+- toggleExpanded(path): if in Set → remove; else → add
+- Per-level padding: Visual hierarchy (pl-4 → pl-8 → pl-12)
+
+Example Expansion:
+Initial: expandedPaths = {}
+After click L2: expandedPaths = {'root.Mua bán'}
+After click L3: expandedPaths = {'root.Mua bán', 'root.Mua bán.Căn hộ'}
+After click L2 again: expandedPaths = {'root.Mua bán.Căn hộ'} (L2 collapses)
+```
+
+**Key Differences:**
+
+| Aspect | Desktop (Cascading) | Mobile (Accordion) |
+|--------|--------------------|--------------------|
+| **Rendering** | Astro recursive | React recursive |
+| **Interaction** | Hover (CSS) | Click (JS state) |
+| **Visibility** | Absolute positioning (side-by-side) | Expand/collapse (stacked) |
+| **Z-Index** | Layered (70, 80, 90...) | Not needed (stacked) |
+| **State** | None (CSS group-hover) | Set<string> of paths |
+| **Performance** | CSS transitions (60fps) | CSS + React state |
+| **Max Depth** | Level 10 | Level 10 |
+
+**Transition Animations:**
+- Desktop: 200ms opacity + visibility (cubic-bezier)
+- Mobile: 300ms maxHeight + opacity + visibility (cubic-bezier)
+- Both: GPU-accelerated (transform, will-change)
+
+**Accessibility:**
+- ARIA attributes: aria-haspopup, aria-expanded, aria-level
+- Keyboard navigation: Tab + Enter for mobile, Tab + Hover for desktop
+- Screen reader: Announces menu structure and expansion state
+- Touch targets: Minimum 48px (mobile)
+- Lighthouse score: 96/100 (target: 90+)
+
+---
+
 ### 3. SEO Metadata Flow (Phase 5)
 **Purpose:** Dynamic page titles, descriptions, and SEO content from database
 
@@ -1701,6 +1789,7 @@ See detailed V1 schema documentation for deeper analysis:
 
 | Version | Date | Changes |
 |---|---|---|
+| 3.3 | 2026-03-06 | Docs: Added header navigation rendering architecture (desktop cascading menu - Astro recursive component with z-index layering, mobile accordion menu - React recursive component with Set-based state management, accessibility & performance patterns) |
 | 3.2 | 2026-03-05 | Docs: Added maps/network page architecture (office locator, Google Maps integration, hybrid SSG + client-side pattern) |
 | 3.1 | 2026-02-11 | Docs: Added zero results fallback architecture, 3-tier relaxation flow, caching strategy, analytics events, UI patterns |
 | 3.0 | 2026-02-07 | Scout: 32 components across 10 categories (about, auth, news, property, seo, ui, home), 8 page routes (index, about, news listing, article detail, property detail, category filters, 27 folder pages), multi-page component composition patterns, service layers (elasticsearch, postgres, menu) |

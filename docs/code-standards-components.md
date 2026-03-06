@@ -688,6 +688,273 @@ export function RealtimeSearch() {
 
 ---
 
+---
+
+## Recursive Component Patterns
+
+Use recursive components for hierarchical data structures (menus, categories, org charts, trees).
+
+### Astro Self-Recursion Pattern
+
+For unlimited nesting depth without explicit naming. Component calls itself recursively via `Astro.self`.
+
+**File:** `components/header/header-desktop-submenu.astro`
+
+**Pattern:**
+```astro
+---
+import type { NavItem } from '@/types/menu';
+
+interface Props {
+  items: NavItem[];
+  level?: number;
+}
+
+const { items, level = 2 } = Astro.props;
+const maxDepth = 10; // Safeguard: prevent infinite recursion
+const zIndex = Math.min(70 + (level - 2) * 10, 90); // L2=70, L3=80, L4+=90
+---
+
+<div class={`bg-white rounded-xl shadow-xl py-2 min-w-[280px]`} style={`z-index: ${zIndex}`}>
+  {items.map((item) => (
+    <div class="relative group/submenu">
+      <a
+        href={item.href}
+        class="flex items-center justify-between px-4 py-2.5 hover:bg-primary-50 transition-colors"
+        aria-haspopup={item.children ? 'true' : undefined}
+        aria-expanded={item.children ? 'false' : undefined}
+      >
+        <span>{item.label}</span>
+        {item.children && item.children.length > 0 && (
+          <svg class="w-4 h-4 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        )}
+      </a>
+      {item.children && item.children.length > 0 && level < maxDepth && (
+        <div
+          class="absolute top-0 left-full z-[80] ml-1 opacity-0 invisible group-hover/submenu:opacity-100 group-hover/submenu:visible transition-all duration-200"
+          style={`z-index: ${zIndex + 10}`}
+        >
+          <Astro.self items={item.children} level={level + 1} />
+        </div>
+      )}
+    </div>
+  ))}
+</div>
+```
+
+**Key Points:**
+- `Astro.self` – References the current component for recursion
+- `level` parameter – Tracks nesting depth, determines z-index
+- `maxDepth` safeguard – Stops recursion at depth 10, prevents stack overflow
+- `level < maxDepth` condition – Controls when to render children
+- Z-index strategy – Each level increments by 10 (capped at 90)
+- CSS transitions – Hover state via group-hover (no JavaScript)
+
+**When to Use:**
+- Multi-level navigation menus
+- Folder hierarchies (files → subfolders → sub-subfolders)
+- Product categories (category → subcategory → items)
+- Comment threads with nested replies
+- Organization charts
+
+---
+
+### React Recursive Component with State
+
+For hierarchical data with expand/collapse state management. Uses path-based keys in Set for O(1) lookups.
+
+**File:** `components/header/header-mobile-menu.tsx`
+
+**Pattern:**
+```typescript
+import { useState } from 'react';
+import type { NavItem } from '@/types/menu';
+
+const MAX_DEPTH = 10;
+
+interface MenuItemProps {
+  item: NavItem;
+  path: string;
+  depth: number;
+  expandedPaths: Set<string>;
+  toggleExpanded: (path: string) => void;
+}
+
+function MenuItem({
+  item,
+  path,
+  depth,
+  expandedPaths,
+  toggleExpanded,
+}: MenuItemProps) {
+  // Safeguard: prevent infinite recursion
+  if (depth >= MAX_DEPTH) {
+    return null;
+  }
+
+  const isExpanded = expandedPaths.has(path);
+  const hasChildren = item.children && item.children.length > 0;
+  const paddingLeft = `${(depth + 1) * 1}rem`; // pl-4 → pl-8 → pl-12
+
+  // Leaf item: no children
+  if (!hasChildren) {
+    return (
+      <a
+        href={item.href}
+        className="block py-2 text-secondary-600 hover:text-primary-500 transition-colors"
+        style={{ paddingLeft }}
+      >
+        {item.label}
+      </a>
+    );
+  }
+
+  // Parent item: has children, toggleable
+  return (
+    <>
+      <button
+        onClick={() => toggleExpanded(path)}
+        className="flex items-center justify-between w-full py-2 text-secondary-600 hover:text-primary-500 transition-colors"
+        style={{ paddingLeft }}
+        aria-expanded={isExpanded}
+        aria-haspopup="true"
+      >
+        <span>{item.label}</span>
+        <svg
+          className={`w-4 h-4 transition-transform duration-200 ${
+            isExpanded ? 'rotate-180' : ''
+          }`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M19 9l-7 7-7-7"
+          />
+        </svg>
+      </button>
+
+      {/* Expanded children container */}
+      <div
+        className={`overflow-hidden transition-all duration-300 ${
+          isExpanded ? 'opacity-100 visible' : 'opacity-0 invisible'
+        }`}
+        style={{
+          maxHeight: isExpanded
+            ? `${(item.children?.length || 0) * 48}px`
+            : '0',
+        }}
+      >
+        {item.children?.map((child) => (
+          <MenuItem
+            key={child.href}
+            item={child}
+            path={`${path}.${child.label}`}
+            depth={depth + 1}
+            expandedPaths={expandedPaths}
+            toggleExpanded={toggleExpanded}
+          />
+        ))}
+      </div>
+    </>
+  );
+}
+
+export default function HeaderMobileMenu({ navItems }: Props) {
+  const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+
+  const toggleExpanded = (path: string) => {
+    setExpandedPaths((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path); // Collapse
+      } else {
+        next.add(path); // Expand
+      }
+      return next;
+    });
+  };
+
+  return (
+    <div className="mobile-menu">
+      {navItems.map((item) => (
+        <MenuItem
+          key={item.href}
+          item={item}
+          path={`root.${item.label}`}
+          depth={0}
+          expandedPaths={expandedPaths}
+          toggleExpanded={toggleExpanded}
+        />
+      ))}
+    </div>
+  );
+}
+```
+
+**Key Points:**
+- `expandedPaths: Set<string>` – Tracks open menu items (O(1) lookup)
+- `path: string` – Unique key: `'root.Mua bán.Căn hộ.Bán'`
+- `depth: number` – Increments with recursion, stops at MAX_DEPTH
+- `toggleExpanded()` – Adds/removes path from Set on click
+- `paddingLeft` – Visual hierarchy via depth × 1rem
+- Chevron rotation – 180° on expand (via isExpanded)
+- `maxHeight` animation – Smooth expand/collapse (300ms)
+
+**Performance Considerations:**
+- Set has O(1) add/remove/lookup operations
+- Avoids Array.find() for large hierarchies
+- CSS animations (maxHeight, opacity) are GPU-accelerated
+- Update only toggleExpanded Set on click (immutable pattern)
+
+**When to Use:**
+- Mobile/accordion menus
+- Collapsible sections with state
+- Threaded comment systems
+- Expandable data tables
+- Settings panels with collapsible groups
+
+---
+
+## Safeguarding Recursive Components
+
+Always include depth limits and recursion guards:
+
+```typescript
+// ❌ BAD - Infinite recursion risk
+function UnsafeComponent({ children }) {
+  return <div>{children?.map(child => <UnsafeComponent {...child} />)}</div>;
+}
+
+// ✅ GOOD - Depth safeguard
+function SafeComponent({ children, depth = 0 }) {
+  if (depth >= MAX_DEPTH) return null; // Stop recursion
+  return (
+    <div>
+      {children?.map(child => (
+        <SafeComponent {...child} depth={depth + 1} />
+      ))}
+    </div>
+  );
+}
+```
+
+**Safeguarding Checklist:**
+- ✅ Define `MAX_DEPTH` constant (typically 10-20)
+- ✅ Check `if (depth >= MAX_DEPTH) return null;` before recursion
+- ✅ Pass `depth + 1` to child recursive call
+- ✅ Validate props (ensure children is array before map)
+- ✅ Set key prop on recursive calls (for React list rendering)
+- ✅ Test with deep nesting (verify max depth works)
+- ✅ Log depth in development (catch unexpected deep trees)
+
+---
+
 ## Performance Checklist
 
 - Use `<picture>` elements for responsive images
@@ -698,12 +965,13 @@ export function RealtimeSearch() {
 - Use CSS containment for large grids (`contain: layout`)
 - For HTMX, use `hx-trigger="load once"` to prevent repeated requests
 - **[NEW]** SSR components: Fetch at build time, embed in HTML, minimize runtime JS
+- **[NEW]** Recursive components: Include depth safeguards, use Set for state lookups
 
 ---
 
 ## Document Version
 
-- **Version:** 2.2
-- **Last Updated:** 2026-02-10
+- **Version:** 2.3
+- **Last Updated:** 2026-03-06
 - **Parent:** [Code Standards & Conventions](./code-standards.md)
-- **Latest Change:** Added SSR component patterns and guidelines
+- **Latest Change:** Added recursive component patterns (Astro self-recursion, React stateful recursion) with safeguarding guidelines
