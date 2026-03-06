@@ -1,0 +1,63 @@
+---
+import type { NavItem } from '@/types/menu';
+
+interface Props {
+  items: NavItem[];
+  level?: number;
+}
+
+const { items, level = 2 } = Astro.props;
+const maxDepth = 10; // Safeguard against infinite recursion
+const zIndex = Math.min(70 + (level - 2) * 10, 90); // L2=70, L3=80, L4+=90
+
+// All levels: overflow-visible to allow cascading
+// Note: Cannot mix overflow-y-auto with overflow-x-visible - browser forces both to auto
+// Use viewport scrolling instead of container scrolling
+const overflowClass = 'overflow-visible';
+
+// Level 2: fixed width for consistent dropdown
+// Level 3+: auto width to fit content without constraint
+const widthClass = level === 2 ? 'min-w-[280px] max-w-[400px]' : 'min-w-[200px] w-max';
+---
+
+<style>
+  /* Ensure nested submenu shows on hover - use descendant selector */
+  .submenu-item:hover .submenu-cascade {
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Debug: temporarily show all cascades to verify positioning */
+  /* .submenu-cascade {
+    opacity: 1 !important;
+    visibility: visible !important;
+  } */
+</style>
+
+<div class={`bg-white rounded-xl shadow-xl border border-secondary-100 py-2 scroll-smooth ${widthClass} ${overflowClass}`}>
+  {items.map((item) => (
+    <div class="relative group/submenu submenu-item">
+      <a
+        href={item.href}
+        class="flex items-center justify-between px-4 py-2.5 text-secondary-600 hover:text-primary-500 hover:bg-primary-50 transition-colors duration-150 cursor-pointer"
+        aria-haspopup={item.children ? 'true' : undefined}
+        aria-expanded={item.children ? 'false' : undefined}
+      >
+        <span>{item.label}</span>
+        {item.children && item.children.length > 0 && (
+          <svg class="w-4 h-4 ml-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+          </svg>
+        )}
+      </a>
+      {item.children && item.children.length > 0 && level < maxDepth && (
+        <div
+          class="submenu-cascade absolute top-0 opacity-0 invisible transition-all duration-200"
+          style={`left: 100%; margin-left: -0.5rem; z-index: ${zIndex + 10};`}
+        >
+          <Astro.self items={item.children} level={level + 1} />
+        </div>
+      )}
+    </div>
+  ))}
+</div>

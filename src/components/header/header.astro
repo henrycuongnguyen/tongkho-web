@@ -3,6 +3,7 @@ import { Image } from 'astro:assets';
 import logo from '@/assets/images/branding/logo.webp';
 import { getMainNavItems } from '@/data/menu-data';
 import HeaderMobileMenu from './header-mobile-menu';
+import HeaderDesktopSubmenu from './header-desktop-submenu.astro';
 
 const mainNavItems = await getMainNavItems();
 ---
@@ -23,6 +24,8 @@ const mainNavItems = await getMainNavItems();
               href={item.href}
               data-astro-reload={item.href === '/maps' ? 'true' : undefined}
               class="flex items-center gap-1 py-2 text-secondary-700 hover:text-primary-500 transition-colors duration-200 font-medium text-sm whitespace-nowrap cursor-pointer"
+              aria-haspopup={item.children && item.children.length > 0 ? 'true' : undefined}
+              aria-expanded={item.children && item.children.length > 0 ? 'false' : undefined}
             >
               {item.label}
               {item.children && (
@@ -31,18 +34,9 @@ const mainNavItems = await getMainNavItems();
                 </svg>
               )}
             </a>
-            {item.children && (
-              <div class="absolute top-full left-0 z-[70] pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200">
-                <div class="bg-white rounded-xl shadow-xl border border-secondary-100 py-2 min-w-[280px] max-w-[400px] max-h-[480px] overflow-y-auto scroll-smooth">
-                  {item.children.map((child) => (
-                    <a
-                      href={child.href}
-                      class="block px-4 py-2.5 text-secondary-600 hover:text-primary-500 hover:bg-primary-50 transition-colors duration-150 cursor-pointer"
-                    >
-                      {child.label}
-                    </a>
-                  ))}
-                </div>
+            {item.children && item.children.length > 0 && (
+              <div class="absolute top-full left-0 z-[70] pt-2 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200" style="z-index: 70">
+                <HeaderDesktopSubmenu items={item.children} level={2} />
               </div>
             )}
           </div>

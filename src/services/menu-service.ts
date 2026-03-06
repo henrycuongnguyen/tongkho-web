@@ -144,12 +144,26 @@ export async function fetchPropertyTypesByTransaction(
 }
 
 /**
- * Fetch sub-folders for a parent folder
+ * Fetch sub-folders for a parent folder (RECURSIVE)
+ *
+ * This function recursively fetches all descendant folders to support unlimited nesting depth.
+ * Safeguard: Maximum depth of 10 levels to prevent infinite recursion.
  *
  * @param parentId - Parent folder ID
- * @returns Array of published sub-folders sorted by display_order
+ * @param depth - Current recursion depth (default 0, max 10)
+ * @returns Array of published sub-folders with nested children, sorted by display_order
  */
-export async function fetchSubFolders(parentId: number): Promise<MenuFolder[]> {
+export async function fetchSubFolders(
+  parentId: number,
+  depth: number = 0
+): Promise<MenuFolder[]> {
+  const MAX_DEPTH = 10; // Safeguard against infinite recursion
+
+  if (depth >= MAX_DEPTH) {
+    console.warn(`[MenuService] Max recursion depth (${MAX_DEPTH}) reached for parent ${parentId}`);
+    return [];
+  }
+
   try {
     const result = await db
       .select({
@@ -169,14 +183,23 @@ export async function fetchSubFolders(parentId: number): Promise<MenuFolder[]> {
       )
       .orderBy(folder.displayOrder);
 
-    return result.map((row) => ({
-      id: row.id,
-      parent: row.parent,
-      name: row.name,
-      label: row.label,
-      publish: row.publish,
-      displayOrder: row.displayOrder,
-    }));
+    // Recursively fetch children for each sub-folder
+    const foldersWithChildren = await Promise.all(
+      result.map(async (row) => {
+        const children = await fetchSubFolders(row.id, depth + 1);
+        return {
+          id: row.id,
+          parent: row.parent,
+          name: row.name,
+          label: row.label,
+          publish: row.publish,
+          displayOrder: row.displayOrder,
+          subFolders: children.length > 0 ? children : undefined,
+        };
+      })
+    );
+
+    return foldersWithChildren;
   } catch (error) {
     console.error(`[MenuService] Error fetching sub-folders for parent ${parentId}:`, error);
     return []; // Graceful fallback
