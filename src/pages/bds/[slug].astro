@@ -144,62 +144,74 @@ const featuredProjects = await getFeaturedProjects(5);
   image={property.thumbnail}
 >
   <!-- Main Content Slot -->
-  <div class="space-y-6">
+  <div>
     <!-- 1. Image Gallery (horizontal row, like v1) -->
     <ImageGalleryHorizontal images={propertyImages} realEstateCode={property.realEstateCode} />
 
     <!-- 2. Breadcrumb (after gallery, like v1) -->
-    <PropertyDetailBreadcrumb
-      transactionType={property.transactionType}
-      propertyTypeId={property.propertyTypeId}
-      propertyTypeName={propertyTypeData?.vietnamese || undefined}
-      propertyTypeSlug={propertyTypeData?.slug || undefined}
-      cityName={property.city}
-      citySlug={citySlug || undefined}
-      districtName={property.district}
-      districtSlug={districtSlug || undefined}
-      wardName={property.ward}
-      wardSlug={wardSlug || undefined}
-    />
+    <div class="mt-4">
+      <PropertyDetailBreadcrumb
+        transactionType={property.transactionType}
+        propertyTypeId={property.propertyTypeId}
+        propertyTypeName={propertyTypeData?.vietnamese || undefined}
+        propertyTypeSlug={propertyTypeData?.slug || undefined}
+        cityName={property.city}
+        citySlug={citySlug || undefined}
+        districtName={property.district}
+        districtSlug={districtSlug || undefined}
+        wardName={property.ward}
+        wardSlug={wardSlug || undefined}
+      />
+    </div>
 
     <!-- 3. Property Info Section (title, price, address, actions, specs, description, contact) -->
-    <PropertyInfoSection property={property} />
+    <div class="mt-6">
+      <PropertyInfoSection property={property} />
+    </div>
 
     <!-- 4. Video Section (if available) -->
     {property.videoUrl && (
-      <PropertyVideoSection videoUrl={property.videoUrl} />
+      <div class="mt-8">
+        <PropertyVideoSection videoUrl={property.videoUrl} />
+      </div>
     )}
 
     <!-- 5. Map Section (if coordinates available) -->
     {property.lat && property.lng && (
-      <PropertyMapSection
-        lat={property.lat}
-        lng={property.lng}
-        address={property.address}
-        ward={property.ward}
-        district={property.district}
-        city={property.city}
-      />
+      <div class="mt-8">
+        <PropertyMapSection
+          lat={property.lat}
+          lng={property.lng}
+          address={property.address}
+          ward={property.ward}
+          district={property.district}
+          city={property.city}
+        />
+      </div>
     )}
 
     <!-- 6. Documents Section (if available) -->
     {property.legalDocuments && property.legalDocuments.length > 0 && (
-      <PropertyDocumentsSection documents={property.legalDocuments} />
+      <div class="mt-8">
+        <PropertyDocumentsSection documents={property.legalDocuments} />
+      </div>
     )}
 
     <!-- 7. Price History Chart (hidden if no valid price or no map) -->
     {property.lat && property.lng && (
-      <PriceHistoryChart
-        currentPrice={property.price}
-        priceUnit={property.priceUnit}
-        priceHistory={property.priceHistory}
-      />
+      <div class="mt-8">
+        <PriceHistoryChart
+          currentPrice={property.price}
+          priceUnit={property.priceUnit}
+          priceHistory={property.priceHistory}
+        />
+      </div>
     )}
 
     <!-- 8. Related Properties Section -->
     {displayRelated.length > 0 && (
       <section class="mt-12">
-        <h2 class="text-2xl font-bold text-secondary-800 mb-6">Bất động sản khác</h2>
+        <h2 class="text-[20px] leading-[50px] font-bold text-secondary-800 mb-6">Bất động sản khác</h2>
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {displayRelated.map((relatedProperty) => (
             <PropertyCard property={relatedProperty} />
@@ -209,7 +221,7 @@ const featuredProjects = await getFeaturedProjects(5);
     )}
 
     <!-- 9. Watched Properties Section (client-rendered) -->
-    <div id="watched-properties"></div>
+    <div id="watched-properties" class="mt-12"></div>
   </div>
 
   <!-- Sidebar Slot -->

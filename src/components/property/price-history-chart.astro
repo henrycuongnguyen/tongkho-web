@@ -69,9 +69,9 @@ const unitLabel = priceUnit === 'billion' ? 'tỷ' : priceUnit === 'million' ? '
 const chartData = JSON.stringify({ twoYear: twoYearData, fiveYear: fiveYearData, unitLabel, hasRealData });
 ---
 
-<div class="bg-white rounded-xl shadow-sm border border-secondary-100 p-6" id="price-chart-container" data-chart={chartData}>
+<div class="bg-white rounded-xl shadow-md p-6" id="price-chart-container" data-chart={chartData}>
   <div class="flex items-center justify-between mb-4">
-    <h3 class="text-lg font-semibold text-secondary-800">Lịch sử giá</h3>
+    <h3 class="text-[20px] leading-[50px] font-semibold text-secondary-800">Lịch sử giá</h3>
     <div class="flex gap-2" id="chart-period-selector">
       <button
         data-period="2year"
