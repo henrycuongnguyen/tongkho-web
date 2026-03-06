@@ -96,20 +96,20 @@ const breadcrumbSchema = {
 <script type="application/ld+json" set:html={JSON.stringify(breadcrumbSchema)} />
 
 <!-- Breadcrumb Navigation -->
-<nav class="text-sm text-secondary-500" aria-label="Breadcrumb">
+<nav class="text-sm" aria-label="Breadcrumb">
   <ol class="flex flex-wrap items-center gap-2">
     {items.map((item, index) => (
-      <li class="flex items-center">
+      <li class="flex items-center leading-[25px]">
         {item.url ? (
-          <a href={item.url} class="hover:text-primary-500 transition-colors">
+          <a href={item.url} class="font-bold text-orange-500 hover:text-secondary-800 transition-colors">
             {item.text}
           </a>
         ) : (
-          <span class="text-secondary-700 font-medium">{item.text}</span>
+          <span class="text-orange-500 font-bold">{item.text}</span>
         )}
 
         {index < items.length - 1 && (
-          <span class="text-secondary-300 mx-2">&gt;</span>
+          <span class="text-secondary-400 mx-2">&gt;</span>
         )}
       </li>
     ))}
