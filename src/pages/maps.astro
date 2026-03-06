@@ -115,12 +115,52 @@ const pageDescription = 'Danh sách và bản đồ vị trí các văn phòng c
   </script>
 
   <!-- Office Locator Client Script -->
-  <script src="/js/office-locator.js" defer></script>
   <script is:inline>
-    document.addEventListener('DOMContentLoaded', function() {
+    // Global state that persists across View Transitions
+    if (!window.__OFFICE_LOCATOR_STATE__) {
+      window.__OFFICE_LOCATOR_STATE__ = {
+        scriptLoaded: false,
+        scriptLoading: false,
+        listenersAttached: false
+      };
+    }
+
+    // Initialize office locator
+    function initOfficeLocator() {
       if (window.OfficeLocator && window.__OFFICE_DATA__) {
         window.OfficeLocator.init(window.__OFFICE_DATA__);
       }
-    });
+    }
+
+    // Attach event listeners only once globally
+    if (!window.__OFFICE_LOCATOR_STATE__.listenersAttached) {
+      window.__OFFICE_LOCATOR_STATE__.listenersAttached = true;
+
+      // Use astro:page-load for View Transitions compatibility
+      document.addEventListener('astro:page-load', function() {
+        if (window.__OFFICE_LOCATOR_STATE__.scriptLoaded) {
+          initOfficeLocator();
+        }
+      });
+
+      // Cleanup when navigating away
+      document.addEventListener('astro:before-preparation', function() {
+        if (window.OfficeLocator && window.OfficeLocator.cleanup) {
+          window.OfficeLocator.cleanup();
+        }
+      });
+    }
+
+    // Load script only once
+    if (!window.__OFFICE_LOCATOR_STATE__.scriptLoaded && !window.__OFFICE_LOCATOR_STATE__.scriptLoading) {
+      window.__OFFICE_LOCATOR_STATE__.scriptLoading = true;
+      const script = document.createElement('script');
+      script.src = '/js/office-locator.js';
+      script.onload = function() {
+        window.__OFFICE_LOCATOR_STATE__.scriptLoaded = true;
+        window.__OFFICE_LOCATOR_STATE__.scriptLoading = false;
+      };
+      document.head.appendChild(script);
+    }
   </script>
 </MainLayout>
