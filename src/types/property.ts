@@ -87,6 +87,8 @@ export interface NewsArticle {
   content: string;
   thumbnail: string;
   category: NewsCategory;
+  folderId: number | null;
+  folderName: string | null;
   author: string;
   publishedAt: string;
   views: number;

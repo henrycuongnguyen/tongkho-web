@@ -299,6 +299,8 @@ export const mockNews: NewsArticle[] = [
     thumbnail:
       "https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?w=400&h=300&fit=crop",
     category: "market",
+    folderId: null,
+    folderName: null,
     author: "Admin",
     publishedAt: "2026-01-26",
     views: 1250,
@@ -331,6 +333,8 @@ export const mockNews: NewsArticle[] = [
     thumbnail:
       "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=400&h=300&fit=crop",
     category: "tips",
+    folderId: null,
+    folderName: null,
     author: "Admin",
     publishedAt: "2026-01-25",
     views: 890,
@@ -365,6 +369,8 @@ export const mockNews: NewsArticle[] = [
     thumbnail:
       "https://images.unsplash.com/photo-1582407947304-fd86f028f716?w=400&h=300&fit=crop",
     category: "policy",
+    folderId: null,
+    folderName: null,
     author: "Admin",
     publishedAt: "2026-01-24",
     views: 2100,
@@ -379,6 +385,8 @@ export const mockNews: NewsArticle[] = [
     thumbnail:
       "https://images.unsplash.com/photo-1449824913935-59a10b8d2000?w=400&h=300&fit=crop",
     category: "market",
+    folderId: null,
+    folderName: null,
     author: "Admin",
     publishedAt: "2026-01-23",
     views: 3200,
@@ -393,6 +401,8 @@ export const mockNews: NewsArticle[] = [
     thumbnail:
       "https://images.unsplash.com/photo-1554469384-e58fac16e23a?w=400&h=300&fit=crop",
     category: "tips",
+    folderId: null,
+    folderName: null,
     author: "Admin",
     publishedAt: "2026-01-22",
     views: 1580,
@@ -407,6 +417,8 @@ export const mockNews: NewsArticle[] = [
     thumbnail:
       "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?w=400&h=300&fit=crop",
     category: "policy",
+    folderId: null,
+    folderName: null,
     author: "Admin",
     publishedAt: "2026-01-21",
     views: 4500,
@@ -421,6 +433,8 @@ export const mockNews: NewsArticle[] = [
     thumbnail:
       "https://images.unsplash.com/photo-1545324418-cc1a3fa10c00?w=400&h=300&fit=crop",
     category: "project_news",
+    folderId: null,
+    folderName: null,
     author: "Admin",
     publishedAt: "2026-01-20",
     views: 2800,
@@ -435,6 +449,8 @@ export const mockNews: NewsArticle[] = [
     thumbnail:
       "https://images.unsplash.com/photo-1560448204-e02f11c3d0e2?w=400&h=300&fit=crop",
     category: "investment",
+    folderId: null,
+    folderName: null,
     author: "Admin",
     publishedAt: "2026-01-19",
     views: 1950,
