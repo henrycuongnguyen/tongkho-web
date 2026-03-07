@@ -352,15 +352,26 @@ function getFullImageUrl(path: string | null | undefined): string {
 /**
  * Fix localhost URLs and sanitize HTML content
  * 1. Replaces http://localhost/... with https://quanly.tongkhobds.com/...
- * 2. Sanitizes HTML to prevent XSS attacks
+ * 2. Fixes relative /tongkho/... URLs to absolute https://quanly.tongkhobds.com/tongkho/...
+ * 3. Sanitizes HTML to prevent XSS attacks
  */
 function fixLocalhostUrls(content: string | null | undefined): string {
   if (!content) return "";
 
-  // First, replace localhost URLs with production domain
-  const fixedContent = content.replace(
+  let fixedContent = content;
+
+  // Step 1: Replace localhost URLs with production domain
+  fixedContent = fixedContent.replace(
     /http:\/\/localhost\//g,
     'https://quanly.tongkhobds.com/'
+  );
+
+  // Step 2: Fix relative /tongkho/ URLs (for CKEditor uploads and static files)
+  // Matches: src="/tongkho/..." or href="/tongkho/..."
+  // Doesn't match already absolute URLs (https://...)
+  fixedContent = fixedContent.replace(
+    /(src|href)="(\/tongkho\/[^"]*)"/g,
+    `$1="${UPLOADS_BASE_URL}$2"`
   );
 
   // Then sanitize HTML to prevent XSS attacks
