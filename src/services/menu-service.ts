@@ -12,7 +12,7 @@
 
 import { db } from "@/db";
 import { propertyType, folder } from "@/db/schema/menu";
-import { eq, and, isNull, asc } from "drizzle-orm";
+import { eq, and, isNull, asc, inArray } from "drizzle-orm";
 import type {
   MenuPropertyType,
   MenuFolder,
@@ -208,12 +208,13 @@ export async function fetchSubFolders(
 
 /**
  * Fetch all published news folders with hierarchy
+ * Optimized to avoid N+1 queries by fetching all first-level subfolders in one query
  *
  * @returns Array of published news folders with sub-folders, sorted by display_order
  */
 export async function fetchNewsFolders(): Promise<MenuFolder[]> {
   try {
-    // Fetch parent folders (direct children of news root)
+    // Step 1: Fetch parent folders (direct children of news root) - 1 query
     const parentFolders = await db
       .select({
         id: folder.id,
@@ -232,10 +233,65 @@ export async function fetchNewsFolders(): Promise<MenuFolder[]> {
       )
       .orderBy(folder.displayOrder);
 
-    // For each parent folder, fetch sub-folders
+    if (parentFolders.length === 0) {
+      return [];
+    }
+
+    const parentIds = parentFolders.map(pf => pf.id);
+
+    // Step 2: Fetch ALL first-level subfolders in one query - 1 query (instead of N queries)
+    const allFirstLevelSubs = await db
+      .select({
+        id: folder.id,
+        parent: folder.parent,
+        name: folder.name,
+        label: folder.label,
+        publish: folder.publish,
+        displayOrder: folder.displayOrder,
+      })
+      .from(folder)
+      .where(
+        and(
+          eq(folder.publish, "T"),
+          inArray(folder.parent, parentIds)
+        )
+      )
+      .orderBy(folder.displayOrder);
+
+    // Step 3: Map subfolders to their parents in memory
+    const subFoldersByParent = new Map<number, MenuFolder[]>();
+    for (const sub of allFirstLevelSubs) {
+      if (!sub.parent) continue;
+      if (!subFoldersByParent.has(sub.parent)) {
+        subFoldersByParent.set(sub.parent, []);
+      }
+      subFoldersByParent.get(sub.parent)!.push({
+        id: sub.id,
+        parent: sub.parent,
+        name: sub.name,
+        label: sub.label,
+        publish: sub.publish,
+        displayOrder: sub.displayOrder,
+      });
+    }
+
+    // Step 4: Recursively fetch deeper levels if needed (Level 3+)
+    // This uses fetchSubFolders for deeper nesting, but only when necessary
     const foldersWithSubs: MenuFolder[] = await Promise.all(
       parentFolders.map(async (parentFolder) => {
-        const subFolders = await fetchSubFolders(parentFolder.id);
+        const firstLevelSubs = subFoldersByParent.get(parentFolder.id) || [];
+
+        // For each first-level sub, recursively fetch deeper levels if any
+        const subsWithChildren = await Promise.all(
+          firstLevelSubs.map(async (sub) => {
+            const deeperLevels = await fetchSubFolders(sub.id);
+            return {
+              ...sub,
+              subFolders: deeperLevels.length > 0 ? deeperLevels : undefined,
+            };
+          })
+        );
+
         return {
           id: parentFolder.id,
           parent: parentFolder.parent,
@@ -243,7 +299,7 @@ export async function fetchNewsFolders(): Promise<MenuFolder[]> {
           label: parentFolder.label,
           publish: parentFolder.publish,
           displayOrder: parentFolder.displayOrder,
-          subFolders: subFolders.length > 0 ? subFolders : undefined,
+          subFolders: subsWithChildren.length > 0 ? subsWithChildren : undefined,
         };
       })
     );

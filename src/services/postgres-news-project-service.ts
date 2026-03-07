@@ -10,6 +10,7 @@ import { folder as folderTable } from "@/db/schema/menu";
 import { eq, and, ne, desc, asc, inArray, isNull, isNotNull, sql } from "drizzle-orm";
 import type { NewsArticle, Project, Folder, NewsCategory } from "@/types/property";
 import { generateSlug } from "@/utils/format";
+import DOMPurify from "isomorphic-dompurify";
 
 // Base URL for uploaded images
 const UPLOADS_BASE_URL = "https://quanly.tongkhobds.com";
@@ -34,7 +35,7 @@ function getCategoryByFolderId(folderId: number | null): NewsCategory {
 /**
  * Map database row to NewsArticle interface
  */
-function mapNewsRowToArticle(row: NewsRow): NewsArticle {
+function mapNewsRowToArticle(row: NewsRow, folderName?: string | null): NewsArticle {
   const slug = generateSlug(row.name || '');
   const category = getCategoryByFolderId(row.folder);
 
@@ -46,6 +47,8 @@ function mapNewsRowToArticle(row: NewsRow): NewsArticle {
     content: fixLocalhostUrls(row.htmlcontent || row.description || ""),
     thumbnail: getFullImageUrl(row.avatar),
     category,
+    folderId: row.folder,
+    folderName: folderName || null,
     author: "TongkhoBDS",
     publishedAt: row.publishOn?.toISOString() || new Date().toISOString(),
     views: Math.floor(Math.random() * 5000) + 500, // Placeholder, DB doesn't have views
@@ -112,23 +115,74 @@ export async function getNewsByFolder(
     )
     .then(rows => rows[0]?.count || 0);
 
-  // 4. Map to NewsArticle type
-  const items = newsRows.map(row => mapNewsRowToArticle(row));
+  // 4. Map to NewsArticle type with folder name
+  const items = newsRows.map(row => mapNewsRowToArticle(row, folder.name));
 
   return { items, total: countResult, folder: folder as Folder };
 }
 
 /**
- * Get news article by slug
+ * Get related news by folder ID (v1-compatible)
+ * Matches v1 logic: fetch articles from same folder, exclude current article
+ *
+ * @param folderId - Folder ID
+ * @param currentArticleId - Current article ID to exclude
+ * @param limit - Max number of articles to return (default: 20)
+ * @returns Related news articles from same folder
  */
-export async function getNewsBySlug(slug: string): Promise<NewsArticle | null> {
-  const result = await db
+export async function getRelatedNewsByFolderId(
+  folderId: number,
+  currentArticleId: number,
+  limit: number = 20
+): Promise<NewsArticle[]> {
+  // Get folder info
+  const folder = await db
+    .select()
+    .from(folderTable)
+    .where(eq(folderTable.id, folderId))
+    .limit(1)
+    .then(rows => rows[0] || null);
+
+  if (!folder) {
+    return [];
+  }
+
+  // Get news from same folder, excluding current article
+  const newsRows = await db
     .select()
     .from(news)
     .where(
       and(
+        eq(news.folder, folderId),
         eq(news.aactive, true),
-        // Removed hardcoded folder filter - search all folders
+        ne(news.id, currentArticleId), // Exclude current article
+        isNotNull(news.avatar),
+        ne(news.avatar, '')
+      )
+    )
+    .orderBy(
+      asc(news.displayOrder),  // v1: display_order ASC
+      desc(news.id)             // v1: id DESC
+    )
+    .limit(limit);
+
+  return newsRows.map(row => mapNewsRowToArticle(row, folder.name));
+}
+
+/**
+ * Get news article by slug (with folder info via LEFT JOIN)
+ */
+export async function getNewsBySlug(slug: string): Promise<NewsArticle | null> {
+  const result = await db
+    .select({
+      news: news,
+      folder: folderTable,
+    })
+    .from(news)
+    .leftJoin(folderTable, eq(news.folder, folderTable.id))
+    .where(
+      and(
+        eq(news.aactive, true),
         isNotNull(news.avatar),
         ne(news.avatar, '')
       )
@@ -140,14 +194,14 @@ export async function getNewsBySlug(slug: string): Promise<NewsArticle | null> {
 
   // Find article by generated slug
   const matchingRow = result.find(
-    (row) => generateSlug(row.name || '') === slug
+    (row) => generateSlug(row.news.name || '') === slug
   );
 
   if (!matchingRow) {
     return null;
   }
 
-  return mapNewsRowToArticle(matchingRow);
+  return mapNewsRowToArticle(matchingRow.news, matchingRow.folder?.name);
 }
 
 /**
@@ -296,14 +350,32 @@ function getFullImageUrl(path: string | null | undefined): string {
 }
 
 /**
- * Fix localhost URLs in HTML content
- * Replaces http://localhost/... with https://quanly.tongkhobds.com/...
+ * Fix localhost URLs and sanitize HTML content
+ * 1. Replaces http://localhost/... with https://quanly.tongkhobds.com/...
+ * 2. Sanitizes HTML to prevent XSS attacks
  */
 function fixLocalhostUrls(content: string | null | undefined): string {
   if (!content) return "";
-  // Replace localhost URLs with production domain
-  return content.replace(
+
+  // First, replace localhost URLs with production domain
+  const fixedContent = content.replace(
     /http:\/\/localhost\//g,
     'https://quanly.tongkhobds.com/'
   );
+
+  // Then sanitize HTML to prevent XSS attacks
+  // Allow common HTML tags used in article content
+  return DOMPurify.sanitize(fixedContent, {
+    ALLOWED_TAGS: [
+      'p', 'br', 'strong', 'em', 'u', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'pre', 'code',
+      'table', 'thead', 'tbody', 'tr', 'th', 'td',
+      'div', 'span', 'hr'
+    ],
+    ALLOWED_ATTR: [
+      'href', 'src', 'alt', 'title', 'class', 'id',
+      'width', 'height', 'style', 'target', 'rel'
+    ],
+    ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i,
+  });
 }
