@@ -27,6 +27,13 @@ const [relatedNews, newsFolders] = await Promise.all([
   fetchNewsFolders(),
 ]);
 
+// Find the folder that this article belongs to for breadcrumb
+const articleFolder = article.folderName
+  ? newsFolders
+      .flatMap(f => [f, ...(f.subFolders || [])])
+      .find(f => f.name === article.folderName)
+  : null;
+
 // Category label mapping
 const categoryLabels: Record<NewsCategory, string> = {
   market: 'Thị trường',
@@ -50,12 +57,18 @@ const pageDescription = article.excerpt;
     <!-- Breadcrumb -->
     <div class="container-custom py-6">
       <nav class="text-sm">
-        <ol class="flex flex-wrap items-center gap-1">
+        <ol class="flex flex-wrap items-center gap-2">
           <li><a href="/" class="text-primary-600 hover:text-primary-700">Trang chủ</a></li>
-          <li class="text-primary-600">/</li>
-          <li><a href="/tin" class="text-primary-600 hover:text-primary-700">Tin tức</a></li>
-          <li class="text-primary-600">/</li>
-          <li class="text-secondary-800 line-clamp-1">{article.title}</li>
+          {articleFolder && (
+            <>
+              <li class="text-primary-600">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </li>
+              <li><a href={`/chuyenmuc/${articleFolder.name}`} class="text-primary-600 hover:text-primary-700">{articleFolder.label || articleFolder.name}</a></li>
+            </>
+          )}
         </ol>
       </nav>
     </div>
