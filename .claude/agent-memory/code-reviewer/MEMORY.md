@@ -101,3 +101,112 @@ function getPageUrl(page: number): string {
 - **maxHeight Transitions**: Acceptable but less performant than pure transform; monitor on low-end devices
 - **Conditional Rendering**: Use `&&` checks to prevent unnecessary DOM nodes
 - **Magic Numbers**: Extract constants (e.g., `ITEM_HEIGHT_PX = 48`) for maintainability
+
+## XSS Protection (Astro `set:html`)
+
+### Critical Security Pattern
+- **NEVER trust `set:html` without sanitization** - XSS vulnerability if content from DB/API
+- **Always use DOMPurify**: `npm install isomorphic-dompurify` for server-side sanitization
+- **Pattern**: Sanitize in service layer BEFORE returning to page component
+
+### Common Mistake: URL Replacement Only
+```typescript
+// ❌ WRONG - only fixes URLs, no XSS protection
+function fixLocalhostUrls(content: string): string {
+  return content.replace(/http:\/\/localhost\//g, 'https://domain.com/');
+}
+```
+
+### Correct Implementation
+```typescript
+// ✅ CORRECT - sanitize first, then replace URLs
+import DOMPurify from 'isomorphic-dompurify';
+
+function fixLocalhostUrls(content: string): string {
+  if (!content) return "";
+  const urlFixed = content.replace(/http:\/\/localhost\//g, 'https://domain.com/');
+  return DOMPurify.sanitize(urlFixed, {
+    ALLOWED_TAGS: ['p', 'h2', 'h3', 'strong', 'em', 'ul', 'ol', 'li', 'a', 'img', 'blockquote', 'br'],
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'class', 'target', 'rel'],
+    ALLOW_DATA_ATTR: false,
+  });
+}
+```
+
+### Edge Cases to Test
+- `<script>alert('XSS')</script>` - Should be stripped
+- `<img src=x onerror="alert('XSS')">` - Event handlers removed
+- `<div style="position:fixed;...">` - Inline styles allowed if in ALLOWED_ATTR
+- Whitespace-only content: Use `.trim()` before truthy check
+
+## Content Validation Patterns
+
+### Whitespace Edge Case
+```typescript
+// ❌ WRONG - whitespace passes truthy check
+{article.content ? <div set:html={article.content} /> : <Empty />}
+
+// ✅ CORRECT - trim before check
+{article.content?.trim() ? <div set:html={article.content} /> : <Empty />}
+```
+
+### Empty State Handling
+- **Always provide fallback UI** for empty arrays/content
+- **Pattern**: Show user-friendly message, not just blank space
+- **Related articles example**: "Chưa có bài viết liên quan" instead of empty `<ul>`
+
+## Code Quality - DRY Violations
+
+### URL Pattern Duplication
+- **Anti-pattern**: URL patterns like `/chuyenmuc/${slug}` duplicated across files
+- **Fix**: Extract to `src/constants/news-routes.ts` or similar
+- **Pattern**: `export const NEWS_ROUTES = { folder: (slug) => \`/chuyenmuc/${slug}\` } as const;`
+- **Benefit**: Single source of truth for URL structure changes
+
+### Category Label Duplication
+- **Anti-pattern**: Same `categoryLabels` mapping in 2+ files (page + sidebar)
+- **Fix**: Extract to `src/constants/news-categories.ts`
+- **Export as const**: Use `as const` for type narrowing
+- **Import pattern**: `import { CATEGORY_LABELS } from '@/constants/news-categories'`
+
+## Database Query Patterns
+
+### N+1 Query Anti-Pattern
+- **Problem**: `Promise.all` with individual queries per item in loop
+- **Example**: Fetch parent folders, then loop each to fetch subfolders
+- **Impact**: 1 + N queries instead of 2 queries
+- **Solution**: Fetch all child records in single query with `inArray(parent_id, parentIds)`
+```typescript
+// ✅ CORRECT - 2 queries total
+const parentIds = parents.map(p => p.id);
+const allChildren = await db.select().from(table).where(inArray(table.parent, parentIds));
+const childrenByParent = allChildren.reduce((acc, child) => {
+  if (!acc[child.parent]) acc[child.parent] = [];
+  acc[child.parent].push(child);
+  return acc;
+}, {});
+```
+
+## Data Validation Edge Cases
+
+### Null/Empty String URL Construction
+- **Risk**: Database nullable fields used directly in URLs
+- **Example**: `href={\`/chuyenmuc/${subFolder.name}\`}` where `name` is `string | null`
+- **Result**: `/chuyenmuc/null` or `/chuyenmuc/` → 404 errors
+- **Fix**: Validate before rendering
+```astro
+{items.map((item) => {
+  if (!item.name || item.name.trim() === '') return null;
+  return <a href={`/path/${item.name}`}>...</a>
+})}
+```
+
+### Optional Array Rendering
+- **Pattern**: Filter arrays before map to ensure non-empty
+```astro
+const itemsWithChildren = items.filter(item => item.children && item.children.length > 0);
+{itemsWithChildren.map(item => (
+  <div>{item.children.map(...)}</div>
+))}
+```
+- **Empty state**: Decide if UI should show "no items" message or hide section entirely

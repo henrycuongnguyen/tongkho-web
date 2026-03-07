@@ -1,5 +1,47 @@
 # Tester Agent Memory - tongkho-web
 
+## Latest: News Detail Sidebar v1 Parity (COMPLETE - 2026-03-07)
+
+### News Sidebar Dynamic Folders Implementation
+- **Status:** ✅ APPROVED FOR PRODUCTION
+- **Report:** `plans/reports/tester-260307-0816-news-detail-sidebar-v1-parity.md`
+- **Date:** 2026-03-07 08:16 UTC
+- **Test Results:** 47/47 passing (100%), 575ms
+- **Build:** ✅ Success (5.23s), 0 TypeScript errors
+
+### Changes Summary
+1. **Component:** `src/components/news/news-related-articles-sidebar.astro`
+   - Added `newsFolders: MenuFolder[]` prop
+   - Replaced hard-coded categories with dynamic folder sections from database
+   - Filter: Only render folders where `subFolders.length > 0`
+   - URL pattern: `/chuyenmuc/{folder.name}` (v1 parity)
+
+2. **Page:** `src/pages/tin/[slug].astro`
+   - Import `fetchNewsFolders` from menu-service
+   - Add to Promise.all data fetching
+   - Pass `newsFolders` to RelatedArticlesSidebar component
+   - Update news link from `/tin-tuc` to `/tin` (v1 parity)
+
+### Test Results
+- ✅ All 47 unit tests pass (0 failures)
+- ✅ TypeScript: 0 errors (1 unused variable warning in detail page - non-blocking)
+- ✅ Build: Clean, 5.23s execution
+- ✅ No regressions: All existing functionality works
+- ✅ Type safety: Full type checking passed
+
+### Minor Code Quality Issue
+- `categoryColors` variable unused in `[slug].astro` (line 38-43)
+- Action: Remove in cleanup task (low priority)
+- Impact: None on functionality
+
+### Service Layer Validation
+- `fetchNewsFolders()` properly exported from menu-service
+- Returns `Promise<MenuFolder[]>` as expected
+- Error handling: Catches errors, logs, returns empty array
+- Database query: Filters by publish='T', parent=NEWS_ROOT_FOLDER_ID
+
+---
+
 ## Project: News URL v1 Alignment (COMPLETE - Phase 4 Final Validation)
 
 ### Phase 4 Final Validation COMPLETE

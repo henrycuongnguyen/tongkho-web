@@ -34,6 +34,7 @@ Guide to maintaining code quality, consistency, and best practices across the To
 - **Styling** - Tailwind-first, custom CSS only when necessary
 - **Navigation Safety** - Always check current URL before navigating to prevent infinite reload loops
 - **Event Propagation** - Use `onclick="event.stopPropagation()"` to prevent parent link navigation in interactive components (share buttons, compare, favorites)
+- **XSS Prevention** - Sanitize HTML content with DOMPurify before display; never use innerHTML with user data
 
 ### Client-Side Navigation Pattern
 
@@ -61,6 +62,53 @@ window.location.href = baseUrl;  // Always navigates, even if already there
 - `src/components/listing/listing-filter.astro` - Clear filters button
 - `src/components/listing/sidebar/location-selector.astro` - Province reset
 - `src/pages/[...slug].astro` - Sort dropdown option selection
+
+### XSS Prevention & HTML Sanitization
+
+**Pattern: DOMPurify for User-Generated Content**
+
+Use `isomorphic-dompurify` to prevent XSS attacks when displaying user-generated or dynamic HTML content:
+
+```typescript
+import DOMPurify from 'isomorphic-dompurify';
+
+// Article content from database (may contain user HTML)
+const dirtyHtml = article.content; // e.g., "<p>Safe</p><script>alert('xss')</script>"
+
+// Sanitize to remove dangerous elements
+const cleanHtml = DOMPurify.sanitize(dirtyHtml, {
+  ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'u', 'a', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'],
+  ALLOWED_ATTR: ['href', 'target', 'rel'],
+});
+
+// Safe to render in template
+<article set:html={cleanHtml} />
+```
+
+**When to Sanitize:**
+- Article/news content from database ✅
+- Comment text from users ✅
+- User profile bios/descriptions ✅
+- Rich text editor output ✅
+- Any dynamic HTML insertion ✅
+
+**When NOT to Sanitize:**
+- Static template content ❌
+- Server-side trusted markup ❌
+- Pre-validated/pre-escaped content ❌
+
+**Configuration:**
+- `ALLOWED_TAGS` - HTML tags permitted in output (whitelist approach)
+- `ALLOWED_ATTR` - HTML attributes permitted (href, target, rel only for links)
+- Default: Blocks scripts, styles, event handlers, iframes, base tags
+
+**Applied In:**
+- `src/services/postgres-news-project-service.ts` - News article content sanitization
+- Future: User comments, profile descriptions, rich text areas
+
+**Resources:**
+- DOMPurify Docs: https://github.com/cure53/DOMPurify
+- OWASP XSS Prevention: https://owasp.org/www-community/attacks/xss/
 
 ### File Size Limits
 
@@ -294,7 +342,7 @@ export default function UtilityForm({ config }: Props) {
 
 ## Document Version
 
-- **Version:** 2.4
-- **Last Updated:** 2026-03-05
+- **Version:** 2.5
+- **Last Updated:** 2026-03-06
 - **Structure:** Modular (split into 3 files for maintainability)
-- **Latest Change:** Added utilities patterns - database-first services, hardcoded form configs, API proxy, React form validation
+- **Latest Change:** Added XSS Prevention & HTML Sanitization pattern with DOMPurify usage guidelines for secure article content rendering

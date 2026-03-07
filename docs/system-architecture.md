@@ -1798,6 +1798,7 @@ See detailed V1 schema documentation for deeper analysis:
 
 | Version | Date | Changes |
 |---|---|---|
+| 3.4 | 2026-03-07 | Docs: News sidebar dynamic folder sections (database-driven MenuFolder arrays, N+1 query optimization via batch fetching, empty state handling) |
 | 3.3 | 2026-03-06 | Docs: Added header navigation rendering architecture (desktop cascading menu - Astro recursive component with z-index layering, mobile accordion menu - React recursive component with Set-based state management, accessibility & performance patterns) |
 | 3.2 | 2026-03-05 | Docs: Added maps/network page architecture (office locator, Google Maps integration, hybrid SSG + client-side pattern) |
 | 3.1 | 2026-02-11 | Docs: Added zero results fallback architecture, 3-tier relaxation flow, caching strategy, analytics events, UI patterns |

@@ -51,7 +51,7 @@ tongkho-web/
 │   │   │   └── press-coverage-section.astro # Media mentions
 │   │   ├── news/
 │   │   │   ├── article-share-buttons.astro  # Social share
-│   │   │   └── news-related-articles-sidebar.astro
+│   │   │   └── news-related-articles-sidebar.astro # Dynamic folder sections from DB (95 LOC) [NEW]
 │   │   ├── property/
 │   │   │   ├── property-detail-breadcrumb.astro         # v1-compatible breadcrumb + schema [NEW]
 │   │   │   ├── property-detail-image-gallery-carousel.astro
@@ -95,7 +95,7 @@ tongkho-web/
 │   │   ├── compare-manager.ts               # Compare/wishlist localStorage manager (212 LOC) [Phase 2]
 │   │   └── watched-properties-manager.ts    # Recently viewed properties tracker (247 LOC) [NEW]
 │   ├── services/
-│   │   ├── menu-service.ts                  # Menu generation service (384 LOC) [Phase 4]
+│   │   ├── menu-service.ts                  # Menu generation service (384 LOC) w/ fetchNewsFolders + N+1 optimization [Phase 4]
 │   │   ├── seo/
 │   │   │   ├── types.ts                     # SEO metadata type definitions (140 LOC) [Phase 5]
 │   │   │   ├── seo-metadata-service.ts      # Main orchestration service (226 LOC) [Phase 5]
