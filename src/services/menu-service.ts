@@ -472,7 +472,7 @@ export function getFallbackMenu(): NavItem[] {
     { label: "Mua bán", href: "/mua-ban" },
     { label: "Cho thuê", href: "/cho-thue" },
     { label: "Dự án", href: "/du-an" },
-    { label: "Tin tức", href: "/tin" },
+    { label: "Tin tức", href: "#" },
     { label: "Liên hệ", href: "/lien-he" },
     { label: "Mạng lưới", href: "/maps" },
     { label: "Tiện ích", href: "/tienich" },
