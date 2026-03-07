@@ -392,6 +392,28 @@ body.compare-bar-active {
   @apply text-orange-600;
 }
 
+/* Prose slate content styling */
+.prose-slate h2 {
+  font-size: 24px;
+  line-height: 50px;
+}
+
+.prose-slate p {
+  font-size: 14px;
+}
+
+.prose-slate p img {
+  margin: auto;
+}
+.prose-slate table{
+  width: 100%;
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+}
+.prose-slate table th,
+.prose-slate table td {
+  padding: 8px 12px;
+}
 /* Fade in animation */
 @keyframes fade-in {
   from {
