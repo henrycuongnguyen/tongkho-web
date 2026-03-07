@@ -3,7 +3,7 @@
  * Fetches property data from PostgreSQL database for SSR pages
  */
 import { db } from "@/db";
-import { realEstate, type RealEstateRow } from "@/db/schema";
+import { realEstate, type RealEstateRow, propertyType } from "@/db/schema";
 import { eq, and, ne, desc } from "drizzle-orm";
 import type { Property, PropertyType, TransactionType, LegalDocument } from "@/types/property";
 
@@ -26,8 +26,12 @@ const PROPERTY_TYPE_MAP: Record<number, PropertyType> = {
  */
 export async function getPropertyBySlug(slug: string): Promise<Property | null> {
   const result = await db
-    .select()
+    .select({
+      realEstate: realEstate,
+      propertyTypeName: propertyType.vietnamese,
+    })
     .from(realEstate)
+    .leftJoin(propertyType, eq(realEstate.propertyTypeId, propertyType.id))
     .where(
       and(
         eq(realEstate.slug, slug),
@@ -40,7 +44,7 @@ export async function getPropertyBySlug(slug: string): Promise<Property | null> 
     return null;
   }
 
-  return mapToProperty(result[0]);
+  return mapToProperty(result[0].realEstate, result[0].propertyTypeName);
 }
 
 /**
@@ -52,8 +56,12 @@ export async function getRelatedProperties(
   limit: number = 4
 ): Promise<Property[]> {
   const result = await db
-    .select()
+    .select({
+      realEstate: realEstate,
+      propertyTypeName: propertyType.vietnamese,
+    })
     .from(realEstate)
+    .leftJoin(propertyType, eq(realEstate.propertyTypeId, propertyType.id))
     .where(
       and(
         ne(realEstate.id, Number(excludeId)),
@@ -64,13 +72,13 @@ export async function getRelatedProperties(
     .orderBy(desc(realEstate.createdOn))
     .limit(limit);
 
-  return result.map((row) => mapToProperty(row));
+  return result.map((row) => mapToProperty(row.realEstate, row.propertyTypeName));
 }
 
 /**
  * Map database row to Property interface
  */
-function mapToProperty(row: RealEstateRow): Property {
+function mapToProperty(row: RealEstateRow, propertyTypeName?: string | null): Property {
   // Parse images from JSON string
   let images: string[] = [];
   try {
@@ -114,7 +122,7 @@ function mapToProperty(row: RealEstateRow): Property {
     slug: row.slug || "",
     type: propertyType,
     propertyTypeId: row.propertyTypeId || undefined,
-    propertyTypeName: row.propertyType || undefined,
+    propertyTypeName: propertyTypeName || undefined,
     transactionType,
     price,
     priceUnit,

@@ -45,7 +45,7 @@ const hasHtmlContent = property.htmlContent && property.htmlContent.trim().lengt
 const isLongDescription = property.description.length > 300;
 ---
 
-<section class="bg-white rounded-xl shadow-sm border border-secondary-100 p-6 md:p-8">
+<section class="bg-white rounded-xl shadow-md p-6 md:p-8">
   <!-- Title + Price Row -->
   <div class="flex flex-col md:flex-row md:items-start md:justify-between gap-4 mb-4">
     <!-- Title -->
@@ -130,7 +130,7 @@ const isLongDescription = property.description.length > 300;
   <!-- Property Info Boxes (simplified: Type + Area only) -->
   <div class="grid grid-cols-2 gap-4 mb-6">
     <!-- Property Type Box -->
-    <div class="flex items-center gap-3 p-4 bg-white border border-secondary-200 rounded-lg">
+    <div class="flex items-center gap-3 p-4 bg-secondary-50 rounded-lg">
       <div class="w-10 h-10 rounded-lg bg-orange-50 flex items-center justify-center shrink-0">
         <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
@@ -143,7 +143,7 @@ const isLongDescription = property.description.length > 300;
     </div>
 
     <!-- Area Box -->
-    <div class="flex items-center gap-3 p-4 bg-white border border-secondary-200 rounded-lg">
+    <div class="flex items-center gap-3 p-4 bg-secondary-50 rounded-lg">
       <div class="w-10 h-10 rounded-lg bg-primary-50 flex items-center justify-center shrink-0">
         <svg class="w-5 h-5 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
@@ -182,7 +182,7 @@ const isLongDescription = property.description.length > 300;
 
   <!-- Section Header: Detailed Information -->
   <div class="mb-4">
-    <h2 class="text-xl font-bold text-secondary-800">Thông tin chi tiết:</h2>
+    <h2 class="text-[20px] leading-[50px] font-bold text-secondary-800">Thông tin chi tiết:</h2>
   </div>
 
   <!-- Contact Info Section (v1 style) -->
