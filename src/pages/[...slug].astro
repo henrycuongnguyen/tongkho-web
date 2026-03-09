@@ -394,7 +394,12 @@ const totalPages = Math.ceil(total / pageSize);
 // Helper: Build sort URL preserving current filters
 function buildSortUrl(sortOption: string): string {
   const params = new URLSearchParams(url.searchParams);
-  params.set('sort', sortOption);
+  // 'newest' is the default sort, so omit it from URL to keep URLs clean
+  if (sortOption === 'newest') {
+    params.delete('sort');
+  } else {
+    params.set('sort', sortOption);
+  }
   params.delete('page'); // Reset to page 1 when changing sort
   const query = params.toString();
   return query ? `${url.pathname}?${query}` : url.pathname;
@@ -499,7 +504,7 @@ const priceTrendData = priceHistoryData ? {
         <select
           id="sort"
           class="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-orange-500"
-          onchange="if (window.location.pathname + window.location.search !== this.value) window.location.href = this.value"
+          data-sort-select
         >
           <option value={buildSortUrl('newest')} selected={filters.sort === 'newest'}>Mới nhất</option>
           <option value={buildSortUrl('oldest')} selected={filters.sort === 'oldest'}>Cũ nhất</option>
@@ -553,3 +558,31 @@ const priceTrendData = priceHistoryData ? {
     <SidebarWrapper filters={filters} featuredProjects={featuredProjects} sideBlocks={sideBlocks} priceTrend={priceTrendData} />
   </Fragment>
 </ListingWithSidebarLayout>
+
+<script>
+  // Sort dropdown handler with URL normalization
+  // This prevents reload when switching between /muaban and /muaban?sort=newest
+  const sortSelect = document.querySelector('[data-sort-select]') as HTMLSelectElement;
+  if (sortSelect) {
+    sortSelect.addEventListener('change', (e) => {
+      const targetUrl = (e.target as HTMLSelectElement).value;
+
+      // Normalize URLs by removing sort=newest (since it's the default)
+      const normalizeUrl = (url: string): string => {
+        const urlObj = new URL(url, window.location.origin);
+        if (urlObj.searchParams.get('sort') === 'newest') {
+          urlObj.searchParams.delete('sort');
+        }
+        return urlObj.pathname + (urlObj.search || '');
+      };
+
+      const currentUrl = normalizeUrl(window.location.pathname + window.location.search);
+      const newUrl = normalizeUrl(targetUrl);
+
+      // Only navigate if URLs are actually different after normalization
+      if (currentUrl !== newUrl) {
+        window.location.href = targetUrl;
+      }
+    });
+  }
+</script>
