@@ -58,15 +58,15 @@ const pageDescription = article.excerpt;
     <div class="container-custom py-6">
       <nav class="text-sm">
         <ol class="flex flex-wrap items-center gap-2">
-          <li><a href="/" class="text-primary-600 hover:text-primary-700">Trang chủ</a></li>
+          <li><a href="/" class="text-orange-500 hover:text-orange-600">Trang chủ</a></li>
           {articleFolder && (
             <>
-              <li class="text-primary-600">
+              <li class="text-secondary-400">
                 <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
               </li>
-              <li><a href={`/chuyenmuc/${articleFolder.name}`} class="text-primary-600 hover:text-primary-700">{articleFolder.label || articleFolder.name}</a></li>
+              <li><a href={`/chuyenmuc/${articleFolder.name}`} class="text-orange-500 hover:text-orange-600">{articleFolder.label || articleFolder.name}</a></li>
             </>
           )}
         </ol>
