@@ -154,6 +154,18 @@ const stripProvincePrefix = (name: string): string => {
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
 
+          <!-- Clear button (shown when locations selected) -->
+          <button
+            type="button"
+            class="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-secondary-100 transition-colors hidden"
+            data-clear-locations-btn
+            title="Xóa tất cả địa điểm"
+          >
+            <svg class="w-4 h-4 text-secondary-500 hover:text-secondary-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+
         </div>
       </div>
 
@@ -862,6 +874,21 @@ const stripProvincePrefix = (name: string): string => {
       });
     }
 
+    // Update input placeholder to show selected location count and toggle clear button
+    function updateInputPlaceholder() {
+      if (!districtSearchInput) return;
+
+      const clearBtn = searchBar?.querySelector('[data-clear-locations-btn]') as HTMLButtonElement;
+
+      if (selectedDistricts.length > 0) {
+        districtSearchInput.placeholder = `Đã chọn ${selectedDistricts.length} địa điểm`;
+        clearBtn?.classList.remove('hidden');
+      } else {
+        districtSearchInput.placeholder = "Tìm kiếm theo quận/huyện hoặc từ khóa";
+        clearBtn?.classList.add('hidden');
+      }
+    }
+
     // Render selected districts tags (like screenshot UI)
     function renderSelectedDistrictsTags() {
       console.log('[HorizontalSearchBar] renderSelectedDistrictsTags called', {
@@ -877,6 +904,7 @@ const stripProvincePrefix = (name: string): string => {
 
       if (selectedDistricts.length === 0) {
         selectedDistrictsContainer.style.display = 'none';
+        updateInputPlaceholder(); // Update placeholder when no locations
         return;
       }
 
@@ -900,6 +928,9 @@ const stripProvincePrefix = (name: string): string => {
           </button>
         </div>
       `).join('');
+
+      // Update placeholder to show count
+      updateInputPlaceholder();
 
       // Attach remove handlers
       selectedDistrictsTags.querySelectorAll('[data-remove-district]').forEach(btn => {
@@ -934,6 +965,31 @@ const stripProvincePrefix = (name: string): string => {
     clearAllDistrictsBtn?.addEventListener('click', () => {
       selectedDistricts.length = 0;
       renderSelectedDistrictsTags();
+      // Update all button states
+      const buttons = districtListContainer?.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
+      buttons?.forEach(button => {
+        button.dataset.selected = 'false';
+        button.className = 'flex items-center gap-2 py-2.5 px-3 rounded-lg hover:bg-secondary-50 border border-transparent cursor-pointer transition-all group';
+        const icon = button.querySelector('svg');
+        const text = button.querySelector('span');
+        if (icon) icon.setAttribute('class', 'w-4 h-4 shrink-0 text-secondary-400 group-hover:text-primary-500');
+        if (text) text.className = 'text-sm text-secondary-700 group-hover:text-secondary-900 truncate';
+      });
+
+      // Auto-submit search after clearing all districts
+      const searchSubmit = searchBar?.querySelector('[data-search-submit]') as HTMLButtonElement;
+      searchSubmit?.click();
+    });
+
+    // Clear locations button on input (X icon)
+    const clearLocationsBtn = searchBar?.querySelector('[data-clear-locations-btn]') as HTMLButtonElement;
+    clearLocationsBtn?.addEventListener('click', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      selectedDistricts.length = 0;
+      renderSelectedDistrictsTags();
+
       // Update all button states
       const buttons = districtListContainer?.querySelectorAll('[data-district-toggle]') as NodeListOf<HTMLButtonElement>;
       buttons?.forEach(button => {
